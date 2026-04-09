@@ -15,14 +15,370 @@ const dummyLeaderboard = [
   // ======================
   // Basic configuration
   // ======================
-const API_BASE = (function() {
-  // If running on Vercel production domain, use your Render backend
-  if (location.hostname === "samarpan-quiz.vercel.app") {
-    return "https://samarpan-9rt8.onrender.com";
+  const API_BASE = (function() {
+    // If running on Vercel production domain, use your Render backend
+    if (location.hostname === "samarpan-quiz.vercel.app") {
+      return "https://samarpan-9rt8.onrender.com";
+    }
+    // fallback to localhost (dev)
+    return "http://127.0.0.1:5000";
+  })();
+
+  // ======================
+  // Real-time (Socket.io)
+  // ======================
+  const socket = io(API_BASE);
+  let currentRoomPin = null;
+  let isHost = false; 
+
+  socket.on("connect", () => {
+    console.log("Connected to Samarpan real-time server");
+  });
+
+  socket.on("user_joined", (data) => {
+    console.log("Room players update:", data.players);
+    renderPlayerList(data.players);
+  });
+
+  socket.on("player_list_update", (data) => {
+    renderPlayerList(data.players);
+  });
+
+  socket.on("kicked", (data) => {
+    alert(data.message || "You were kicked from the lobby.");
+    showView("dashboard");
+    currentRoomPin = null;
+    isHost = false;
+  });
+
+  socket.on("next_question", (data) => {
+    console.log("Host triggered next question:", data.index);
+    playerIndex = data.index;
+    
+    // Hide leaderboard if visible
+    const lb = document.getElementById("liveLeaderboardOverlay");
+    if (lb) lb.style.display = "none";
+
+    // Reset host stats if host
+    const statsContainer = document.getElementById("hostStatsContainer");
+    if (statsContainer) statsContainer.innerHTML = "";
+    
+    renderPlayerQuestion();
+  });
+
+  socket.on("stats_update", (data) => {
+    if (!isHost) return;
+    const statsContainer = document.getElementById("hostStatsContainer");
+    if (!statsContainer) return;
+
+    const total = data.stats.reduce((a, b) => a + b, 0);
+    statsContainer.innerHTML = `<p style="font-size:0.8rem; color:#9ca3af; margin-bottom:5px;">Responses: ${total}</p>` + 
+      data.stats.map((count, i) => `
+      <div style="height:8px; background:#1f2937; border-radius:4px; margin-bottom:4px; overflow:hidden;">
+        <div style="width:${total > 0 ? (count/total)*100 : 0}%; height:100%; background:var(--accent-neon); transition:width 0.3s ease;"></div>
+      </div>
+    `).join("");
+  });
+
+  socket.on("sync_leaderboard", (data) => {
+    const lb = document.getElementById("liveLeaderboardOverlay");
+    if (!lb) return;
+    
+    if (data.visible) {
+      const list = document.getElementById("liveLeaderboardList");
+      if (list) {
+        list.innerHTML = data.leaderboard
+          .map((p, i) => `<li><span>${i+1}. ${p.name}</span><strong>${p.score}</strong></li>`)
+          .join("");
+      }
+      lb.style.display = "flex";
+    } else {
+      lb.style.display = "none";
+    }
+  });
+
+  socket.on("game_started", () => {
+    console.log("Game is starting for everyone!");
+  });
+
+  // ======================
+  // Shared Hosting Logic
+  // ======================
+
+    function renderPlayerList(players) {
+      const grid = document.getElementById("lobbyPlayerGrid");
+      const countEl = document.getElementById("playerCount");
+      const btnStart = document.getElementById("btnStartGame");
+
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const playerEntries = Object.entries(players);
+      if (playerEntries.length === 0) {
+        grid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
+      }
+
+      playerEntries.forEach(([id, p]) => {
+        const bubble = document.createElement("div");
+        bubble.className = "player-bubble";
+        bubble.style.position = "relative";
+        bubble.textContent = p.name;
+
+        // If I am the host, I can moderate others
+        if (isHost && id !== socket.id) {
+          const modOverlay = document.createElement("div");
+          modOverlay.style.cssText = "position:absolute; top:-10px; right:-10px; display:flex; gap:4px;";
+          
+          const kickBtn = document.createElement("span");
+          kickBtn.textContent = "✖";
+          kickBtn.title = "Kick player";
+          kickBtn.style.cssText = "cursor:pointer; background:#ef4444; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; border:1px solid #000;";
+          kickBtn.onclick = (e) => {
+            e.stopPropagation();
+            window.kickPlayer(id);
+          };
+
+          const banBtn = document.createElement("span");
+          banBtn.textContent = "🚫";
+          banBtn.title = "Ban player";
+          banBtn.style.cssText = "cursor:pointer; background:var(--accent-red); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; border:1px solid #000;";
+          banBtn.onclick = (e) => {
+            e.stopPropagation();
+            window.banPlayer(id, p.name);
+          };
+
+          modOverlay.appendChild(kickBtn);
+          modOverlay.appendChild(banBtn);
+          bubble.appendChild(modOverlay);
+        }
+        grid.appendChild(bubble);
+      });
+
+      if (countEl) countEl.textContent = playerEntries.length;
+      if (btnStart) btnStart.disabled = playerEntries.length === 0;
+    }
+
+    // Global moderation functions
+    window.kickPlayer = (id) => {
+      socket.emit("host_kick", { pin: currentRoomPin, playerId: id });
+    };
+    window.banPlayer = (id, name) => {
+      if(confirm(`Permanently ban ${name}?`)) {
+        socket.emit("host_ban", { pin: currentRoomPin, playerId: id, name });
+      }
+    };
+
+    // ======================
+    // Shared Quiz/Battle Handlers (Moved to Top-Level)
+    // ======================
+    
+    // Join Battle Button
+    const btnBattleJoin = document.getElementById("btnBattleJoin");
+    if (btnBattleJoin) {
+      btnBattleJoin.addEventListener("click", () => {
+        const pin = document.getElementById("battleJoinPin")?.value.trim() || "";
+        const name = document.getElementById("battleJoinName")?.value.trim() || "";
+
+        if (!pin || !name) {
+          alert("Please enter both the Battle PIN and your Name.");
+          return;
+        }
+
+        console.log(">>> JOIN ATTEMPT:", { pin, name });
+        
+        // Emit join event via global socket
+        socket.emit("join_room", { pin, name });
+
+        // Transition to lobby (player view)
+        setupPlayerLobby(pin, name);
+      });
+    }
+
+    // Lobby: Start Game Button (Host ONLY)
+    const btnStartGame = document.getElementById("btnStartGame");
+    if (btnStartGame) {
+      btnStartGame.addEventListener("click", () => {
+        if (!currentRoomPin) {
+          alert("No active session found.");
+          return;
+        }
+        console.log(">>> HOST STARTING GAME:", currentRoomPin);
+        socket.emit("start_game", currentRoomPin);
+      });
+    }
+
+    // Socket: Game Started (Global Listener)
+    socket.on("game_started", async () => {
+      console.log(">>> RECEIVED GAME_STARTED FOR PIN:", currentRoomPin);
+      if (!currentRoomPin) return;
+
+      try {
+        // Fetch the session data first to get the quiz questions
+        const resp = await fetch(`${API_BASE}/api/host/session/${currentRoomPin}`);
+        if (!resp.ok) throw new Error("Could not load session data");
+        const session = await resp.json();
+        
+        if (session && session.quiz) {
+          console.log(">>> STARTING QUIZ PLAYER FOR SESSION:", session._id);
+          startQuizPlayer(session.quiz);
+        } else {
+          alert("Error: Quiz data missing in session.");
+        }
+      } catch (err) {
+        console.error("Failed to transition to game:", err);
+        alert("Wait... something went wrong while starting the game.");
+      }
+    });
+
+    // Host Battle Button
+    const btnBattleHost = document.getElementById("btnBattleHost");
+    if (btnBattleHost) {
+      btnBattleHost.addEventListener("click", async () => {
+        if (!requireLogin("Please log in to host a battle.")) return;
+        const user = getCurrentUser();
+        const selectQuiz = document.getElementById("battle-quiz");
+        const statusEl = document.getElementById("battleStatus");
+        
+        if (!selectQuiz || !selectQuiz.value) {
+          alert("Please select a quiz first.");
+          return;
+        }
+
+        const userKeyPart = user.userId || user._id || user.email;
+        let key = selectQuiz.value === "manual-last" 
+          ? `samarpanLastManualQuiz_${userKeyPart}` 
+          : `samarpanLastAIQuiz_${userKeyPart}`;
+        
+        const raw = localStorage.getItem(key);
+        const quiz = raw && safeParse(raw, null);
+        
+        // Validation: Ensure the quiz actually exists and has been saved to the database
+        const quizId = quiz && (quiz._id || quiz.quizId);
+
+        if (!quizId || String(quizId).length < 20) {
+          console.warn("Attempted to host unsaved/invalid quiz:", { key, quizId });
+          alert("This quiz isn't saved to your account yet. Please go to the Creator section, 'Save' your manual quiz, and then try hosting it!");
+          return;
+        }
+
+        try {
+          if (statusEl) statusEl.textContent = "Creating battle...";
+          const res = await fetch(`${API_BASE}/api/host/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              quizId,
+              hostEmail: user.email,
+              mode: "battle",
+              battleType: document.getElementById("battle-type")?.value || "2v2",
+              timerSeconds: document.getElementById("battle-timer")?.value || 30,
+              rated: document.getElementById("battle-rated")?.value === "rated"
+            }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            isHost = true; // I created it, I am host
+            setupHostLobby(data.pin);
+          } else {
+            alert("Host Error: " + (data.error || "Failed to start"));
+          }
+        } catch (err) {
+          console.error("Host fetch error:", err);
+          alert("Network error while hosting.");
+        }
+      });
+    }
+
+    // Host Quiz Button (from Host View)
+    const btnHostStart = document.getElementById("btnHostStart");
+    if (btnHostStart) {
+      btnHostStart.addEventListener("click", async () => {
+        const user = getCurrentUser();
+        if (!user) return;
+        const selectQuiz = document.getElementById("host-quiz");
+        const statusEl = document.getElementById("hostStatus");
+
+        if (!selectQuiz || !selectQuiz.value) {
+          alert("Select a quiz first.");
+          return;
+        }
+
+        // Similar logic to Battle Host, consolidated here
+        const userKeyPart = user.userId || user._id || user.email;
+        let key = selectQuiz.value === "manual-last" 
+          ? `samarpanLastManualQuiz_${userKeyPart}` 
+          : `samarpanLastAIQuiz_${userKeyPart}`;
+        
+        const raw = localStorage.getItem(key);
+        const quiz = raw && safeParse(raw, null);
+        const quizId = quiz && (quiz._id || quiz.quizId);
+
+        if (!quizId || String(quizId).length < 20) {
+          alert("Quiz not found in our database. If you manually created this quiz, please 'Save' it first!");
+          return;
+        }
+
+        try {
+          if (statusEl) statusEl.textContent = "Starting session...";
+          const res = await fetch(`${API_BASE}/api/host/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              quizId, hostEmail: user.email, mode: "quiz"
+            })
+          });
+          const data = await res.json();
+          if (res.ok) setupHostLobby(data.pin);
+          else alert(data.error || "Start failed");
+        } catch (err) { console.error(err); alert("Network error"); }
+      });
+    }
+
+  function setupHostLobby(pin) {
+    console.log("Setting up host lobby for PIN:", pin);
+    currentRoomPin = pin;
+    const lobbyPinDisplay = document.getElementById("lobbyPinDisplay");
+    const lobbyPlayerGrid = document.getElementById("lobbyPlayerGrid");
+    const playerCount = document.getElementById("playerCount");
+    const btnStart = document.getElementById("btnStartGame");
+
+    if (lobbyPinDisplay) lobbyPinDisplay.textContent = pin;
+    if (lobbyPlayerGrid) {
+      lobbyPlayerGrid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
+    }
+    if (playerCount) playerCount.textContent = "0";
+    if (btnStart) {
+      btnStart.disabled = true;
+      btnStart.style.display = "block"; // Ensure it shows for host
+    }
+
+    // Join the room as host
+    socket.emit("join_room", { pin, name: "Host" });
+
+    showView("lobby");
   }
-  // fallback to localhost (dev)
-  return "http://localhost:5000";
-})();
+
+  function setupPlayerLobby(pin, name) {
+    console.log("Setting up player lobby for PIN:", pin, "as", name);
+    currentRoomPin = pin; // CRITICAL: store the pin so we can transition when game starts
+    const lobbyPinDisplay = document.getElementById("lobbyPinDisplay");
+    const lobbyPlayerGrid = document.getElementById("lobbyPlayerGrid");
+    const playerCount = document.getElementById("playerCount");
+    const btnStart = document.getElementById("btnStartGame");
+    const lobbyTitle = document.querySelector(".lobby-title");
+
+    if (lobbyTitle) lobbyTitle.textContent = "Waiting for Host...";
+    if (lobbyPinDisplay) lobbyPinDisplay.textContent = pin;
+    if (lobbyPlayerGrid) {
+      lobbyPlayerGrid.innerHTML = `<div class="player-bubble">${name} (You)</div>`;
+    }
+    if (playerCount) playerCount.textContent = "1";
+    
+    // Players cannot start the game
+    if (btnStart) btnStart.style.display = "none";
+
+    showView("lobby");
+  }
 
 
 
@@ -108,10 +464,22 @@ function loadDummyLeaderboard() {
     const next = document.getElementById(viewId);
     const views = Array.from(document.querySelectorAll(".view"));
 
+    // Save to sessionStorage to preserve view across page reloads
+    sessionStorage.setItem("samarpanCurrentView", name.replace(/^view-/, ""));
+
     // Hide all views
     views.forEach((v) => {
       v.classList.remove("view-active", "view-anim-in");
     });
+
+    // Diagnostic Logging to UI (Temporary)
+    const dbg = document.getElementById("debugConsole");
+    if (dbg) {
+      const line = document.createElement("div");
+      line.textContent = `> showView: ${name} (ID: ${viewId}) - Found: ${!!next}`;
+      dbg.prepend(line);
+      if (dbg.childNodes.length > 5) dbg.removeChild(dbg.lastChild);
+    }
 
     // Show selected view + entry animation
     if (next) {
@@ -119,6 +487,7 @@ function loadDummyLeaderboard() {
       void next.offsetWidth; // force reflow so animation restarts
       next.classList.add("view-anim-in");
     } else if (views[0]) {
+      console.warn(`View ID ${viewId} not found, falling back to ${views[0].id}`);
       views[0].classList.add("view-active");
     }
 
@@ -192,11 +561,14 @@ function loadDummyLeaderboard() {
     const authBtnTop = document.getElementById("btnAuthTop");
     const btnLogout = document.getElementById("btnLogout");
 
+    const profileDropdownWrapper = document.getElementById("profileDropdownWrapper");
+
     const displayName = (user && (user.name || user.email)) || "User";
     const firstLetter = displayName.charAt(0).toUpperCase();
 
-    if (sidebarName) sidebarName.textContent = displayName;
-    if (sidebarRole) sidebarRole.textContent = user ? "Logged in" : "Host";
+    // Update all occurrences of user-name and user-role (e.g. in dropdown)
+    document.querySelectorAll(".user-name").forEach(el => el.textContent = displayName);
+    document.querySelectorAll(".user-role").forEach(el => el.textContent = user ? "Logged in" : "Host");
 
     if (avatarTop) {
       if (user && user.avatar) {
@@ -208,16 +580,15 @@ function loadDummyLeaderboard() {
 
     if (authBtnTop) {
       if (user) {
-        authBtnTop.textContent = "Profile";
-        authBtnTop.classList.add("top-btn-loggedin");
+        authBtnTop.style.display = "none";
       } else {
+        authBtnTop.style.display = "inline-flex";
         authBtnTop.textContent = "Sign up / Log in";
-        authBtnTop.classList.remove("top-btn-loggedin");
       }
     }
 
-    if (btnLogout) {
-      btnLogout.style.display = user ? "inline-flex" : "none";
+    if (profileDropdownWrapper) {
+      profileDropdownWrapper.style.display = user ? "inline-block" : "none";
     }
 
     // ---- PROFILE VIEW DATA ----
@@ -297,6 +668,8 @@ function loadDummyLeaderboard() {
   let playerCorrect = 0;
   let playerStartTime = 0;
   let playerQuestionStart = 0;
+  let playerTimeLeft = 30;
+  let playerInterval = null;
 
   function getPlayerEls() {
     return {
@@ -330,6 +703,8 @@ function loadDummyLeaderboard() {
     playerCorrect = 0;
     playerStartTime = Date.now();
     playerQuestionStart = Date.now();
+    playerTimeLeft = 30; // Default or from session metadata
+    if (playerInterval) clearInterval(playerInterval);
 
     if (els.title) els.title.textContent = quiz.title || "Quiz player";
     if (els.subtitle) {
@@ -341,8 +716,75 @@ function loadDummyLeaderboard() {
     if (els.resultCard) els.resultCard.style.display = "none";
     if (els.mainCard) els.mainCard.style.display = "block";
 
+    // Inject Host HUD if I am the host
+    setupHostHUD();
+
     renderPlayerQuestion();
     showView("player");
+  }
+
+  function setupHostHUD() {
+    const playerContainer = document.querySelector(".view-player-container") || document.getElementById("view-player");
+    if (!playerContainer) return;
+
+    // Remove old Hud if exists
+    document.getElementById("hostControlHUD")?.remove();
+    document.getElementById("liveLeaderboardOverlay")?.remove();
+
+    // Create Leaderboard Overlay
+    const lbOverlay = document.createElement("div");
+    lbOverlay.id = "liveLeaderboardOverlay";
+    lbOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; padding:2rem;";
+    lbOverlay.innerHTML = `
+      <h2 style="color:var(--accent-neon); margin-bottom:1rem; text-shadow: var(--neon-glow);">LIVE RANKINGS</h2>
+      <ul id="liveLeaderboardList" style="list-style:none; padding:0; width:100%; max-width:400px; color:#fff;"></ul>
+      <p style="margin-top:2rem; color:#9ca3af; font-size:0.8rem;">Waiting for host to continue...</p>
+    `;
+    document.body.appendChild(lbOverlay);
+
+    if (!isHost) return;
+
+    // Create HUD for host
+    const hud = document.createElement("div");
+    hud.id = "hostControlHUD";
+    hud.style.cssText = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--card-bg); border:1px solid var(--accent-neon); border-radius:12px; padding:1rem; display:flex; gap:10px; z-index:10000; box-shadow: var(--neon-glow);";
+    
+    const btnNext = document.createElement("button");
+    btnNext.className = "btn btn-primary";
+    btnNext.textContent = "Push Next Question";
+    btnNext.onclick = () => socket.emit("host_next", currentRoomPin);
+
+    const btnLB = document.createElement("button");
+    btnLB.className = "btn btn-outline";
+    btnLB.textContent = "Toggle Leaderboard";
+    let lbVisible = false;
+    btnLB.onclick = () => {
+      lbVisible = !lbVisible;
+      socket.emit("host_leaderboard", { pin: currentRoomPin, visible: lbVisible });
+    };
+
+    const btnEnd = document.createElement("button");
+    btnEnd.className = "btn btn-text-only";
+    btnEnd.textContent = "End Session";
+    btnEnd.onclick = () => { if(confirm("End for all?")) showView("dashboard"); };
+
+    hud.appendChild(btnNext);
+    hud.appendChild(btnLB);
+    hud.appendChild(btnEnd);
+
+    const timerHUD = document.createElement("div");
+    timerHUD.id = "hostTimerHUD";
+    timerHUD.style.cssText = "margin-left:15px; padding-left:15px; border-left:1px solid #374151; display:flex; align-items:center; color:var(--accent-neon); font-family:monospace; font-weight:bold; font-size:1.2rem;";
+    timerHUD.textContent = "30s";
+    
+    const statsArea = document.createElement("div");
+    statsArea.id = "hostStatsContainer";
+    statsArea.style.cssText = "margin-left:15px; min-width:120px; display:flex; flex-direction:column; justify-content:center;";
+
+    hud.appendChild(timerHUD);
+    hud.appendChild(statsArea);
+
+    document.body.appendChild(hud);
   }
 
   function renderPlayerQuestion() {
@@ -350,7 +792,10 @@ function loadDummyLeaderboard() {
     if (!playerQuiz || !playerQuiz.questions) return;
 
     const q = playerQuiz.questions[playerIndex];
-    if (!q) return;
+    if (!q) {
+       finishPlayerQuiz();
+       return;
+    }
 
     if (els.progress) {
       els.progress.textContent = `Question ${playerIndex + 1} / ${
@@ -375,13 +820,53 @@ function loadDummyLeaderboard() {
 
     if (els.nextBtn) {
       els.nextBtn.disabled = true;
-      els.nextBtn.textContent =
-        playerIndex === playerQuiz.questions.length - 1
-          ? "Finish quiz"
-          : "Next question";
+      if (currentRoomPin) {
+        els.nextBtn.textContent = "Waiting for next question...";
+        els.nextBtn.style.display = isHost ? "none" : "block"; 
+      } else {
+        els.nextBtn.textContent = playerIndex === playerQuiz.questions.length - 1 ? "Finish quiz" : "Next question";
+      }
     }
 
     playerQuestionStart = Date.now();
+    playerTimeLeft = 30; // 30s per question
+    startQuestionTimer();
+  }
+
+  function startQuestionTimer() {
+    const els = getPlayerEls();
+    if (playerInterval) clearInterval(playerInterval);
+    
+    updateTimerUI();
+    playerInterval = setInterval(() => {
+      playerTimeLeft--;
+      updateTimerUI();
+      if (playerTimeLeft <= 0) {
+        clearInterval(playerInterval);
+        
+        // AUTO-SKIP LOGIC: If I am host, I push everyone forward
+        if (isHost && currentRoomPin) {
+           console.log("Timer expired, host pushing next question automatically");
+           socket.emit("host_next", currentRoomPin);
+        } else {
+           handlePlayerAnswer(-1); // Lock for participants
+        }
+      }
+    }, 1000);
+  }
+
+  function updateTimerUI() {
+    const els = getPlayerEls();
+    if (els.timer) {
+      els.timer.textContent = `${playerTimeLeft}s`;
+      els.timer.style.color = playerTimeLeft < 10 ? "#ef4444" : "#e5e7eb";
+    }
+    // Update Host HUD timer if exists
+    const hTimer = document.getElementById("hostTimerHUD");
+    if (hTimer) {
+      hTimer.textContent = `${playerTimeLeft}s`;
+      hTimer.style.color = playerTimeLeft < 10 ? "#ef4444" : "var(--accent-neon)";
+    }
   }
 
   function handlePlayerAnswer(idx) {
@@ -391,33 +876,64 @@ function loadDummyLeaderboard() {
 
     const buttons = els.options?.querySelectorAll("button");
     buttons?.forEach((b, i) => {
-      b.disabled = true;
-      if (i === q.correctIndex) {
-        b.classList.add("btn-correct");
-      }
-      if (i === idx && i !== q.correctIndex) {
-        b.classList.add("btn-wrong");
+      // In room mode, we DON'T disable immediately to allow re-selection
+      if (!currentRoomPin) b.disabled = true;
+      else b.classList.remove("btn-selected"); // clear previous selection visually
+      
+      // BLIND MODE: If in a room, don't show right/wrong immediately
+      if (currentRoomPin) {
+        if (i === idx) {
+           b.classList.add("btn-selected"); // Just highlight what was picked
+        }
+      } else {
+        // Classic mode: show right/wrong
+        if (i === q.correctIndex) b.classList.add("btn-correct");
+        if (i === idx && i !== q.correctIndex) b.classList.add("btn-wrong");
       }
     });
+
+    if (playerInterval && !currentRoomPin) clearInterval(playerInterval);
 
     const timeForThis = (Date.now() - playerQuestionStart) / 1000;
     q._timeTakenSec = timeForThis;
 
     if (idx === q.correctIndex) {
       playerCorrect++;
-      if (els.status) els.status.textContent = "Correct!";
-    } else {
-      if (els.status) {
-        els.status.textContent =
-          "Incorrect. Correct option: " + (q.options[q.correctIndex] || "");
-      }
     }
 
-    if (els.nextBtn) els.nextBtn.disabled = false;
+    // Classic mode text feedback
+    if (!currentRoomPin && els.status) {
+       if (idx === q.correctIndex) {
+         els.status.textContent = "Correct!";
+       } else {
+         els.status.textContent = "Incorrect. Correct option: " + (q.options[q.correctIndex] || "");
+       }
+    }
+
+    if (isHost || !currentRoomPin) {
+      if (els.nextBtn) els.nextBtn.disabled = false;
+    } else {
+      // Participant: change text to confirm save
+      if (els.nextBtn) els.nextBtn.textContent = "Submission Saved! Waiting...";
+    }
+
+    // Submit answer to server if in a room
+    if (currentRoomPin) {
+      socket.emit("submit_answer", { 
+        pin: currentRoomPin, 
+        isCorrect: idx === q.correctIndex, 
+        timeTaken: timeForThis,
+        optionIdx: idx
+      });
+    }
   }
 
   function finishPlayerQuiz() {
     const els = getPlayerEls();
+    if (playerInterval) clearInterval(playerInterval);
+    document.getElementById("hostControlHUD")?.remove();
+    document.getElementById("hostTimerHUD")?.remove();
+    
     if (!playerQuiz || !playerQuiz.questions) return;
 
     const totalQ = playerQuiz.questions.length;
@@ -434,9 +950,33 @@ function loadDummyLeaderboard() {
       )}s • Avg per question ${avgTime.toFixed(1)}s.`;
     }
 
+    // If participant in room, don't show result card, show waiting screen
+    if (currentRoomPin && !isHost) {
+      if (els.mainCard) {
+        els.mainCard.innerHTML = `
+          <div style="text-align:center; padding:3rem;">
+            <h2 style="color:var(--accent-neon); text-shadow: var(--neon-glow);">QUIZ FINISHED!</h2>
+            <div style="font-size: 1.2rem; margin: 1.5rem 0; color: #e5e7eb;">
+               Submissions closed. Waiting for the host to reveal the final results...
+            </div>
+            <p style="color:#9ca3af; font-size: 0.9rem;">Your response tally has been sent to the dashboard.</p>
+            <div style="margin-top: 3rem; display: flex; gap: 10px; justify-content: center;">
+               <button class="btn btn-outline" onclick="location.reload()">Back to Home</button>
+            </div>
+          </div>
+        `;
+      }
+      return;
+    }
+
     if (els.mainCard) els.mainCard.style.display = "block";
     if (els.resultCard) els.resultCard.style.display = "block";
     if (els.mainCard) els.mainCard.style.display = "none";
+
+    // Host sees the final session results
+    if (isHost && currentRoomPin) {
+       socket.emit("host_leaderboard", { pin: currentRoomPin, visible: true });
+    }
   }
 
   // ================================
@@ -587,19 +1127,9 @@ function loadDummyLeaderboard() {
   // Event bindings
   // ======================
   function attachHandlers() {
-    // Sidebar open/close on small screens
+    // Sidebar is removed, but keeping a placeholder container logic if needed
     (function () {
-      const sidebar = document.querySelector(".sidebar");
-      const sidebarToggle = document.getElementById("sidebarToggle");
-      const main = document.querySelector(".main");
-      if (sidebar && sidebarToggle) {
-        sidebarToggle.addEventListener("click", () =>
-          sidebar.classList.toggle("open")
-        );
-      }
-      if (main && sidebar) {
-        main.addEventListener("click", () => sidebar.classList.remove("open"));
-      }
+      // Sidebar toggle no longer needed
     })();
 
     // All buttons/links having data-view attribute
@@ -618,10 +1148,10 @@ function loadDummyLeaderboard() {
 
           showView(view);
 
-          // Sidebar active state
-          if (el.classList.contains("side-link")) {
+          // Navigation active state
+          if (el.classList.contains("top-link")) {
             document
-              .querySelectorAll(".side-link")
+              .querySelectorAll(".top-link")
               .forEach((b) => b.classList.remove("active"));
             el.classList.add("active");
           }
@@ -840,32 +1370,99 @@ function loadDummyLeaderboard() {
     // ======================
     (function () {
       const aiGenerateBtn = document.getElementById("aiGenerateBtn");
+      const pdfUploadBtn = document.getElementById("pdfUploadBtn");
+      const pdfUploadInput = document.getElementById("pdfUploadInput");
       const aiStatus = document.getElementById("aiStatus");
       const aiPlayBtn = document.getElementById("aiPlayBtn");
+      const aiTopicInput = document.getElementById("aiTopic");
+      const pdfFileIndicator = document.getElementById("pdfFileIndicator");
+      
+      let selectedPdfFile = null;
+
       if (!aiGenerateBtn) return;
 
+      // Handle PDF Upload Button Click (File selection only)
+      if (pdfUploadBtn && pdfUploadInput) {
+        pdfUploadBtn.addEventListener("click", () => {
+          if (!requireLogin("Please log in to upload PDFs.")) return;
+          pdfUploadInput.click();
+        });
+
+        pdfUploadInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) {
+            selectedPdfFile = null;
+            if (pdfFileIndicator) pdfFileIndicator.style.display = "none";
+            return;
+          }
+
+          if (file.size > 5 * 1024 * 1024) {
+            alert("File too large. Max size is 5MB.");
+            pdfUploadInput.value = "";
+            return;
+          }
+
+          selectedPdfFile = file;
+          
+          if (pdfFileIndicator) {
+            pdfFileIndicator.textContent = `File uploaded successfully!! (${file.name})`;
+            pdfFileIndicator.style.display = "block";
+          }
+          if (aiTopicInput && !aiTopicInput.value) {
+            aiTopicInput.value = file.name.replace(".pdf", "");
+          }
+        });
+      }
+
+      // Handle "Create using AI" (Supports both Topic and PDF)
       aiGenerateBtn.addEventListener("click", async () => {
         if (!requireLogin("Please log in to generate AI quizzes.")) return;
 
         const currentUser = getCurrentUser();
         const titleRaw = document.getElementById("aiTitle")?.value.trim();
         const topic = document.getElementById("aiTopic")?.value.trim();
-        const difficulty =
-          document.getElementById("aiDifficulty")?.value || "medium";
-        const questionCount =
-          Number(document.getElementById("aiCount")?.value) || 5;
-        const title = titleRaw || "AI Quiz";
+        const difficulty = document.getElementById("aiDifficulty")?.value || "medium";
+        const questionCount = Number(document.getElementById("aiCount")?.value) || 5;
+        const title = titleRaw || (selectedPdfFile ? "AI PDF Quiz" : "AI Quiz");
 
-        if (!topic) {
-          showStatusText(
-            aiStatus,
-            "Please enter a topic for the quiz.",
-            "#b91c1c"
-          );
+        if (!topic && !selectedPdfFile) {
+          showStatusText(aiStatus, "Please enter a topic or upload a PDF.", "#b91c1c");
           return;
         }
-        showStatusText(aiStatus, "Generating AI quiz...", "#4b5563");
 
+        // --- PATH 1: GENERATE FROM PDF ---
+        if (selectedPdfFile) {
+          showStatusText(aiStatus, `Reading ${selectedPdfFile.name} & generating quiz...`, "#4b5563");
+
+          const formData = new FormData();
+          formData.append("title", title);
+          formData.append("difficulty", difficulty);
+          formData.append("count", questionCount);
+          formData.append("userId", currentUser?.userId || currentUser?._id || currentUser?.email);
+          formData.append("pdf", selectedPdfFile);
+
+          try {
+            const res = await fetch(`${API_BASE}/api/ai/generate-from-pdf`, {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await res.json();
+            handleAIResponse(data);
+            
+            // Clean up UI after success
+            selectedPdfFile = null;
+            pdfUploadInput.value = "";
+            if (pdfFileIndicator) pdfFileIndicator.style.display = "none";
+          } catch (err) {
+            console.error("PDF AI Quiz Error:", err);
+            showStatusText(aiStatus, "Network error while processing PDF.", "#b91c1c");
+          }
+          return;
+        }
+
+        // --- PATH 2: GENERATE FROM TOPIC ---
+        showStatusText(aiStatus, "Generating AI quiz...", "#4b5563");
         try {
           const res = await fetch(`${API_BASE}/api/ai/generate-quiz`, {
             method: "POST",
@@ -875,55 +1472,103 @@ function loadDummyLeaderboard() {
               topic,
               difficulty,
               count: questionCount,
-              userId:
-                currentUser?.userId ||
-                currentUser?._id ||
-                currentUser?.email,
+              userId: currentUser?.userId || currentUser?._id || currentUser?.email,
               tags: [topic.toLowerCase()],
             }),
           });
 
           const data = await res.json();
-          if (!res.ok) {
-            showStatusText(
-              aiStatus,
-              data.error || "AI quiz generation failed.",
-              "#b91c1c"
-            );
-            return;
-          }
+          handleAIResponse(data);
+        } catch (err) {
+          console.error("AI Quiz Error:", err);
+          showStatusText(aiStatus, "Network error while generating quiz.", "#b91c1c");
+        }
+      });
 
-          // Save quiz in localStorage per user
-          if (data.quiz) {
-            const u = getCurrentUser && getCurrentUser();
-            const keyPart =
-              (u && (u.userId || u._id || u.email)) || "guest";
-            const storageKey = `samarpanLastAIQuiz_${keyPart}`;
-            localStorage.setItem(storageKey, JSON.stringify(data.quiz));
-          }
+      // Voice Input Setup
+      const voiceInputBtn = document.getElementById("voiceInputBtn");
+      const micIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--text-soft);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" /></svg>`;
+      const recordingSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" /><circle cx="18" cy="6" r="3" fill="#ef4444" /></svg>`;
 
-          showStatusText(
-            aiStatus,
-            "AI quiz generated successfully!",
-            "#16a34a"
-          );
+      if (voiceInputBtn && aiTopicInput) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = 'en-US';
+
+          recognition.onstart = () => {
+            voiceInputBtn.innerHTML = recordingSvg;
+            voiceInputBtn.title = 'Listening...';
+          };
+
+          recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            aiTopicInput.value = transcript;
+            
+            // Revert state
+            voiceInputBtn.innerHTML = micIconSvg;
+            voiceInputBtn.title = 'Use voice to input topic';
+            
+            // Clear any staged PDF if they use voice
+            selectedPdfFile = null;
+            if (document.getElementById("pdfFileIndicator")) {
+              document.getElementById("pdfFileIndicator").style.display = "none";
+            }
+          };
+
+          recognition.onerror = (event) => {
+            console.error(event.error);
+            alert("Voice recognition error: " + event.error);
+            voiceInputBtn.innerHTML = micIconSvg;
+          };
+
+          recognition.onend = () => {
+            voiceInputBtn.innerHTML = micIconSvg;
+            voiceInputBtn.title = 'Use voice to input topic';
+          };
+
+          voiceInputBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            try {
+              recognition.start();
+            } catch (err) {
+              console.warn("Recognition already started");
+            }
+          });
+        } else {
+          voiceInputBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            alert("Your browser does not support Voice Recognition. Please use Chrome or Edge.");
+          });
+        }
+      }
+
+      // Helper to handle both topic and PDF responses
+      function handleAIResponse(data) {
+        if (data.error) {
+          showStatusText(aiStatus, data.error, "#b91c1c");
+          return;
+        }
+
+        if (data.quiz) {
+          const u = getCurrentUser();
+          const keyPart = (u && (u.userId || u._id || u.email)) || "guest";
+          const storageKey = `samarpanLastAIQuiz_${keyPart}`;
+          localStorage.setItem(storageKey, JSON.stringify(data.quiz));
+
+          showStatusText(aiStatus, "AI quiz generated successfully!", "#16a34a");
           renderLastAIQuizToDashboard();
 
-          if (aiPlayBtn && data.quiz) {
+          if (aiPlayBtn) {
             aiPlayBtn.style.display = "inline-flex";
             aiPlayBtn.onclick = () => {
               startQuizPlayer(data.quiz);
             };
           }
-        } catch (err) {
-          console.error("AI Quiz Error:", err);
-          showStatusText(
-            aiStatus,
-            "Network error while generating quiz.",
-            "#b91c1c"
-          );
         }
-      });
+      }
     })();
 
     // ======================
@@ -1422,298 +2067,7 @@ function loadDummyLeaderboard() {
       });
     })();
 
-    // ======================
-    // Host quiz button logic
-    // ======================
-    (function () {
-      const btn = document.getElementById("btnHostStart");
-      const statusEl = document.getElementById("hostStatus");
-      const selectQuiz = document.getElementById("host-quiz");
-      const selectMode = document.getElementById("host-mode");
-      const inputTimer = document.getElementById("host-timer");
-      const selectRated = document.getElementById("host-rating");
 
-      function setHostStatus(msg, color = "#e5e7eb") {
-        if (!statusEl) return;
-        statusEl.textContent = msg;
-        statusEl.style.color = color;
-      }
-
-      if (!btn || !selectQuiz) return;
-
-      btn.addEventListener("click", async () => {
-        if (!requireLogin("Please log in to host a quiz.")) return;
-
-        const user = getCurrentUser();
-        if (!user) return;
-
-        const selected = selectQuiz.value;
-        let quizId = null;
-
-        // For now, only treating "My last manual quiz" as hostable
-        if (selected === "manual-last") {
-          const userKeyPart =
-            user.userId || user._id || user.email || "guest";
-          const storageKey = `samarpanLastManualQuiz_${userKeyPart}`;
-          const raw = localStorage.getItem(storageKey);
-          const quiz = safeParse(raw, null);
-          quizId = quiz && (quiz._id || quiz.quizId);
-        }
-
-        if (!quizId) {
-          alert(
-            "Right now, hosting is enabled only for your last manual/AI quiz.\nSelect it in the dropdown."
-          );
-          return;
-        }
-
-        const modeText = (selectMode.value || "").toLowerCase();
-        let mode = "rapid";
-        if (modeText.includes("blitz")) mode = "blitz";
-        else if (modeText.includes("casual")) mode = "casual";
-
-        const timerSeconds = Number(inputTimer.value) || 30;
-        const rated = !selectRated.value.toLowerCase().includes("casual");
-
-        setHostStatus("Creating game session...", "#4b5563");
-
-        try {
-          const res = await fetch(`${API_BASE}/api/host/start`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              quizId,
-              hostEmail: user.email,
-              mode,
-              timerSeconds,
-              rated,
-            }),
-          });
-
-          const data = await res.json();
-          if (!res.ok) {
-            console.error("Host start error:", data);
-            setHostStatus(data.error || "Failed to start game.", "#b91c1c");
-            return;
-          }
-
-          setHostStatus(
-            `Game started! PIN: ${data.pin}. Share this with players.`,
-            "#16a34a"
-          );
-          alert(`Game PIN: ${data.pin}\n(Prototype – join UI is coming soon)`);
-        } catch (err) {
-          console.error("Host start network error:", err);
-          setHostStatus("Network error while starting game.", "#b91c1c");
-        }
-      });
-    })();
-
-    // ======================
-    // Battles view (2v2 / 4v4)
-    // ======================
-    (function () {
-      const selectBattleQuiz = document.getElementById("battle-quiz");
-      const statusEl = document.getElementById("battleStatus");
-      const btnHost = document.getElementById("btnBattleHost");
-      const btnLocal = document.getElementById("btnBattlePlayLocal");
-      const btnJoin = document.getElementById("btnBattleJoin");
-
-      function setBattleStatus(msg, color = "#e5e7eb") {
-        if (!statusEl) return;
-        statusEl.textContent = msg;
-        statusEl.style.color = color;
-      }
-
-      // Label per-user battle quiz options
-      if (selectBattleQuiz) {
-        const user = getCurrentUser && getCurrentUser();
-        const userKeyPart =
-          (user && (user.userId || user._id || user.email)) || "guest";
-
-        // Manual last
-        const optManual = selectBattleQuiz.querySelector(
-          'option[value="manual-last"]'
-        );
-        if (optManual) {
-          const key = `samarpanLastManualQuiz_${userKeyPart}`;
-          const raw = localStorage.getItem(key);
-          const quiz = raw && safeParse(raw, null);
-          if (quiz && quiz.title) {
-            optManual.textContent = `${quiz.title} (manual)`;
-          } else {
-            optManual.disabled = true;
-          }
-        }
-
-        // AI last
-        const optAI = selectBattleQuiz.querySelector('option[value="ai-last"]');
-        if (optAI) {
-          const key = `samarpanLastAIQuiz_${userKeyPart}`;
-          const raw = localStorage.getItem(key);
-          const quiz = raw && safeParse(raw, null);
-          if (quiz && quiz.title) {
-            optAI.textContent = `${quiz.title} (AI)`;
-          } else {
-            optAI.disabled = true;
-          }
-        }
-      }
-
-      // Create battle session (backend pin + metadata)
-      if (btnHost) {
-        btnHost.addEventListener("click", async () => {
-          if (!requireLogin("Please log in to host a battle.")) return;
-
-          const user = getCurrentUser();
-          if (!user) return;
-
-          const selectQuiz = document.getElementById("battle-quiz");
-          const battleType =
-            document.getElementById("battle-type")?.value || "2v2";
-          const timerSeconds =
-            Number(document.getElementById("battle-timer")?.value) || 30;
-          const rated =
-            (document.getElementById("battle-rated")?.value || "rated") ===
-            "rated";
-
-          if (!selectQuiz || !selectQuiz.value) {
-            setBattleStatus(
-              "Choose which quiz to use for the battle.",
-              "#b91c1c"
-            );
-            return;
-          }
-
-          const userKeyPart =
-            user.userId || user._id || user.email || "guest";
-
-          let quiz = null;
-          if (selectQuiz.value === "manual-last") {
-            const key = `samarpanLastManualQuiz_${userKeyPart}`;
-            const raw = localStorage.getItem(key);
-            quiz = raw && safeParse(raw, null);
-          } else if (selectQuiz.value === "ai-last") {
-            const key = `samarpanLastAIQuiz_${userKeyPart}`;
-            const raw = localStorage.getItem(key);
-            quiz = raw && safeParse(raw, null);
-          }
-
-          const quizId = quiz && (quiz._id || quiz.quizId);
-          if (!quizId) {
-            setBattleStatus(
-              "Could not find quiz data for this option.",
-              "#b91c1c"
-            );
-            return;
-          }
-
-          setBattleStatus("Creating battle session...", "#4b5563");
-
-          try {
-            const res = await fetch(`${API_BASE}/api/host/start`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                quizId,
-                hostEmail: user.email,
-                mode: "battle",
-                battleType,
-                timerSeconds,
-                rated,
-              }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) {
-              console.error("Battle host error:", data);
-              setBattleStatus(
-                data.error || "Failed to create battle.",
-                "#b91c1c"
-              );
-              return;
-            }
-
-            setBattleStatus(
-              `Battle created! Share PIN: ${data.pin}`,
-              "#16a34a"
-            );
-            alert(
-              `Battle created!\n\nPIN: ${data.pin}\nType: ${battleType.toUpperCase()}\n\n(Prototype – friends will join manually using this PIN.)`
-            );
-          } catch (err) {
-            console.error("Battle host network err:", err);
-            setBattleStatus(
-              "Network error while creating battle.",
-              "#b91c1c"
-            );
-          }
-        });
-      }
-
-      // Local battle (same device, uses quiz player)
-      if (btnLocal) {
-        btnLocal.addEventListener("click", () => {
-          if (!requireLogin("Please log in to play.")) return;
-
-          const user = getCurrentUser();
-          if (!user) return;
-
-          const selectQuiz = document.getElementById("battle-quiz");
-          if (!selectQuiz || !selectQuiz.value) {
-            alert("Please choose which quiz to use for the battle first.");
-            return;
-          }
-
-          const userKeyPart =
-            user.userId || user._id || user.email || "guest";
-          let key = null;
-
-          if (selectQuiz.value === "manual-last") {
-            key = `samarpanLastManualQuiz_${userKeyPart}`;
-          } else if (selectQuiz.value === "ai-last") {
-            key = `samarpanLastAIQuiz_${userKeyPart}`;
-          } else {
-            alert(
-              "For this prototype, only your last manual / AI quiz is supported."
-            );
-            return;
-          }
-
-          const raw = localStorage.getItem(key);
-          const quiz = raw && safeParse(raw, null);
-          if (!quiz || !quiz.questions || !quiz.questions.length) {
-            alert("Could not load quiz questions from storage.");
-            return;
-          }
-
-          startQuizPlayer(quiz);
-        });
-      }
-
-      // Join battle: prototype confirmation only
-      if (btnJoin) {
-        btnJoin.addEventListener("click", () => {
-          const pin =
-            document.getElementById("battleJoinPin")?.value.trim() || "";
-          const name =
-            document.getElementById("battleJoinName")?.value.trim() || "";
-
-          if (!pin) {
-            alert("Enter the battle PIN shared by your friend.");
-            return;
-          }
-          if (!name) {
-            alert("Enter your name or team name.");
-            return;
-          }
-
-          alert(
-            `Prototype:\nJoining battle PIN ${pin} as "${name}".\n\nLive multi-player UI will be added in the full version (Socket.io).`
-          );
-        });
-      }
-    })();
 
     // ======================
     // Topbar auth / host buttons
@@ -1737,7 +2091,38 @@ function loadDummyLeaderboard() {
         btnAuthTop.addEventListener("click", handleAuthClick);
       }
       if (btnAvatarTop) {
-        btnAvatarTop.addEventListener("click", handleAuthClick);
+        const profileDropdownMenu = document.getElementById("profileDropdownMenu");
+        btnAvatarTop.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          profileDropdownMenu.classList.toggle("show");
+        });
+
+        // Close when clicking outside
+        document.addEventListener("click", (e) => {
+          if (!btnAvatarTop.contains(e.target) && !profileDropdownMenu.contains(e.target)) {
+            profileDropdownMenu.classList.remove("show");
+          }
+        });
+
+        // Dropdown actions
+        const btnLogoutDropdown = document.getElementById("btnLogoutDropdown");
+        if (btnLogoutDropdown) {
+          btnLogoutDropdown.addEventListener("click", (e) => {
+            e.preventDefault();
+            clearCurrentUser();
+            window.location.reload(); // Refresh to clear state
+          });
+        }
+
+        const dropdownItems = profileDropdownMenu.querySelectorAll(".dropdown-item[data-view]");
+        dropdownItems.forEach(item => {
+          item.addEventListener("click", () => {
+            const view = item.getAttribute("data-view");
+            if (view) showView(view);
+            profileDropdownMenu.classList.remove("show");
+          });
+        });
       }
 
       if (btnHostTop) {
@@ -1773,8 +2158,11 @@ function loadDummyLeaderboard() {
     renderLastAIQuizToDashboard();
     renderLastManualQuizToDashboard();
 
-    // Default view
-    if (document.getElementById("view-dashboard")) {
+    // Restore previous view or default to dashboard
+    const savedView = sessionStorage.getItem("samarpanCurrentView") || "dashboard";
+    if (document.getElementById(`view-${savedView}`)) {
+      showView(savedView);
+    } else if (document.getElementById("view-dashboard")) {
       showView("dashboard");
     }
     loadDummyLeaderboard();
@@ -1856,7 +2244,83 @@ function loadDummyLeaderboard() {
   }
 
   // set default active (dashboard)
+  // set default active (dashboard)
   setActive("dashboard");
 })();
 
+// Main IIFE Closure Correction
+})();
+
+// =============================================
+// CUSTOM NEON CURSOR — dot + ring + hover scale
+// =============================================
+(function () {
+  // Only activate on devices with a fine pointer (mouse)
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+
+  const dot = document.getElementById('cursorDot');
+  const ring = document.getElementById('cursorRing');
+  if (!dot || !ring) return;
+
+  let mouseX = -100, mouseY = -100;
+  let ringX = -100, ringY = -100;
+
+  // Track mouse position
+  document.addEventListener('mousemove', function (e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    // Dot follows instantly
+    dot.style.left = mouseX + 'px';
+    dot.style.top = mouseY + 'px';
+  });
+
+  // Ring follows with a smooth trail (lerp)
+  function animateRing() {
+    ringX += (mouseX - ringX) * 0.15;
+    ringY += (mouseY - ringY) * 0.15;
+
+    ring.style.left = ringX + 'px';
+    ring.style.top = ringY + 'px';
+
+    requestAnimationFrame(animateRing);
+  }
+  animateRing();
+
+  // Hover detection on interactive elements
+  const hoverSelectors = 'a, button, input, select, textarea, .btn, .chip, .mini-btn, .side-link, .top-link, .top-btn, .top-profile, .quiz-card, .template-card, .cat-card, .toolbar-list li, label[for], [data-view], [onclick]';
+
+  document.addEventListener('mouseover', function (e) {
+    if (e.target.closest(hoverSelectors)) {
+      dot.classList.add('cursor-hover');
+      ring.classList.add('cursor-hover');
+    }
+  });
+
+  document.addEventListener('mouseout', function (e) {
+    if (e.target.closest(hoverSelectors)) {
+      dot.classList.remove('cursor-hover');
+      ring.classList.remove('cursor-hover');
+    }
+  });
+
+  // Click pulse
+  document.addEventListener('mousedown', function () {
+    ring.classList.add('cursor-click');
+  });
+
+  document.addEventListener('mouseup', function () {
+    ring.classList.remove('cursor-click');
+  });
+
+  // Hide cursor when mouse leaves the viewport
+  document.addEventListener('mouseleave', function () {
+    dot.style.opacity = '0';
+    ring.style.opacity = '0';
+  });
+
+  document.addEventListener('mouseenter', function () {
+    dot.style.opacity = '1';
+    ring.style.opacity = '1';
+  });
 })();

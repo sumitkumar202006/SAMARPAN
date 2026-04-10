@@ -8,8 +8,8 @@ const gameSessionSchema = new mongoose.Schema(
 
     mode: {
       type: String,
-      enum: ["rapid", "blitz", "casual"],
-      default: "rapid",
+      enum: ["rapid", "blitz", "casual", "battle", "quiz"],
+      default: "battle",
     },
 
     timerSeconds: { type: Number, default: 30 },

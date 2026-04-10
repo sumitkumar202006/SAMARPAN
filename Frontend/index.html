@@ -1,75 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Samarpan Dashboard</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
+  <!-- Custom neon cursor -->
+  <div class="cursor-dot" id="cursorDot"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+
   <div class="app">
-    <!-- ===== SIDEBAR (LEFT PANEL) ===== -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="brand">
-          <span class="brand-logo">S</span>
-          <span class="brand-text">Samarpan</span>
-        </div>
-        <button class="sidebar-toggle" id="sidebarToggle">
-          ☰
-        </button>
-      </div>
+    <!-- Top bar with brand, links and profile -->
+    <header class="topbar">
+      <div class="topbar-inner content-container">
+        <div class="top-left-group" style="display: flex; align-items: center; gap: 2rem;">
+          <div class="brand">
+            <span class="brand-logo">S</span>
+            <span class="brand-text">Samarpan</span>
+          </div>
 
-      <!-- Logged-in user mini card -->
-      <div class="user-box">
-        <div class="user-avatar">A</div>
-        <div class="user-meta">
-          <span class="user-name">Aman</span>
-          <span class="user-role">Host</span>
-        </div>
-      </div>
-
-      <!-- Main navigation links -->
-      <nav class="side-nav">
-        <button class="side-link" data-view="dashboard">
-          <span>Dashboard</span>
-          <div class="shockwave"></div>
-        </button>
-        <button class="side-link" data-view="create">
-          <span>Create Quiz</span>
-          <div class="shockwave"></div>
-        </button>
-        <button class="side-link" data-view="leaderboard">
-          <span>Leaderboard</span>
-          <div class="shockwave"></div>
-        </button>
-        <button class="side-link" data-view="explore">
-          <span>Explore</span>
-          <div class="shockwave"></div>
-        </button>
-        <button class="side-link" data-view="battles">
-          <span>Battles</span>
-          <div class="shockwave"></div>
-        </button>
-      </nav>
-    </aside>
-
-    <!-- ===== MAIN CONTENT AREA ===== -->
-    <main class="main">
-      <!-- Flash line shown when switching tabs -->
-      <div class="switch-flash" id="switchFlash"></div>
-
-      <!-- Top bar with links and profile -->
-      <header class="topbar">
-        <div class="top-links">
-          <button class="top-link" data-view="contact">
-            Contact us
-            <div class="shockwave"></div>
-          </button>
-          <button class="top-link" data-view="about">
-            About
-            <div class="shockwave"></div>
-          </button>
+          <div class="top-links">
+            <button class="top-link" data-view="dashboard">
+              Dashboard
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="create">
+              Create Quiz
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="leaderboard">
+              Leaderboard
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="explore">
+              Explore
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="battles">
+              Join Battles
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="contact">
+              Contact us
+              <div class="shockwave"></div>
+            </button>
+            <button class="top-link" data-view="about">
+              About
+              <div class="shockwave"></div>
+            </button>
+          </div>
         </div>
 
         <div class="top-actions">
@@ -78,1105 +61,1086 @@
             <div class="shockwave"></div>
           </button>
 
-          <button
-            class="top-btn top-btn-ghost"
-            data-view="auth"
-            id="btnAuthTop"
-          >
+          <button class="top-btn top-btn-ghost" data-view="auth" id="btnAuthTop">
             Sign up / Log in
             <div class="shockwave"></div>
           </button>
 
-          <div class="top-profile" data-view="profile" id="btnAvatarTop">
-            A
-            <div class="shockwave"></div>
+          <!-- Profile Dropdown -->
+          <div class="profile-dropdown-container" id="profileDropdownWrapper" style="display: none;">
+            <div class="top-profile" id="btnAvatarTop">
+              A
+              <div class="shockwave"></div>
+            </div>
+            <div class="profile-dropdown-menu" id="profileDropdownMenu">
+              <div class="dropdown-header">
+                <span class="user-name">User</span>
+                <span class="user-role">Host</span>
+              </div>
+              <hr />
+              <button class="dropdown-item" data-view="profile">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"
+                  stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                My Profile
+              </button>
+              <button class="dropdown-item" id="btnLogoutDropdown">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"
+                  stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            </div>
           </div>
-
-          <button
-            class="top-btn top-btn-ghost"
-            id="btnLogout"
-            style="display: none;"
-          >
-            Logout
-          </button>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <!-- Latest announcements / updates -->
-      <section class="updates-strip">
-        <h2>Latest updates</h2>
-        <div class="updates-items">
-          <span>🔥 New: AI quiz generator added for PDFs</span>
-          <span>🏆 Live coding tournament scheduled for Friday</span>
-          <span>✨ Dynamic rating &amp; ranking system now live</span>
-        </div>
-      </section>
+    <main class="main">
+      <!-- Flash line shown when switching tabs -->
+      <div class="switch-flash" id="switchFlash"></div>
 
-      <!-- =====================================
+      <div class="content-container">
+        <!-- Latest announcements / updates -->
+        <section class="updates-strip">
+          <h2>Latest updates</h2>
+          <div class="updates-items">
+            <span>🔥 New: AI quiz generator added for PDFs</span>
+            <span>🏆 Live coding tournament scheduled for Friday</span>
+            <span>✨ Dynamic rating &amp; ranking system now live</span>
+          </div>
+        </section>
+
+        <!-- =====================================
            VIEWS (SINGLE-PAGE APP SECTIONS)
            ===================================== -->
 
-      <!-- ===== DASHBOARD VIEW (HOME) ===== -->
-      <section class="view view-active" id="view-dashboard">
-        <div class="view-header">
-          <h2>Dashboard</h2>
-          <p>Your quick overview of tools, recent quizzes, rating and activity.</p>
-        </div>
+        <!-- ===== DASHBOARD VIEW (HOME) ===== -->
+        <section class="view view-active" id="view-dashboard">
+          <div class="view-header">
+            <h2>Dashboard</h2>
+            <p>Your quick overview of tools, recent quizzes, rating and activity.</p>
+          </div>
 
-        <!-- Hero section with tagline + profile card -->
-        <section class="dash-hero">
-          <!-- LEFT: main hero text -->
-          <div class="dash-hero-left">
-            <p class="dash-pill">Samarpan Arena</p>
-            <h1 class="dash-hero-title">
-              Host. Compete. <span>Rank up.</span>
-            </h1>
-            <p class="dash-hero-sub">
-              Turn your classroom into an e-sports style arena. Create quizzes,
-              host live battles and watch players climb the leaderboard.
-            </p>
+          <!-- Hero section with tagline + profile card -->
+          <section class="dash-hero">
+            <!-- LEFT: main hero text -->
+            <div class="dash-hero-left">
+              <p class="dash-pill">Samarpan Arena</p>
+              <h1 class="dash-hero-title">
+                Host. Compete. <span>Rank up.</span>
+              </h1>
+              <p class="dash-hero-sub">
+                Turn your classroom into an e-sports style arena. Create quizzes,
+                host live battles and watch players climb the leaderboard.
+              </p>
 
-            <div class="dash-hero-actions">
-              <button class="btn btn-primary" data-view="host">
-                Start a battle
-              </button>
-              <button class="btn btn-outline" data-view="create">
-                Create new quiz
-              </button>
+              <div class="dash-hero-actions">
+                <button class="btn btn-primary" data-view="host">
+                  Start a battle
+                </button>
+                <button class="btn btn-outline" data-view="create">
+                  Create new quiz
+                </button>
+              </div>
+
+              <div class="dash-hero-mini">
+                <div>
+                  <span class="dash-mini-label">Quizzes hosted</span>
+                  <span class="dash-mini-value">42</span>
+                </div>
+                <div>
+                  <span class="dash-mini-label">Players joined</span>
+                  <span class="dash-mini-value">196</span>
+                </div>
+                <div>
+                  <span class="dash-mini-label">Best streak</span>
+                  <span class="dash-mini-value">+87 rating</span>
+                </div>
+              </div>
             </div>
 
-            <div class="dash-hero-mini">
-              <div>
-                <span class="dash-mini-label">Quizzes hosted</span>
-                <span class="dash-mini-value">42</span>
+            <!-- RIGHT: floating profile summary card -->
+            <div class="dash-hero-right">
+              <div class="dash-hero-card">
+                <div class="dash-hero-tag">Host profile</div>
+
+                <div class="dash-hero-avatar" id="dashHeroAvatar">
+                  A
+                </div>
+
+                <div class="dash-hero-rating-row">
+                  <div>
+                    <p class="dash-hero-stat-label">Global rating</p>
+                    <p class="dash-hero-stat-value">1430</p>
+                  </div>
+                  <div>
+                    <p class="dash-hero-stat-label">Games hosted</p>
+                    <p class="dash-hero-stat-value">42</p>
+                  </div>
+                </div>
+
+                <div class="dash-hero-progress">
+                  <div class="dash-hero-progress-bar">
+                    <div class="dash-hero-progress-fill"></div>
+                  </div>
+                  <p class="dash-hero-progress-text">
+                    Next tier: <span>Pro Host</span>
+                  </p>
+                </div>
+
+                <p class="dash-hero-foot">
+                  Tip: Use <strong>AI quizzes</strong> for fast tournament setups.
+                </p>
               </div>
-              <div>
-                <span class="dash-mini-label">Players joined</span>
-                <span class="dash-mini-value">196</span>
+            </div>
+          </section>
+
+          <div class="dashboard-grid">
+            <!-- LEFT: quick tools panel -->
+            <div class="card toolbar-card">
+              <h3>Toolbar</h3>
+              <ul class="toolbar-list">
+                <li id="toolCreateManual">
+                  <span class="tool-title">Create quiz</span>
+                  <span class="tool-sub">Build your own questions</span>
+                </li>
+                <li id="toolCreateAI">
+                  <span class="tool-title">Create quiz (AI)</span>
+                  <span class="tool-sub">
+                    Upload notes / PDFs, let AI do the work
+                  </span>
+                </li>
+                <li id="toolLiveTournaments">
+                  <span class="tool-title">Live tournaments</span>
+                  <span class="tool-sub">Host multi-round events</span>
+                </li>
+                <li>
+                  <span class="tool-title">Learn</span>
+                  <span class="tool-sub">View guides, tips &amp; best practices</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- RIGHT: recent quizzes + mini rating summary -->
+            <div class="card history-card">
+              <div class="history-head">
+                <h3>Your quizzes / history</h3>
+                <button class="chip small-chip">View all</button>
               </div>
-              <div>
-                <span class="dash-mini-label">Best streak</span>
-                <span class="dash-mini-value">+87 rating</span>
+
+              <div class="quiz-grid">
+                <div class="quiz-card">
+                  <h4>Thermodynamics Basics</h4>
+                  <p>10 questions • AI-generated</p>
+                  <div class="quiz-meta">
+                    <span>Last played: 2d ago</span>
+                    <button class="mini-btn">Host again</button>
+                  </div>
+                </div>
+
+                <div class="quiz-card">
+                  <h4>Data Structures MCQ Set</h4>
+                  <p>20 questions • Manual</p>
+                  <div class="quiz-meta">
+                    <span>Last played: 5d ago</span>
+                    <button class="mini-btn">Host again</button>
+                  </div>
+                </div>
+
+                <div class="quiz-card">
+                  <h4>General Aptitude Round 1</h4>
+                  <p>15 questions • Tournament</p>
+                  <div class="quiz-meta">
+                    <span>Last played: 1w ago</span>
+                    <button class="mini-btn">Host again</button>
+                  </div>
+                </div>
+
+                <div class="quiz-card">
+                  <h4>Operating Systems Quick Test</h4>
+                  <p>8 questions • AI-generated</p>
+                  <div class="quiz-meta">
+                    <span>Last played: 3w ago</span>
+                    <button class="mini-btn">Host again</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Inline rating block inside dashboard -->
+              <div class="inline-rating">
+                <div>
+                  <span class="inline-label">Current rating</span>
+                  <span class="inline-value">1430</span>
+                </div>
+                <div class="inline-bar">
+                  <div class="inline-fill"></div>
+                </div>
+                <span class="inline-note">+24 after last 3 quizzes</span>
               </div>
             </div>
           </div>
 
-          <!-- RIGHT: floating profile summary card -->
-          <div class="dash-hero-right">
-            <div class="dash-hero-card">
-              <div class="dash-hero-tag">Host profile</div>
+          <!-- Key stats row -->
+          <div class="stats-row">
+            <div class="card stat-card">
+              <h4>Total quizzes hosted</h4>
+              <p class="stat-number">42</p>
+              <p class="stat-sub">Across classrooms, labs &amp; events.</p>
+            </div>
+            <div class="card stat-card">
+              <h4>Unique players</h4>
+              <p class="stat-number">196</p>
+              <p class="stat-sub">Different students joined your sessions.</p>
+            </div>
+            <div class="card stat-card">
+              <h4>Avg accuracy</h4>
+              <p class="stat-number">81%</p>
+              <p class="stat-sub">Overall performance across quizzes.</p>
+            </div>
+          </div>
 
-              <div class="dash-hero-avatar" id="dashHeroAvatar">
-                A
+          <!-- Recent activity list -->
+          <div class="card activity-card">
+            <div class="activity-head">
+              <h3>Recent activity</h3>
+            </div>
+            <ul class="activity-list">
+              <li>
+                <span class="dot dot-green"></span> You hosted “Thermodynamics Basics”
+                – 32 players joined.
+              </li>
+              <li>
+                <span class="dot dot-blue"></span> New AI quiz generated from “DSA
+                Notes – Stack &amp; Queue”.
+              </li>
+              <li>
+                <span class="dot dot-purple"></span> Leaderboard updated after “Aptitude
+                Round 1”.
+              </li>
+              <li>
+                <span class="dot dot-yellow"></span> 14 students completed practice mode
+                for “Pointers in C”.
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== CREATE QUIZ VIEW ===== -->
+        <section class="view" id="view-create">
+          <div class="view-header">
+            <h2>Create quiz</h2>
+            <p>Choose how you want to build your next quiz.</p>
+          </div>
+
+          <div class="grid-two">
+            <!-- Manual quiz creation -->
+            <div class="card create-card">
+              <h3>Start from scratch</h3>
+              <p>
+                Add questions manually, control every option, and save as a reusable
+                quiz template.
+              </p>
+              <ul class="small-list">
+                <li>Multiple choice, true/false, single answer</li>
+                <li>Control timer &amp; points per question</li>
+                <li>Tag quizzes by topic and level</li>
+              </ul>
+              <button class="btn btn-primary" id="btnOpenManualEditor">
+                Open manual editor
+              </button>
+            </div>
+
+            <!-- AI quiz creation -->
+            <div class="card create-card">
+              <h3>Create using AI</h3>
+              <p>
+                Type a topic and let Samarpan generate a full quiz for you.
+              </p>
+              <ul class="small-list">
+                <li>Give topic and difficulty</li>
+                <li>Configurable number of questions</li>
+                <li>Edit AI questions before saving</li>
+              </ul>
+
+              <div class="field">
+                <label for="aiTopic">Topic <i>(or upload PDF)</i></label>
+                <div style="position: relative; width: 100%;">
+                  <input type="text" id="aiTopic" placeholder="Eg. DBMS Normalization"
+                    style="width: 100%; padding-left: 45px; padding-right: 40px;" />
+                  <!-- PDF Upload Button -->
+                  <input type="file" id="pdfUploadInput" accept="application/pdf" style="display: none;" />
+                  <button class="btn btn-icon" id="pdfUploadBtn" title="Upload PDF to generate quiz"
+                    style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; min-height: unset; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer;">
+                    +
+                  </button>
+                  <!-- Voice Input Button -->
+                  <button class="btn btn-icon" id="voiceInputBtn" title="Use voice to input topic"
+                    style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; min-height: unset; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor" stroke-width="2" style="color: var(--text-soft);">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z" />
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
+                    </svg>
+                  </button>
+                </div>
+                <div id="pdfFileIndicator"
+                  style="display: none; color: #16a34a; font-size: 0.85rem; margin-top: 5px; font-weight: 500;"></div>
               </div>
-
-              <div class="dash-hero-rating-row">
+              <div class="field">
+                <label for="aiTitle">Quiz title (optional)</label>
+                <input type="text" id="aiTitle" placeholder="Eg. DBMS Normalization - Quiz 1" />
+              </div>
+              <div class="field inline-field">
                 <div>
-                  <p class="dash-hero-stat-label">Global rating</p>
-                  <p class="dash-hero-stat-value">1430</p>
+                  <label for="aiDifficulty">Difficulty</label>
+                  <select id="aiDifficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
                 </div>
                 <div>
-                  <p class="dash-hero-stat-label">Games hosted</p>
-                  <p class="dash-hero-stat-value">42</p>
+                  <label for="aiCount">No. of questions</label>
+                  <input type="number" id="aiCount" value="5" min="1" max="50" />
                 </div>
               </div>
 
-              <div class="dash-hero-progress">
-                <div class="dash-hero-progress-bar">
-                  <div class="dash-hero-progress-fill"></div>
-                </div>
-                <p class="dash-hero-progress-text">
-                  Next tier: <span>Pro Host</span>
-                </p>
+              <div class="ai-actions">
+                <button class="btn btn-outline" id="aiGenerateBtn">
+                  Create using AI
+                </button>
+
+                <!-- Shown after AI quiz is ready -->
+                <button class="btn btn-outline" id="aiPlayBtn" style="display:none;">
+                  Play this quiz
+                </button>
               </div>
 
-              <p class="dash-hero-foot">
-                Tip: Use <strong>AI quizzes</strong> for fast tournament setups.
+              <p id="aiStatus" class="form-note"></p>
+            </div>
+          </div>
+
+          <!-- Quick pre-made templates -->
+          <div class="templates-row">
+            <h3 class="section-subtitle">Quick templates</h3>
+            <div class="templates-grid">
+              <div class="card template-card">
+                <h4>5-question warmup</h4>
+                <p>Use before starting any topic to quickly check basics.</p>
+                <button class="mini-btn">Use template</button>
+              </div>
+              <div class="card template-card">
+                <h4>Timed mock test</h4>
+                <p>20 questions with strict timer for exam-style practice.</p>
+                <button class="mini-btn">Use template</button>
+              </div>
+              <div class="card template-card">
+                <h4>Tournament round</h4>
+                <p>Ideal for events with multiple knock-out rounds.</p>
+                <button class="mini-btn">Use template</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extra tips section -->
+          <div class="card tips-card">
+            <h3>Tips for better quizzes</h3>
+            <ul class="small-list">
+              <li>Keep options short and clear – avoid confusing wording.</li>
+              <li>Mix easy, medium and hard questions to keep players engaged.</li>
+              <li>Use AI to generate a first draft, then tweak to match your style.</li>
+              <li>Add a short explanation after tough questions for learning impact.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== MANUAL QUIZ EDITOR (inside create view) ===== -->
+        <div class="card manual-editor" id="manualEditor" style="display:none; margin-top:1.5rem;">
+          <h3>Manual quiz editor</h3>
+          <p style="color:#9ca3af; font-size:0.9rem;">
+            Add questions manually, options, correct answer and explanation.
+          </p>
+
+          <!-- Quiz-level details -->
+          <div class="field">
+            <label for="manualTitle">Quiz title</label>
+            <input type="text" id="manualTitle" placeholder="Eg. DBMS Basics - Set 1" />
+          </div>
+
+          <div class="field">
+            <label for="manualTopic">Topic / tag</label>
+            <input type="text" id="manualTopic" placeholder="Eg. DBMS, Normalization" />
+          </div>
+
+          <div class="field">
+            <label for="manualDifficulty">Default difficulty</label>
+            <select id="manualDifficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+          <hr style="border-color:#1f2937; margin:1rem 0;" />
+
+          <!-- Question form -->
+          <h4 style="margin:0 0 .5rem;">Add a question</h4>
+
+          <div class="field">
+            <label for="qText">Question</label>
+            <textarea id="qText" rows="2" placeholder="Type your question here..."></textarea>
+          </div>
+
+          <div class="field">
+            <label>Options</label>
+            <input type="text" id="opt0" placeholder="Option 1" />
+            <input type="text" id="opt1" placeholder="Option 2" style="margin-top:0.35rem;" />
+            <input type="text" id="opt2" placeholder="Option 3 (optional)" style="margin-top:0.35rem;" />
+            <input type="text" id="opt3" placeholder="Option 4 (optional)" style="margin-top:0.35rem;" />
+          </div>
+
+          <div class="field">
+            <label for="correctIndex">Correct option</label>
+            <select id="correctIndex">
+              <option value="0">Option 1</option>
+              <option value="1">Option 2</option>
+              <option value="2">Option 3</option>
+              <option value="3">Option 4</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="qExplanation">Explanation (optional)</label>
+            <textarea id="qExplanation" rows="2" placeholder="Short explanation for this answer..."></textarea>
+          </div>
+
+          <button class="btn btn-outline" id="btnAddQuestion" type="button">
+            + Add question to quiz
+          </button>
+
+          <!-- List of questions added so far -->
+          <div id="manualQuestionList" style="margin-top:1rem; font-size:0.85rem; color:#e5e7eb;">
+            <p style="margin:0; color:#9ca3af;">No questions added yet.</p>
+          </div>
+
+          <hr style="border-color:#1f2937; margin:1.2rem 0;" />
+
+          <button class="btn btn-primary" id="btnSaveManualQuiz" type="button">
+            Save quiz to Samarpan
+          </button>
+
+          <p id="manualEditorStatus" style="margin-top:.7rem; font-size:0.8rem;"></p>
+        </div>
+
+        <!-- ===== QUIZ PLAYER VIEW ===== -->
+        <section class="view" id="view-player">
+          <div class="view-header">
+            <h2 id="playerTitle">Quiz player</h2>
+            <p id="playerSubtitle">Answer the questions and see your score.</p>
+          </div>
+
+          <div class="card" id="playerCard">
+            <div class="player-meta">
+              <span id="playerProgress">Question 1 / 1</span>
+              <span id="playerTimer"></span>
+            </div>
+
+            <h3 id="playerQuestionText">Question will appear here</h3>
+
+            <div id="playerOptions" class="player-options">
+              <!-- Answer options will be injected by JS -->
+            </div>
+
+            <p id="playerStatus" class="player-status"></p>
+
+            <button class="btn btn-primary" id="playerNextBtn" type="button">
+              Next question
+            </button>
+          </div>
+
+          <div class="card" id="playerResult" style="display:none; margin-top:1rem;">
+            <h3>Quiz finished</h3>
+            <p id="playerScoreLine"></p>
+            <p id="playerTimeLine"></p>
+            <button class="btn btn-outline" id="playerBackDashboard" type="button">
+              Back to dashboard
+            </button>
+          </div>
+        </section>
+
+        <!-- ===== LEADERBOARD VIEW ===== -->
+        <section class="view" id="view-leaderboard">
+          <div class="view-header">
+            <h2>Leaderboard &amp; ratings</h2>
+            <p>See who’s dominating your quizzes and how ratings are evolving.</p>
+          </div>
+
+          <div class="card">
+            <div class="leaderboard-filters">
+              <button class="chip chip-active">This week</button>
+              <button class="chip">This month</button>
+              <button class="chip">All-time</button>
+            </div>
+
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Player</th>
+                  <th>Rating</th>
+                  <th>Quizzes played</th>
+                  <th>Avg score</th>
+                  <th>Best rank</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <!-- Leaderboard rows will be filled by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Extra explanation cards -->
+          <div class="leaderboard-extra">
+            <div class="card lb-card">
+              <h3>How ratings work (chess-style)</h3>
+              <ul class="small-list">
+                <li>Each player starts around 1200 rating.</li>
+                <li>Win vs higher-rated player → bigger rating gain.</li>
+                <li>Win vs similar rating → moderate rating gain.</li>
+                <li>Win vs lower-rated player → small rating boost.</li>
+                <li>Lose vs lower-rated player → bigger rating loss.</li>
+              </ul>
+              <p class="rating-note">
+                Behind the scenes, an Elo-like formula updates rating based on
+                opponent strength, quiz difficulty, and final score—similar to
+                chess.com rating behaviour.
+              </p>
+            </div>
+            <div class="card lb-card">
+              <h3>Mode-based ratings</h3>
+              <ul class="small-list">
+                <li><strong>Quiz (Rapid)</strong> – standard class quizzes.</li>
+                <li><strong>Tournament (Blitz)</strong> – fast-paced event games.</li>
+                <li><strong>Practice (Casual)</strong> – practice mode, rating optional.</li>
+              </ul>
+              <p class="rating-note">
+                Just like chess.com has Rapid / Blitz / Bullet, Samarpan can track
+                separate ratings per mode, plus a global rating for ranking.
               </p>
             </div>
           </div>
         </section>
 
-        <div class="dashboard-grid">
-          <!-- LEFT: quick tools panel -->
-          <div class="card toolbar-card">
-            <h3>Toolbar</h3>
-            <ul class="toolbar-list">
-              <li id="toolCreateManual">
-                <span class="tool-title">Create quiz</span>
-                <span class="tool-sub">Build your own questions</span>
-              </li>
-              <li id="toolCreateAI">
-                <span class="tool-title">Create quiz (AI)</span>
-                <span class="tool-sub">
-                  Upload notes / PDFs, let AI do the work
+        <!-- ===== EXPLORE VIEW ===== -->
+        <section class="view" id="view-explore">
+          <div class="view-header">
+            <h2>Explore quizzes &amp; tournaments</h2>
+            <p>Browse public quizzes or join upcoming live events.</p>
+          </div>
+
+          <div class="explore-grid">
+            <div class="card explore-card">
+              <h3>Trending quizzes</h3>
+              <ul class="small-list" id="trendingQuizzes">
+                <!-- Filled by JS with sample quizzes -->
+              </ul>
+            </div>
+
+            <div class="card explore-card">
+              <h3>Upcoming tournaments</h3>
+              <ul class="small-list" id="upcomingTournaments">
+                <!-- Filled by JS with tournaments -->
+              </ul>
+            </div>
+
+            <div class="card explore-card">
+              <h3>Learn &amp; improve</h3>
+              <ul class="small-list" id="learnImprove">
+                <!-- Filled by JS with learning items -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Category-based browse block -->
+          <div class="categories-block">
+            <h3 class="section-subtitle">Browse by category</h3>
+            <div class="category-chips">
+              <button class="chip chip-active">Computer Science</button>
+              <button class="chip">Aptitude</button>
+              <button class="chip">GATE / JEE</button>
+              <button class="chip">Maths</button>
+              <button class="chip">General Knowledge</button>
+            </div>
+
+            <div class="category-grid" id="exploreCategories">
+              <!-- Example static category cards -->
+              <div class="card cat-card">
+                <h4>Beginner CS Pack</h4>
+                <p>3 quizzes • C basics, loops, arrays.</p>
+              </div>
+              <div class="card cat-card">
+                <h4>Placement Aptitude Set</h4>
+                <p>4 quizzes • numbers, reasoning, puzzles.</p>
+              </div>
+              <div class="card cat-card">
+                <h4>DBMS + SQL Combo</h4>
+                <p>3 quizzes • ER, normalization, queries.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== PROFILE VIEW ===== -->
+        <section class="view" id="view-profile">
+          <div class="view-header">
+            <h2>Profile &amp; rating</h2>
+            <p>Your rating, progress and recent performance across modes.</p>
+          </div>
+
+          <div class="profile-grid">
+            <!-- Main profile info -->
+            <div class="card profile-main">
+              <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div>
+                  <h3 id="profileName">User</h3>
+                  <p class="profile-sub" id="profileRole">
+                    Host • Team Samarpan
+                  </p>
+                </div>
+              </div>
+
+              <div class="rating-row">
+                <div class="rating-block">
+                  <span class="rating-label">Global rating</span>
+                  <span class="rating-value">1430</span>
+                  <span class="rating-change">+15 today</span>
+                </div>
+                <div class="rating-block">
+                  <span class="rating-label">Peak rating</span>
+                  <span class="rating-value">1475</span>
+                  <span class="rating-change">Reached last week</span>
+                </div>
+                <div class="rating-block">
+                  <span class="rating-label">Games played</span>
+                  <span class="rating-value">58</span>
+                  <span class="rating-change">42 rated • 16 casual</span>
+                </div>
+              </div>
+
+              <div class="rating-bar-wrapper">
+                <span class="rating-label">
+                  Progress to next tier (Gold → Platinum)
                 </span>
-              </li>
-              <li id="toolLiveTournaments">
-                <span class="tool-title">Live tournaments</span>
-                <span class="tool-sub">Host multi-round events</span>
-              </li>
-              <li>
-                <span class="tool-title">Learn</span>
-                <span class="tool-sub">View guides, tips &amp; best practices</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- RIGHT: recent quizzes + mini rating summary -->
-          <div class="card history-card">
-            <div class="history-head">
-              <h3>Your quizzes / history</h3>
-              <button class="chip small-chip">View all</button>
+                <div class="rating-progress">
+                  <div class="rating-progress-fill"></div>
+                </div>
+                <span class="rating-note">
+                  Win 4–5 more rated quizzes to reach the next tier.
+                </span>
+              </div>
             </div>
 
-            <div class="quiz-grid">
-              <div class="quiz-card">
-                <h4>Thermodynamics Basics</h4>
-                <p>10 questions • AI-generated</p>
-                <div class="quiz-meta">
-                  <span>Last played: 2d ago</span>
-                  <button class="mini-btn">Host again</button>
+            <!-- Mode-wise ratings -->
+            <div class="card profile-modes">
+              <h3>Mode-wise ratings</h3>
+              <div class="mode-list">
+                <div class="mode-item">
+                  <div>
+                    <strong>Quiz (Rapid)</strong>
+                    <span class="mode-sub">Standard classroom &amp; lab games</span>
+                  </div>
+                  <span class="mode-rating">1420</span>
                 </div>
-              </div>
-
-              <div class="quiz-card">
-                <h4>Data Structures MCQ Set</h4>
-                <p>20 questions • Manual</p>
-                <div class="quiz-meta">
-                  <span>Last played: 5d ago</span>
-                  <button class="mini-btn">Host again</button>
+                <div class="mode-item">
+                  <div>
+                    <strong>Tournament (Blitz)</strong>
+                    <span class="mode-sub">Fast event rounds &amp; college fests</span>
+                  </div>
+                  <span class="mode-rating">1485</span>
                 </div>
-              </div>
-
-              <div class="quiz-card">
-                <h4>General Aptitude Round 1</h4>
-                <p>15 questions • Tournament</p>
-                <div class="quiz-meta">
-                  <span>Last played: 1w ago</span>
-                  <button class="mini-btn">Host again</button>
-                </div>
-              </div>
-
-              <div class="quiz-card">
-                <h4>Operating Systems Quick Test</h4>
-                <p>8 questions • AI-generated</p>
-                <div class="quiz-meta">
-                  <span>Last played: 3w ago</span>
-                  <button class="mini-btn">Host again</button>
+                <div class="mode-item">
+                  <div>
+                    <strong>Practice (Casual)</strong>
+                    <span class="mode-sub">Solo practice, rating optional</span>
+                  </div>
+                  <span class="mode-rating">—</span>
                 </div>
               </div>
             </div>
 
-            <!-- Inline rating block inside dashboard -->
-            <div class="inline-rating">
-              <div>
-                <span class="inline-label">Current rating</span>
-                <span class="inline-value">1430</span>
-              </div>
-              <div class="inline-bar">
-                <div class="inline-fill"></div>
-              </div>
-              <span class="inline-note">+24 after last 3 quizzes</span>
+            <!-- Recent rated game history -->
+            <div class="card profile-history">
+              <h3>Recent rated quizzes</h3>
+              <ul class="history-list">
+                <li>
+                  <span>Thermodynamics Basics</span>
+                  <span class="history-result win">Win</span>
+                  <span class="history-change">+8 (1422 → 1430)</span>
+                </li>
+                <li>
+                  <span>OS Quick Battle</span>
+                  <span class="history-result loss">Loss</span>
+                  <span class="history-change">-6 (1428 → 1422)</span>
+                </li>
+                <li>
+                  <span>DSA Stack &amp; Queue</span>
+                  <span class="history-result win">Win</span>
+                  <span class="history-change">+10 (1418 → 1428)</span>
+                </li>
+              </ul>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Key stats row -->
-        <div class="stats-row">
-          <div class="card stat-card">
-            <h4>Total quizzes hosted</h4>
-            <p class="stat-number">42</p>
-            <p class="stat-sub">Across classrooms, labs &amp; events.</p>
-          </div>
-          <div class="card stat-card">
-            <h4>Unique players</h4>
-            <p class="stat-number">196</p>
-            <p class="stat-sub">Different students joined your sessions.</p>
-          </div>
-          <div class="card stat-card">
-            <h4>Avg accuracy</h4>
-            <p class="stat-number">81%</p>
-            <p class="stat-sub">Overall performance across quizzes.</p>
-          </div>
-        </div>
-
-        <!-- Recent activity list -->
-        <div class="card activity-card">
-          <div class="activity-head">
-            <h3>Recent activity</h3>
-          </div>
-          <ul class="activity-list">
-            <li>
-              <span class="dot dot-green"></span> You hosted “Thermodynamics Basics”
-              – 32 players joined.
-            </li>
-            <li>
-              <span class="dot dot-blue"></span> New AI quiz generated from “DSA
-              Notes – Stack &amp; Queue”.
-            </li>
-            <li>
-              <span class="dot dot-purple"></span> Leaderboard updated after “Aptitude
-              Round 1”.
-            </li>
-            <li>
-              <span class="dot dot-yellow"></span> 14 students completed practice mode
-              for “Pointers in C”.
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- ===== CREATE QUIZ VIEW ===== -->
-      <section class="view" id="view-create">
-        <div class="view-header">
-          <h2>Create quiz</h2>
-          <p>Choose how you want to build your next quiz.</p>
-        </div>
-
-        <div class="grid-two">
-          <!-- Manual quiz creation -->
-          <div class="card create-card">
-            <h3>Start from scratch</h3>
-            <p>
-              Add questions manually, control every option, and save as a reusable
-              quiz template.
-            </p>
-            <ul class="small-list">
-              <li>Multiple choice, true/false, single answer</li>
-              <li>Control timer &amp; points per question</li>
-              <li>Tag quizzes by topic and level</li>
-            </ul>
-            <button class="btn btn-primary" id="btnOpenManualEditor">
-              Open manual editor
-            </button>
+        <!-- ===== HOST VIEW ===== -->
+        <section class="view" id="view-host">
+          <div class="view-header">
+            <h2>Host a quiz</h2>
+            <p>Pick a quiz, set mode and start a rated session.</p>
           </div>
 
-          <!-- AI quiz creation -->
-          <div class="card create-card">
-            <h3>Create using AI</h3>
-            <p>
-              Type a topic and let Samarpan generate a full quiz for you.
-            </p>
-            <ul class="small-list">
-              <li>Give topic and difficulty</li>
-              <li>Configurable number of questions</li>
-              <li>Edit AI questions before saving</li>
-            </ul>
-
-            <div class="field">
-              <label for="aiTopic">Topic</label>
-              <input type="text" id="aiTopic" placeholder="Eg. DBMS Normalization" />
-            </div>
-            <div class="field">
-              <label for="aiTitle">Quiz title (optional)</label>
-              <input
-                type="text"
-                id="aiTitle"
-                placeholder="Eg. DBMS Normalization - Quiz 1"
-              />
-            </div>
-            <div class="field inline-field">
-              <div>
-                <label for="aiDifficulty">Difficulty</label>
-                <select id="aiDifficulty">
-                  <option value="easy">Easy</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="hard">Hard</option>
+          <div class="host-grid">
+            <!-- Host form -->
+            <div class="card host-form">
+              <div class="field">
+                <label for="host-quiz">Select quiz</label>
+                <select id="host-quiz">
+                  <option value="">-- Choose a quiz --</option>
+                  <option value="manual-last">My last manual quiz</option>
+                  <option value="ai-last">My last AI quiz</option>
                 </select>
               </div>
-              <div>
-                <label for="aiCount">No. of questions</label>
-                <input type="number" id="aiCount" value="5" min="1" max="50" />
+
+              <div class="field">
+                <label for="host-mode">Mode</label>
+                <select id="host-mode">
+                  <option>Quiz (Rapid)</option>
+                  <option>Tournament (Blitz)</option>
+                  <option>Practice (Casual – unrated)</option>
+                </select>
+              </div>
+
+              <div class="field inline-field">
+                <div>
+                  <label for="host-timer">Timer per question</label>
+                  <input type="number" id="host-timer" value="30" />
+                </div>
+                <div>
+                  <label for="host-rating">Rated session</label>
+                  <select id="host-rating">
+                    <option>Yes, update ratings</option>
+                    <option>No, casual only</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="btn btn-primary full-width" id="btnHostStart">
+                Generate game PIN &amp; start
+              </button>
+              <p id="hostStatus" class="form-note"></p>
+
+              <p class="form-note">
+                For rated sessions, your rating will increase or decrease based on
+                players’ scores and average rating—similar to chess-style matchmaking.
+              </p>
+            </div>
+
+            <!-- Host info / rating impact -->
+            <div class="card host-side">
+              <h3>Expected rating impact</h3>
+              <ul class="small-list">
+                <li>Win vs higher-rated group → +10 to +18 rating.</li>
+                <li>Win vs similar rating → +6 to +10 rating.</li>
+                <li>Win vs much lower rating → +1 to +4 rating.</li>
+                <li>Loss vs lower-rated group → -10 to -18 rating.</li>
+              </ul>
+              <p class="rating-note">
+                The system uses a dynamic rating &amp; ranking model described in your
+                PPT (XP, badges, levels + AI-powered analytics).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== BATTLES VIEW ===== -->
+        <section class="view" id="view-battles">
+          <div class="view-header">
+            <h2>Team battles (2v2 &amp; 4v4)</h2>
+            <p>Host or join squad battles using a quiz PIN.</p>
+          </div>
+
+          <div class="host-grid">
+            <!-- LEFT: create a new battle -->
+            <div class="card host-form">
+              <h3>Start a battle</h3>
+
+              <div class="field">
+                <label for="battle-quiz">Select quiz</label>
+                <select id="battle-quiz">
+                  <option value="">Choose a quiz</option>
+                  <option value="manual-last">My last manual quiz</option>
+                  <option value="ai-last">My last AI quiz</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="battle-type">Battle type</label>
+                <select id="battle-type">
+                  <option value="2v2">2 vs 2</option>
+                  <option value="4v4">4 vs 4</option>
+                </select>
+              </div>
+
+              <div class="field inline-field">
+                <div>
+                  <label for="battle-timer">Timer per question</label>
+                  <input type="number" id="battle-timer" value="30" />
+                </div>
+                <div>
+                  <label for="battle-rated">Rated battle</label>
+                  <select id="battle-rated">
+                    <option value="rated">Yes, update ratings</option>
+                    <option value="casual">No, friendly only</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="btn btn-primary full-width" id="btnBattleHost">
+                Generate battle PIN
+              </button>
+
+              <button class="btn btn-outline full-width" id="btnBattlePlayLocal" style="margin-top:0.5rem;">
+                Start local battle on this device
+              </button>
+
+              <p id="battleStatus" class="form-note"></p>
+            </div>
+
+            <!-- RIGHT: join existing battle -->
+            <div class="card host-side">
+              <h3>Enter Arena</h3>
+
+              <div class="field">
+                <label for="battleJoinPin">Battle PIN from friend</label>
+                <input type="text" id="battleJoinPin" placeholder="Enter PIN here" />
+              </div>
+
+              <div class="field">
+                <label for="battleJoinName">Your name / team</label>
+                <input type="text" id="battleJoinName" placeholder="Eg. Aman, Team Alpha" />
+              </div>
+
+              <button class="btn btn-outline full-width" id="btnBattleJoin">
+                Join battle
+              </button>
+
+              <p class="form-note">
+                Enter the unique quiz PIN from the host and your name to join the live session instantly.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== AUTH VIEW (FULL PAGE) ===== -->
+        <section class="view" id="view-auth">
+          <div class="view-header">
+            <h2>Sign up / Log in</h2>
+            <p>Access your quizzes, ratings, and tournaments from any device.</p>
+          </div>
+
+          <div class="auth-grid">
+            <!-- Login card -->
+            <form class="card auth-card">
+              <h3>Log in</h3>
+              <div class="field">
+                <label for="login-email-page">Email</label>
+                <input type="email" id="login-email-page" placeholder="you@example.com" />
+              </div>
+              <div class="field">
+                <label for="login-pass-page">Password</label>
+                <input type="password" id="login-pass-page" placeholder="••••••••" />
+              </div>
+              <button type="submit" class="btn btn-primary full-width">
+                Log in
+              </button>
+              <p class="form-note">Static mockup page for now.</p>
+            </form>
+
+            <!-- Signup card -->
+            <form class="card auth-card">
+              <h3>Sign up</h3>
+              <div class="field">
+                <label for="signup-name-page">Name</label>
+                <input type="text" id="signup-name-page" placeholder="Aman Maurya" />
+              </div>
+              <div class="field">
+                <label for="signup-email-page">Email</label>
+                <input type="email" id="signup-email-page" placeholder="you@example.com" />
+              </div>
+              <div class="field">
+                <label for="signup-pass-page">Password</label>
+                <input type="password" id="signup-pass-page" placeholder="Create a password" />
+              </div>
+              <button type="submit" class="btn btn-outline full-width">
+                Create account
+              </button>
+              <p class="form-note">
+                Your rating, history, and quizzes will be tied to this account.
+              </p>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===== LOBBY VIEW (WAITING FOR PLAYERS) ===== -->
+        <section class="view" id="view-lobby">
+          <div class="view-header lobby-header">
+            <h2 class="lobby-title">Game Lobby</h2>
+            <p>Share the PIN with your friends to join the arena.</p>
+          </div>
+
+          <div class="lobby-card card neon-border">
+            <div class="lobby-pin-section">
+              <span class="pin-label">JOIN PIN</span>
+              <div class="pin-display" id="lobbyPinDisplay">000000</div>
+            </div>
+
+            <div class="lobby-players-section">
+              <div class="players-header">
+                <h3>Players Joined (<span id="playerCount">0</span>)</h3>
+              </div>
+              <div class="players-grid" id="lobbyPlayerGrid">
+                <!-- Players pop in here via socket -->
+                <div class="empty-lobby-msg">Waiting for players to join...</div>
               </div>
             </div>
 
-            <div class="ai-actions">
-              <button class="btn btn-outline" id="aiGenerateBtn">
-                Create using AI
+            <div class="lobby-actions">
+              <button class="btn btn-action-main full-width" id="btnStartGame" disabled>
+                Start Game
               </button>
-
-              <!-- Shown after AI quiz is ready -->
-              <button
-                class="btn btn-outline"
-                id="aiPlayBtn"
-                style="display:none;"
-              >
-                Play this quiz
+              <button class="btn btn-text-only full-width" id="btnCancelLobby">
+                Cancel Session
               </button>
             </div>
-
-            <p id="aiStatus" class="form-note"></p>
           </div>
-        </div>
+        </section>
 
-        <!-- Quick pre-made templates -->
-        <div class="templates-row">
-          <h3 class="section-subtitle">Quick templates</h3>
-          <div class="templates-grid">
-            <div class="card template-card">
-              <h4>5-question warmup</h4>
-              <p>Use before starting any topic to quickly check basics.</p>
-              <button class="mini-btn">Use template</button>
-            </div>
-            <div class="card template-card">
-              <h4>Timed mock test</h4>
-              <p>20 questions with strict timer for exam-style practice.</p>
-              <button class="mini-btn">Use template</button>
-            </div>
-            <div class="card template-card">
-              <h4>Tournament round</h4>
-              <p>Ideal for events with multiple knock-out rounds.</p>
-              <button class="mini-btn">Use template</button>
+        <!-- ===== CONTACT VIEW ===== -->
+        <section class="view" id="view-contact">
+          <div class="view-header">
+            <h2>Contact us</h2>
+            <p>Reach out for collaborations, feedback, or event hosting.</p>
+          </div>
+
+          <div class="contact-grid">
+            <!-- Contact form -->
+            <form class="card contact-form">
+              <div class="field">
+                <label for="c-name">Name</label>
+                <input type="text" id="c-name" placeholder="Your full name" />
+              </div>
+              <div class="field">
+                <label for="c-email">Email</label>
+                <input type="email" id="c-email" placeholder="you@institute.com" />
+              </div>
+              <div class="field">
+                <label for="c-type">I want to</label>
+                <select id="c-type">
+                  <option>Host a college event</option>
+                  <option>Try in my classroom</option>
+                  <option>Give feedback</option>
+                  <option>Discuss collaboration</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="c-msg">Message</label>
+                <textarea id="c-msg" rows="4" placeholder="Tell us about your idea or event..."></textarea>
+              </div>
+              <button class="btn btn-primary full-width" type="submit">
+                Send message
+              </button>
+              <p class="form-note">Prototype form – data is not actually sent.</p>
+            </form>
+
+            <!-- Contact info / description -->
+            <div class="card contact-info">
+              <h3>Team Samarpan</h3>
+              <p class="contact-text">
+                Student-led project from UIET, CSJMU Kanpur under Smart Education
+                theme.
+              </p>
+              <ul class="small-list">
+                <li>Use Samarpan for quizzes, tournaments, and practice sessions.</li>
+                <li>AI-generated questions from PDFs, notes, and topics.</li>
+                <li>Dynamic rating, XP, and badges to keep students engaged.</li>
+              </ul>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Extra tips section -->
-        <div class="card tips-card">
-          <h3>Tips for better quizzes</h3>
-          <ul class="small-list">
-            <li>Keep options short and clear – avoid confusing wording.</li>
-            <li>Mix easy, medium and hard questions to keep players engaged.</li>
-            <li>Use AI to generate a first draft, then tweak to match your style.</li>
-            <li>Add a short explanation after tough questions for learning impact.</li>
-          </ul>
-        </div>
-      </section>
+        <!-- ===== ABOUT VIEW ===== -->
+        <section class="view" id="view-about">
+          <div class="view-header">
+            <h2>About Samarpan</h2>
+            <p>
+              AI-powered quiz portal by Team Samarpan – designed as an upgrade over
+              Kahoot-style platforms with automation, analytics, and rating.
+            </p>
+          </div>
 
-      <!-- ===== MANUAL QUIZ EDITOR (inside create view) ===== -->
-      <div
-        class="card manual-editor"
-        id="manualEditor"
-        style="display:none; margin-top:1.5rem;"
-      >
-        <h3>Manual quiz editor</h3>
-        <p style="color:#9ca3af; font-size:0.9rem;">
-          Add questions manually, options, correct answer and explanation.
-        </p>
+          <div class="about-grid">
+            <!-- Project overview -->
+            <div class="card about-card">
+              <h3>Project overview</h3>
+              <p class="about-text">
+                Samarpan is an AI Quiz Portal built for the Smart Education theme. It
+                auto-generates quizzes from text/PDFs, supports multiplayer modes, and
+                tracks ratings, ranks, and performance over time.
+              </p>
+              <ul class="small-list">
+                <li>AI quiz generation from study material.</li>
+                <li>Live scoring, leaderboards and tournaments.</li>
+                <li>Dynamic rating &amp; ranking system with XP and levels.</li>
+              </ul>
+            </div>
 
-        <!-- Quiz-level details -->
-        <div class="field">
-          <label for="manualTitle">Quiz title</label>
-          <input
-            type="text"
-            id="manualTitle"
-            placeholder="Eg. DBMS Basics - Set 1"
-          />
-        </div>
+            <!-- Tech stack -->
+            <div class="card about-card">
+              <h3>Tech stack</h3>
+              <ul class="small-list">
+                <li>Frontend: HTML, CSS, JS single-page UI.</li>
+                <li>Backend: Node.js + Express REST API.</li>
+                <li>Realtime: Socket.io for live rooms &amp; scores (future).</li>
+                <li>AI Service: Python microservice with OpenAI / NLP models.</li>
+                <li>
+                  Database: MongoDB Atlas for users, quizzes &amp; leaderboards.
+                </li>
+              </ul>
+            </div>
 
-        <div class="field">
-          <label for="manualTopic">Topic / tag</label>
-          <input
-            type="text"
-            id="manualTopic"
-            placeholder="Eg. DBMS, Normalization"
-          />
-        </div>
-
-        <div class="field">
-          <label for="manualDifficulty">Default difficulty</label>
-          <select id="manualDifficulty">
-            <option value="easy">Easy</option>
-            <option value="medium" selected>Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-
-        <hr style="border-color:#1f2937; margin:1rem 0;" />
-
-        <!-- Question form -->
-        <h4 style="margin:0 0 .5rem;">Add a question</h4>
-
-        <div class="field">
-          <label for="qText">Question</label>
-          <textarea
-            id="qText"
-            rows="2"
-            placeholder="Type your question here..."
-          ></textarea>
-        </div>
-
-        <div class="field">
-          <label>Options</label>
-          <input type="text" id="opt0" placeholder="Option 1" />
-          <input
-            type="text"
-            id="opt1"
-            placeholder="Option 2"
-            style="margin-top:0.35rem;"
-          />
-          <input
-            type="text"
-            id="opt2"
-            placeholder="Option 3 (optional)"
-            style="margin-top:0.35rem;"
-          />
-          <input
-            type="text"
-            id="opt3"
-            placeholder="Option 4 (optional)"
-            style="margin-top:0.35rem;"
-          />
-        </div>
-
-        <div class="field">
-          <label for="correctIndex">Correct option</label>
-          <select id="correctIndex">
-            <option value="0">Option 1</option>
-            <option value="1">Option 2</option>
-            <option value="2">Option 3</option>
-            <option value="3">Option 4</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="qExplanation">Explanation (optional)</label>
-          <textarea
-            id="qExplanation"
-            rows="2"
-            placeholder="Short explanation for this answer..."
-          ></textarea>
-        </div>
-
-        <button class="btn btn-outline" id="btnAddQuestion" type="button">
-          + Add question to quiz
-        </button>
-
-        <!-- List of questions added so far -->
-        <div
-          id="manualQuestionList"
-          style="margin-top:1rem; font-size:0.85rem; color:#e5e7eb;"
-        >
-          <p style="margin:0; color:#9ca3af;">No questions added yet.</p>
-        </div>
-
-        <hr style="border-color:#1f2937; margin:1.2rem 0;" />
-
-        <button class="btn btn-primary" id="btnSaveManualQuiz" type="button">
-          Save quiz to Samarpan
-        </button>
-
-        <p id="manualEditorStatus" style="margin-top:.7rem; font-size:0.8rem;"></p>
+            <!-- Team members -->
+            <div class="card about-card">
+              <h3>Team Samarpan</h3>
+              <ul class="small-list">
+                <li>Mehak Pal – Team Lead &amp; Full Stack Developer.</li>
+                <li>Janvi Sahu – AI / ML.</li>
+                <li>Sumit Kumar – UI/UX &amp; Frontend.</li>
+                <li>
+                  Maurya Aman – Data &amp; Content (rating system, tournaments).
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
       </div>
-
-      <!-- ===== QUIZ PLAYER VIEW ===== -->
-      <section class="view" id="view-player">
-        <div class="view-header">
-          <h2 id="playerTitle">Quiz player</h2>
-          <p id="playerSubtitle">Answer the questions and see your score.</p>
-        </div>
-
-        <div class="card" id="playerCard">
-          <div class="player-meta">
-            <span id="playerProgress">Question 1 / 1</span>
-            <span id="playerTimer"></span>
-          </div>
-
-          <h3 id="playerQuestionText">Question will appear here</h3>
-
-          <div id="playerOptions" class="player-options">
-            <!-- Answer options will be injected by JS -->
-          </div>
-
-          <p id="playerStatus" class="player-status"></p>
-
-          <button class="btn btn-primary" id="playerNextBtn" type="button">
-            Next question
-          </button>
-        </div>
-
-        <div
-          class="card"
-          id="playerResult"
-          style="display:none; margin-top:1rem;"
-        >
-          <h3>Quiz finished</h3>
-          <p id="playerScoreLine"></p>
-          <p id="playerTimeLine"></p>
-          <button
-            class="btn btn-outline"
-            id="playerBackDashboard"
-            type="button"
-          >
-            Back to dashboard
-          </button>
-        </div>
-      </section>
-
-      <!-- ===== LEADERBOARD VIEW ===== -->
-      <section class="view" id="view-leaderboard">
-        <div class="view-header">
-          <h2>Leaderboard &amp; ratings</h2>
-          <p>See who’s dominating your quizzes and how ratings are evolving.</p>
-        </div>
-
-        <div class="card">
-          <div class="leaderboard-filters">
-            <button class="chip chip-active">This week</button>
-            <button class="chip">This month</button>
-            <button class="chip">All-time</button>
-          </div>
-
-          <table class="leaderboard-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Player</th>
-                <th>Rating</th>
-                <th>Quizzes played</th>
-                <th>Avg score</th>
-                <th>Best rank</th>
-              </tr>
-            </thead>
-            <tbody id="leaderboardBody">
-              <!-- Leaderboard rows will be filled by JS -->
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Extra explanation cards -->
-        <div class="leaderboard-extra">
-          <div class="card lb-card">
-            <h3>How ratings work (chess-style)</h3>
-            <ul class="small-list">
-              <li>Each player starts around 1200 rating.</li>
-              <li>Win vs higher-rated player → bigger rating gain.</li>
-              <li>Win vs similar rating → moderate rating gain.</li>
-              <li>Win vs lower-rated player → small rating boost.</li>
-              <li>Lose vs lower-rated player → bigger rating loss.</li>
-            </ul>
-            <p class="rating-note">
-              Behind the scenes, an Elo-like formula updates rating based on
-              opponent strength, quiz difficulty, and final score—similar to
-              chess.com rating behaviour.
-            </p>
-          </div>
-          <div class="card lb-card">
-            <h3>Mode-based ratings</h3>
-            <ul class="small-list">
-              <li><strong>Quiz (Rapid)</strong> – standard class quizzes.</li>
-              <li><strong>Tournament (Blitz)</strong> – fast-paced event games.</li>
-              <li><strong>Practice (Casual)</strong> – practice mode, rating optional.</li>
-            </ul>
-            <p class="rating-note">
-              Just like chess.com has Rapid / Blitz / Bullet, Samarpan can track
-              separate ratings per mode, plus a global rating for ranking.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== EXPLORE VIEW ===== -->
-      <section class="view" id="view-explore">
-        <div class="view-header">
-          <h2>Explore quizzes &amp; tournaments</h2>
-          <p>Browse public quizzes or join upcoming live events.</p>
-        </div>
-
-        <div class="explore-grid">
-          <div class="card explore-card">
-            <h3>Trending quizzes</h3>
-            <ul class="small-list" id="trendingQuizzes">
-              <!-- Filled by JS with sample quizzes -->
-            </ul>
-          </div>
-
-          <div class="card explore-card">
-            <h3>Upcoming tournaments</h3>
-            <ul class="small-list" id="upcomingTournaments">
-              <!-- Filled by JS with tournaments -->
-            </ul>
-          </div>
-
-          <div class="card explore-card">
-            <h3>Learn &amp; improve</h3>
-            <ul class="small-list" id="learnImprove">
-              <!-- Filled by JS with learning items -->
-            </ul>
-          </div>
-        </div>
-
-        <!-- Category-based browse block -->
-        <div class="categories-block">
-          <h3 class="section-subtitle">Browse by category</h3>
-          <div class="category-chips">
-            <button class="chip chip-active">Computer Science</button>
-            <button class="chip">Aptitude</button>
-            <button class="chip">GATE / JEE</button>
-            <button class="chip">Maths</button>
-            <button class="chip">General Knowledge</button>
-          </div>
-
-          <div class="category-grid" id="exploreCategories">
-            <!-- Example static category cards -->
-            <div class="card cat-card">
-              <h4>Beginner CS Pack</h4>
-              <p>3 quizzes • C basics, loops, arrays.</p>
-            </div>
-            <div class="card cat-card">
-              <h4>Placement Aptitude Set</h4>
-              <p>4 quizzes • numbers, reasoning, puzzles.</p>
-            </div>
-            <div class="card cat-card">
-              <h4>DBMS + SQL Combo</h4>
-              <p>3 quizzes • ER, normalization, queries.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== PROFILE VIEW ===== -->
-      <section class="view" id="view-profile">
-        <div class="view-header">
-          <h2>Profile &amp; rating</h2>
-          <p>Your rating, progress and recent performance across modes.</p>
-        </div>
-
-        <div class="profile-grid">
-          <!-- Main profile info -->
-          <div class="card profile-main">
-            <div class="profile-header">
-              <div class="profile-avatar" id="profileAvatar">U</div>
-              <div>
-                <h3 id="profileName">User</h3>
-                <p class="profile-sub" id="profileRole">
-                  Host • Team Samarpan
-                </p>
-              </div>
-            </div>
-
-            <div class="rating-row">
-              <div class="rating-block">
-                <span class="rating-label">Global rating</span>
-                <span class="rating-value">1430</span>
-                <span class="rating-change">+15 today</span>
-              </div>
-              <div class="rating-block">
-                <span class="rating-label">Peak rating</span>
-                <span class="rating-value">1475</span>
-                <span class="rating-change">Reached last week</span>
-              </div>
-              <div class="rating-block">
-                <span class="rating-label">Games played</span>
-                <span class="rating-value">58</span>
-                <span class="rating-change">42 rated • 16 casual</span>
-              </div>
-            </div>
-
-            <div class="rating-bar-wrapper">
-              <span class="rating-label">
-                Progress to next tier (Gold → Platinum)
-              </span>
-              <div class="rating-progress">
-                <div class="rating-progress-fill"></div>
-              </div>
-              <span class="rating-note">
-                Win 4–5 more rated quizzes to reach the next tier.
-              </span>
-            </div>
-          </div>
-
-          <!-- Mode-wise ratings -->
-          <div class="card profile-modes">
-            <h3>Mode-wise ratings</h3>
-            <div class="mode-list">
-              <div class="mode-item">
-                <div>
-                  <strong>Quiz (Rapid)</strong>
-                  <span class="mode-sub">Standard classroom &amp; lab games</span>
-                </div>
-                <span class="mode-rating">1420</span>
-              </div>
-              <div class="mode-item">
-                <div>
-                  <strong>Tournament (Blitz)</strong>
-                  <span class="mode-sub">Fast event rounds &amp; college fests</span>
-                </div>
-                <span class="mode-rating">1485</span>
-              </div>
-              <div class="mode-item">
-                <div>
-                  <strong>Practice (Casual)</strong>
-                  <span class="mode-sub">Solo practice, rating optional</span>
-                </div>
-                <span class="mode-rating">—</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent rated game history -->
-          <div class="card profile-history">
-            <h3>Recent rated quizzes</h3>
-            <ul class="history-list">
-              <li>
-                <span>Thermodynamics Basics</span>
-                <span class="history-result win">Win</span>
-                <span class="history-change">+8 (1422 → 1430)</span>
-              </li>
-              <li>
-                <span>OS Quick Battle</span>
-                <span class="history-result loss">Loss</span>
-                <span class="history-change">-6 (1428 → 1422)</span>
-              </li>
-              <li>
-                <span>DSA Stack &amp; Queue</span>
-                <span class="history-result win">Win</span>
-                <span class="history-change">+10 (1418 → 1428)</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== HOST VIEW ===== -->
-      <section class="view" id="view-host">
-        <div class="view-header">
-          <h2>Host a quiz</h2>
-          <p>Pick a quiz, set mode and start a rated session.</p>
-        </div>
-
-        <div class="host-grid">
-          <!-- Host form -->
-          <div class="card host-form">
-            <div class="field">
-              <label for="host-quiz">Select quiz</label>
-              <select id="host-quiz">
-                <option>Thermodynamics Basics</option>
-                <option>Data Structures MCQ Set</option>
-                <option>General Aptitude Round 1</option>
-                <option>Operating Systems Quick Test</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="host-mode">Mode</label>
-              <select id="host-mode">
-                <option>Quiz (Rapid)</option>
-                <option>Tournament (Blitz)</option>
-                <option>Practice (Casual – unrated)</option>
-              </select>
-            </div>
-
-            <div class="field inline-field">
-              <div>
-                <label for="host-timer">Timer per question</label>
-                <input type="number" id="host-timer" value="30" />
-              </div>
-              <div>
-                <label for="host-rating">Rated session</label>
-                <select id="host-rating">
-                  <option>Yes, update ratings</option>
-                  <option>No, casual only</option>
-                </select>
-              </div>
-            </div>
-
-            <button class="btn btn-primary full-width" id="btnHostStart">
-              Generate game PIN &amp; start
-            </button>
-            <p id="hostStatus" class="form-note"></p>
-
-            <p class="form-note">
-              For rated sessions, your rating will increase or decrease based on
-              players’ scores and average rating—similar to chess-style matchmaking.
-            </p>
-          </div>
-
-          <!-- Host info / rating impact -->
-          <div class="card host-side">
-            <h3>Expected rating impact</h3>
-            <ul class="small-list">
-              <li>Win vs higher-rated group → +10 to +18 rating.</li>
-              <li>Win vs similar rating → +6 to +10 rating.</li>
-              <li>Win vs much lower rating → +1 to +4 rating.</li>
-              <li>Loss vs lower-rated group → -10 to -18 rating.</li>
-            </ul>
-            <p class="rating-note">
-              The system uses a dynamic rating &amp; ranking model described in your
-              PPT (XP, badges, levels + AI-powered analytics).
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== BATTLES VIEW ===== -->
-      <section class="view" id="view-battles">
-        <div class="view-header">
-          <h2>Team battles (2v2 &amp; 4v4)</h2>
-          <p>Host or join squad battles using a quiz PIN.</p>
-        </div>
-
-        <div class="host-grid">
-          <!-- LEFT: create a new battle -->
-          <div class="card host-form">
-            <h3>Create battle</h3>
-
-            <div class="field">
-              <label for="battle-quiz">Select quiz</label>
-              <select id="battle-quiz">
-                <option value="">Choose a quiz</option>
-                <option value="manual-last">My last manual quiz</option>
-                <option value="ai-last">My last AI quiz</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="battle-type">Battle type</label>
-              <select id="battle-type">
-                <option value="2v2">2 vs 2</option>
-                <option value="4v4">4 vs 4</option>
-              </select>
-            </div>
-
-            <div class="field inline-field">
-              <div>
-                <label for="battle-timer">Timer per question</label>
-                <input type="number" id="battle-timer" value="30" />
-              </div>
-              <div>
-                <label for="battle-rated">Rated battle</label>
-                <select id="battle-rated">
-                  <option value="rated">Yes, update ratings</option>
-                  <option value="casual">No, friendly only</option>
-                </select>
-              </div>
-            </div>
-
-            <button class="btn btn-primary full-width" id="btnBattleHost">
-              Generate battle PIN
-            </button>
-
-            <button
-              class="btn btn-outline full-width"
-              id="btnBattlePlayLocal"
-              style="margin-top:0.5rem;"
-            >
-              Start local battle on this device
-            </button>
-
-            <p id="battleStatus" class="form-note"></p>
-          </div>
-
-          <!-- RIGHT: join existing battle -->
-          <div class="card host-side">
-            <h3>Join a battle (prototype)</h3>
-
-            <div class="field">
-              <label for="battleJoinPin">Battle PIN from friend</label>
-              <input
-                type="text"
-                id="battleJoinPin"
-                placeholder="Enter PIN here"
-              />
-            </div>
-
-            <div class="field">
-              <label for="battleJoinName">Your name / team</label>
-              <input
-                type="text"
-                id="battleJoinName"
-                placeholder="Eg. Aman, Team Alpha"
-              />
-            </div>
-
-            <button class="btn btn-outline full-width" id="btnBattleJoin">
-              Join battle
-            </button>
-
-            <p class="form-note">
-              For this prototype, joining just shows a confirmation popup.
-              Realtime multi-player (Socket.io) will come in full version.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== AUTH VIEW (FULL PAGE) ===== -->
-      <section class="view" id="view-auth">
-        <div class="view-header">
-          <h2>Sign up / Log in</h2>
-          <p>Access your quizzes, ratings, and tournaments from any device.</p>
-        </div>
-
-        <div class="auth-grid">
-          <!-- Login card -->
-          <form class="card auth-card">
-            <h3>Log in</h3>
-            <div class="field">
-              <label for="login-email-page">Email</label>
-              <input
-                type="email"
-                id="login-email-page"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div class="field">
-              <label for="login-pass-page">Password</label>
-              <input
-                type="password"
-                id="login-pass-page"
-                placeholder="••••••••"
-              />
-            </div>
-            <button type="submit" class="btn btn-primary full-width">
-              Log in
-            </button>
-            <p class="form-note">Static mockup page for now.</p>
-          </form>
-
-          <!-- Signup card -->
-          <form class="card auth-card">
-            <h3>Sign up</h3>
-            <div class="field">
-              <label for="signup-name-page">Name</label>
-              <input
-                type="text"
-                id="signup-name-page"
-                placeholder="Aman Maurya"
-              />
-            </div>
-            <div class="field">
-              <label for="signup-email-page">Email</label>
-              <input
-                type="email"
-                id="signup-email-page"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div class="field">
-              <label for="signup-pass-page">Password</label>
-              <input
-                type="password"
-                id="signup-pass-page"
-                placeholder="Create a password"
-              />
-            </div>
-            <button type="submit" class="btn btn-outline full-width">
-              Create account
-            </button>
-            <p class="form-note">
-              Your rating, history, and quizzes will be tied to this account.
-            </p>
-          </form>
-        </div>
-      </section>
-
-      <!-- ===== CONTACT VIEW ===== -->
-      <section class="view" id="view-contact">
-        <div class="view-header">
-          <h2>Contact us</h2>
-          <p>Reach out for collaborations, feedback, or event hosting.</p>
-        </div>
-
-        <div class="contact-grid">
-          <!-- Contact form -->
-          <form class="card contact-form">
-            <div class="field">
-              <label for="c-name">Name</label>
-              <input type="text" id="c-name" placeholder="Your full name" />
-            </div>
-            <div class="field">
-              <label for="c-email">Email</label>
-              <input
-                type="email"
-                id="c-email"
-                placeholder="you@institute.com"
-              />
-            </div>
-            <div class="field">
-              <label for="c-type">I want to</label>
-              <select id="c-type">
-                <option>Host a college event</option>
-                <option>Try in my classroom</option>
-                <option>Give feedback</option>
-                <option>Discuss collaboration</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="c-msg">Message</label>
-              <textarea
-                id="c-msg"
-                rows="4"
-                placeholder="Tell us about your idea or event..."
-              ></textarea>
-            </div>
-            <button class="btn btn-primary full-width" type="submit">
-              Send message
-            </button>
-            <p class="form-note">Prototype form – data is not actually sent.</p>
-          </form>
-
-          <!-- Contact info / description -->
-          <div class="card contact-info">
-            <h3>Team Samarpan</h3>
-            <p class="contact-text">
-              Student-led project from UIET, CSJMU Kanpur under Smart Education
-              theme.
-            </p>
-            <ul class="small-list">
-              <li>Use Samarpan for quizzes, tournaments, and practice sessions.</li>
-              <li>AI-generated questions from PDFs, notes, and topics.</li>
-              <li>Dynamic rating, XP, and badges to keep students engaged.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== ABOUT VIEW ===== -->
-      <section class="view" id="view-about">
-        <div class="view-header">
-          <h2>About Samarpan</h2>
-          <p>
-            AI-powered quiz portal by Team Samarpan – designed as an upgrade over
-            Kahoot-style platforms with automation, analytics, and rating.
-          </p>
-        </div>
-
-        <div class="about-grid">
-          <!-- Project overview -->
-          <div class="card about-card">
-            <h3>Project overview</h3>
-            <p class="about-text">
-              Samarpan is an AI Quiz Portal built for the Smart Education theme. It
-              auto-generates quizzes from text/PDFs, supports multiplayer modes, and
-              tracks ratings, ranks, and performance over time.
-            </p>
-            <ul class="small-list">
-              <li>AI quiz generation from study material.</li>
-              <li>Live scoring, leaderboards and tournaments.</li>
-              <li>Dynamic rating &amp; ranking system with XP and levels.</li>
-            </ul>
-          </div>
-
-          <!-- Tech stack -->
-          <div class="card about-card">
-            <h3>Tech stack</h3>
-            <ul class="small-list">
-              <li>Frontend: HTML, CSS, JS single-page UI.</li>
-              <li>Backend: Node.js + Express REST API.</li>
-              <li>Realtime: Socket.io for live rooms &amp; scores (future).</li>
-              <li>AI Service: Python microservice with OpenAI / NLP models.</li>
-              <li>
-                Database: MongoDB Atlas for users, quizzes &amp; leaderboards.
-              </li>
-            </ul>
-          </div>
-
-          <!-- Team members -->
-          <div class="card about-card">
-            <h3>Team Samarpan</h3>
-            <ul class="small-list">
-              <li>Mehak Pal – Team Lead &amp; Full Stack Developer.</li>
-              <li>Janvi Sahu – AI / ML.</li>
-              <li>Sumit Kumar – UI/UX &amp; Frontend.</li>
-              <li>
-                Maurya Aman – Data &amp; Content (rating system, tournaments).
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
     </main>
   </div>
 
@@ -1191,16 +1155,16 @@
       </p>
 
       <div class="auth-social-row auth-social-row-top full-social">
-  <button class="auth-social-pill social-google" type="button" id="socialGoogle">
-    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="social-icon-img" />
-    <span>Continue with Google</span>
-  </button>
+        <button class="auth-social-pill social-google" type="button" id="socialGoogle">
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="social-icon-img" />
+          <span>Continue with Google</span>
+        </button>
 
-  <button class="auth-social-pill social-facebook" type="button" id="socialFacebook">
-    <img src="https://www.svgrepo.com/show/452196/facebook-1.svg" class="social-icon-img" />
-    <span>Continue with Facebook</span>
-  </button>
-</div>
+        <button class="auth-social-pill social-facebook" type="button" id="socialFacebook">
+          <img src="https://www.svgrepo.com/show/452196/facebook-1.svg" class="social-icon-img" />
+          <span>Continue with Facebook</span>
+        </button>
+      </div>
 
 
       <div class="auth-or-divider"><span>or</span></div>
@@ -1224,11 +1188,7 @@
         <div class="auth-field">
           <label for="loginPassword">Password</label>
           <div class="auth-password-wrapper">
-            <input
-              id="loginPassword"
-              type="password"
-              placeholder="••••••••"
-            />
+            <input id="loginPassword" type="password" placeholder="••••••••" />
             <!-- Just visual icon for now, no toggle logic yet -->
             <span class="auth-eye-icon">👁</span>
           </div>
@@ -1255,11 +1215,7 @@
         </div>
         <div class="auth-field">
           <label for="signupPassword">Password</label>
-          <input
-            id="signupPassword"
-            type="password"
-            placeholder="Create a password"
-          />
+          <input id="signupPassword" type="password" placeholder="Create a password" />
         </div>
 
         <button class="auth-primary-btn" id="signupSubmit" type="button">
@@ -1287,33 +1243,54 @@
   </div>
 
   <!-- Mobile bottom nav -->
-<nav id="mobileNav" class="mobile-nav" aria-label="Mobile navigation">
-  <button class="mob-btn" data-view="dashboard" title="Dashboard" aria-label="Dashboard">
-    <!-- dashboard icon -->
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zM13 21h8V11h-8v10zM13 3v6h8V3h-8z" fill="currentColor"/></svg>
-    <span>Home</span>
-  </button>
+  <nav id="mobileNav" class="mobile-nav" aria-label="Mobile navigation">
+    <button class="mob-btn" data-view="dashboard" title="Dashboard" aria-label="Dashboard">
+      <!-- dashboard icon -->
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zM13 21h8V11h-8v10zM13 3v6h8V3h-8z" fill="currentColor" />
+      </svg>
+      <span>Home</span>
+    </button>
 
-  <button class="mob-btn" data-view="create" title="Create" aria-label="Create quiz">
-    <!-- create icon -->
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3h-2v8H3v2h8v8h2v-8h8v-2h-8V3z" fill="currentColor"/></svg>
-    <span>Create</span>
-  </button>
+    <button class="mob-btn" data-view="create" title="Create" aria-label="Create quiz">
+      <!-- create icon -->
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M13 3h-2v8H3v2h8v8h2v-8h8v-2h-8V3z" fill="currentColor" />
+      </svg>
+      <span>Create</span>
+    </button>
 
-  <button class="mob-btn" data-view="host" title="Host" aria-label="Host quiz">
-    <!-- host / multiplayer icon -->
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
-    <span>Host</span>
-  </button>
+    <button class="mob-btn" data-view="host" title="Host" aria-label="Host quiz">
+      <!-- host / multiplayer icon -->
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+          fill="currentColor" />
+      </svg>
+      <span>Host</span>
+    </button>
 
-  <button class="mob-btn" data-view="profile" title="Profile" aria-label="Profile">
-    <!-- profile icon -->
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v3h20v-3c0-3.33-6.67-5-10-5z" fill="currentColor"/></svg>
-    <span>Profile</span>
-  </button>
-</nav>
+    <button class="mob-btn" data-view="profile" title="Profile" aria-label="Profile">
+      <!-- profile icon -->
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v3h20v-3c0-3.33-6.67-5-10-5z"
+          fill="currentColor" />
+      </svg>
+      <span>Profile</span>
+    </button>
+  </nav>
 
+  <!-- DEBUG CONSOLE (Temporary) -->
+  <div id="debugConsole"
+    style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; padding:10px; z-index:10000; font-size:12px; border:1px solid #0f0; pointer-events:none; max-width:300px;">
+    DIAGNOSTICS READY
+  </div>
 
+  <!-- Socket.io library -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- Main app script -->
   <script src="script.js"></script>
 </body>
+
 </html>

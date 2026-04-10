@@ -1,8 +1,17 @@
 // server.js — cleaned & commented (small, human-friendly comments)
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const cors = require("cors");
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
@@ -25,25 +34,15 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,          // e.g. https://your-frontend.vercel.app
   "http://127.0.0.1:5500",     // local live server
   "http://127.0.0.1:5501",
+  "http://127.0.0.1:3000",
   "http://localhost:5500",
   "http://localhost:5501",
+  "http://localhost:3000",
   "https://samarpan-quiz.vercel.app",       
   "https://samarpan-9rt8.onrender.com"    
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (curl, mobile apps, OAuth callback)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("CORS blocked: " + origin));
-    }
-  },
-  credentials: true
-}));
+app.use(cors({ origin: '*', credentials: true }));
 
 app.use(express.json());
 app.use(passport.initialize());
@@ -201,6 +200,7 @@ app.post("/api/quizzes", async (req, res) => {
 // Host / game session (prototype)
 // -------------------------------
 app.post("/api/host/start", async (req, res) => {
+  console.log("POST /api/host/start - Request received", req.body);
   try {
     const { quizId, hostEmail, mode, timerSeconds, rated } = req.body;
 
@@ -208,15 +208,32 @@ app.post("/api/host/start", async (req, res) => {
       return res.status(400).json({ error: "quizId and hostEmail required" });
     }
 
+    // Validate that quizId is a valid MongoDB ObjectId to avoid CastError
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      console.warn("Invalid Quiz ID attempted for hosting:", quizId);
+      return res.status(400).json({ 
+        error: "Invalid Quiz ID. If you created this quiz manually, please ensure you have 'Saved' it to your account first." 
+      });
+    }
+
+    console.log("Looking for host user:", hostEmail);
     const user = await User.findOne({ email: hostEmail });
-    if (!user) return res.status(400).json({ error: "Host user not found" });
+    if (!user) {
+      console.warn("Host user not found:", hostEmail);
+      return res.status(400).json({ error: "Host user not found" });
+    }
 
+    console.log("Looking for quiz:", quizId);
     const quiz = await Quiz.findById(quizId);
-    if (!quiz) return res.status(404).json({ error: "Quiz not found" });
+    if (!quiz) {
+      console.warn("Quiz not found:", quizId);
+      return res.status(404).json({ error: "Quiz not found" });
+    }
 
-    // Try to create a unique 6-digit PIN (simple, limited attempts)
+    // Try to create a unique 6-digit PIN
     let pin;
     let attempts = 0;
+    console.log("Generating PIN...");
     do {
       pin = String(Math.floor(100000 + Math.random() * 900000));
       const exists = await GameSession.findOne({ pin });
@@ -224,6 +241,7 @@ app.post("/api/host/start", async (req, res) => {
       attempts++;
     } while (attempts < 5);
 
+    console.log("Creating GameSession with PIN:", pin);
     const game = await GameSession.create({
       quiz: quiz._id,
       host: user._id,
@@ -233,14 +251,33 @@ app.post("/api/host/start", async (req, res) => {
       pin,
     });
 
+    console.log("Game Session created successfully:", game._id);
     return res.json({
       message: "Game session created",
       gameId: game._id,
       pin: game.pin,
     });
   } catch (err) {
-    console.error("Host start error:", err);
-    return res.status(500).json({ error: "Could not start game" });
+    console.error("CRITICAL Host start error:", err);
+    if (err.name === "ValidationError") {
+      console.error("Validation Errors:", Object.keys(err.errors).map(key => ({
+        field: key,
+        message: err.errors[key].message
+      })));
+    }
+    return res.status(500).json({ error: "Could not start game", details: err.message });
+  }
+});
+
+// Added explicit game start endpoint for robustness if needed, 
+// but primarily we use socket start_game.
+app.get("/api/host/session/:pin", async (req, res) => {
+  try {
+    const game = await GameSession.findOne({ pin: req.params.pin }).populate("quiz");
+    if (!game) return res.status(404).json({ error: "Session not found" });
+    return res.json(game);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -440,8 +477,133 @@ app.use("/api/ai", aiQuizRoutes);
 
 // -------------------------------
 // Start server
-// -------------------------------
+// ---------- Socket.io Logic ----------
+const liveSessions = new Map(); // pin -> { players: {socketId: {name, score}}, currentQuestion: 0 }
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join a game room using PIN
+  socket.on("join_room", (data) => {
+    const { pin, name } = data;
+    socket.join(pin);
+    console.log(`User ${name} (ID: ${socket.id}) joined room: ${pin}`);
+
+    // Track session metadata
+    if (!liveSessions.has(pin)) {
+      liveSessions.set(pin, { 
+        players: {}, 
+        currentQuestion: 0, 
+        leaderboardVisible: false,
+        bannedUsers: new Set(),
+        optionStats: [0, 0, 0, 0] // Count per option index
+      });
+    }
+    const session = liveSessions.get(pin);
+    
+    // Check if banned (checking by a unique name/id combination if needed, but socket.id is temporary)
+    // For a better ban, we'd use user identity if available.
+    if (session.bannedUsers.has(name)) { // Using name as a simple unique identifier in this context
+      socket.emit("kicked", { message: "You are permanently banned from this room." });
+      socket.disconnect();
+      return;
+    }
+
+    session.players[socket.id] = { name, score: 0, currentAnswer: -1 };
+    
+    // Notify room that someone joined
+    io.in(pin).emit("user_joined", { name, id: socket.id, players: session.players });
+    
+    // If game already started, send current state to new joiner
+    if (session.currentQuestion > 0) {
+      socket.emit("sync_state", { index: session.currentQuestion });
+    }
+  });
+
+  // Host starts the game
+  socket.on("start_game", (pin) => {
+    console.log(`Starting game for room: ${pin}`);
+    const session = liveSessions.get(pin);
+    if (session) session.currentQuestion = 0; // reset
+    io.in(pin).emit("game_started");
+  });
+
+  // Host: Ban player
+  socket.on("host_ban", (data) => {
+    const { pin, playerId, name } = data;
+    console.log(`Host banning user ${name} (${playerId}) from room ${pin}`);
+    const session = liveSessions.get(pin);
+    if (session) {
+      session.bannedUsers.add(name);
+      const playerSocket = io.sockets.sockets.get(playerId);
+      if (playerSocket) {
+        playerSocket.emit("kicked", { message: "You have been banned from this room." });
+        playerSocket.disconnect();
+      }
+      delete session.players[playerId];
+      io.in(pin).emit("player_list_update", { players: session.players });
+    }
+  });
+
+  // Host: Next Question
+  socket.on("host_next", (pin) => {
+    const session = liveSessions.get(pin);
+    if (session) {
+      session.currentQuestion++;
+      session.optionStats = [0, 0, 0, 0]; // Reset stats for new question
+      io.in(pin).emit("next_question", { index: session.currentQuestion });
+    }
+  });
+
+  // Host: Toggle Leaderboard
+  socket.on("host_leaderboard", (data) => {
+    const { pin, visible } = data;
+    const session = liveSessions.get(pin);
+    if (session) {
+      session.leaderboardVisible = visible;
+      io.in(pin).emit("sync_leaderboard", { 
+        visible, 
+        leaderboard: Object.values(session.players).sort((a,b) => b.score - a.score) 
+      });
+    }
+  });
+
+  // Player: Submit Answer
+  socket.on("submit_answer", (data) => {
+    const { pin, isCorrect, timeTaken, optionIdx } = data;
+    const session = liveSessions.get(pin);
+    if (session && session.players[socket.id]) {
+      const player = session.players[socket.id];
+      
+      // Handle re-selection: decrement old, increment new
+      if (player.currentAnswer !== -1 && session.optionStats[player.currentAnswer] > 0) {
+         session.optionStats[player.currentAnswer]--;
+      }
+      player.currentAnswer = optionIdx;
+      if (optionIdx !== -1) {
+         session.optionStats[optionIdx]++;
+      }
+
+      if (isCorrect) {
+        // Base 100 points + speed bonus (max 100)
+        const points = 100 + Math.max(0, Math.floor(100 - (timeTaken * 2)));
+        player.score += points;
+      }
+      
+      // Update Host with new tallies
+      io.in(pin).emit("stats_update", { stats: session.optionStats });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    // Cleanup if host or handle player removal?
+    // For now, let's keep it simple.
+  });
+});
+
+// ---------- Start server ----------
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

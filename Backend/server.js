@@ -471,137 +471,265 @@ app.get(
 );
 
 // -------------------------------
+// Get session by PIN (used by frontend after game_started)
+// -------------------------------
+app.get("/api/host/session/:pin", async (req, res) => {
+  try {
+    const session = await GameSession.findOne({ pin: req.params.pin })
+      .populate("quiz")
+      .lean();
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    return res.json(session);
+  } catch (err) {
+    console.error("Session fetch error:", err);
+    return res.status(500).json({ error: "Failed to fetch session" });
+  }
+});
+
+// -------------------------------
 // AI quiz routes (mounted)
 // -------------------------------
 app.use("/api/ai", aiQuizRoutes);
 
 // -------------------------------
 // Start server
-// ---------- Socket.io Logic ----------
-const liveSessions = new Map(); // pin -> { players: {socketId: {name, score}}, currentQuestion: 0 }
+// ============================================================
+// SOCKET.IO — Multiplayer Quiz Engine
+// ============================================================
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+const liveSessions = new Map();
 
-  // Join a game room using PIN
-  socket.on("join_room", (data) => {
-    const { pin, name } = data;
-    socket.join(pin);
-    console.log(`User ${name} (ID: ${socket.id}) joined room: ${pin}`);
+function getLeaderboard(session) {
+  return Object.values(session.players)
+    .filter(p => !p.isHost)
+    .sort((a, b) => b.score - a.score)
+    .map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, streak: p.streak || 0 }));
+}
 
-    // Track session metadata
-    if (!liveSessions.has(pin)) {
-      liveSessions.set(pin, { 
-        players: {}, 
-        currentQuestion: 0, 
-        leaderboardVisible: false,
-        bannedUsers: new Set(),
-        optionStats: [0, 0, 0, 0] // Count per option index
-      });
-    }
-    const session = liveSessions.get(pin);
-    
-    // Check if banned (checking by a unique name/id combination if needed, but socket.id is temporary)
-    // For a better ban, we'd use user identity if available.
-    if (session.bannedUsers.has(name)) { // Using name as a simple unique identifier in this context
-      socket.emit("kicked", { message: "You are permanently banned from this room." });
-      socket.disconnect();
+function broadcastStats(pin, session) {
+  const players = Object.values(session.players).filter(p => !p.isHost);
+  const responded = players.filter(p => p.answeredThisQ).length;
+  io.in(pin).emit("stats_update", {
+    stats: session.optionStats,
+    responded,
+    total: players.length,
+    leaderboard: getLeaderboard(session)
+  });
+  // Auto-advance if everyone answered
+  if (responded === players.length && players.length > 0 && session.status === 'running') {
+    if (session.timerHandle) clearTimeout(session.timerHandle);
+    if (session.countdownHandle) clearInterval(session.countdownHandle);
+    setTimeout(() => advanceQuestion(pin), 1500);
+  }
+}
+
+function startCountdown(pin) {
+  const session = liveSessions.get(pin);
+  if (!session) return;
+  if (session.timerHandle) clearTimeout(session.timerHandle);
+  if (session.countdownHandle) clearInterval(session.countdownHandle);
+  session.timeLeft = session.timerSeconds;
+  session.countdownHandle = setInterval(() => {
+    if (!liveSessions.has(pin)) { clearInterval(session.countdownHandle); return; }
+    session.timeLeft--;
+    io.in(pin).emit("timer_tick", { timeLeft: session.timeLeft });
+    if (session.timeLeft <= 0) clearInterval(session.countdownHandle);
+  }, 1000);
+  session.timerHandle = setTimeout(() => {
+    clearInterval(session.countdownHandle);
+    advanceQuestion(pin);
+  }, (session.timerSeconds + 1) * 1000);
+}
+
+function advanceQuestion(pin) {
+  const session = liveSessions.get(pin);
+  if (!session || session.status !== 'running') return;
+  if (session.timerHandle) clearTimeout(session.timerHandle);
+  if (session.countdownHandle) clearInterval(session.countdownHandle);
+
+  const q = session.quiz.questions[session.currentQ];
+  if (q) {
+    io.in(pin).emit("question_result", {
+      correctIndex: q.correctIndex,
+      explanation: q.explanation || null,
+      leaderboard: getLeaderboard(session)
+    });
+  }
+
+  setTimeout(() => {
+    session.currentQ++;
+    session.optionStats = [0, 0, 0, 0];
+    Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
+
+    if (session.currentQ >= session.quiz.questions.length) {
+      session.status = 'finished';
+      io.in(pin).emit("quiz_finished", { leaderboard: getLeaderboard(session) });
+      setTimeout(() => liveSessions.delete(pin), 10 * 60 * 1000);
       return;
     }
 
-    session.players[socket.id] = { name, score: 0, currentAnswer: -1 };
-    
-    // Notify room that someone joined
-    io.in(pin).emit("user_joined", { name, id: socket.id, players: session.players });
-    
-    // If game already started, send current state to new joiner
-    if (session.currentQuestion > 0) {
-      socket.emit("sync_state", { index: session.currentQuestion });
+    io.in(pin).emit("next_question", {
+      index: session.currentQ,
+      timerSeconds: session.timerSeconds,
+      total: session.quiz.questions.length
+    });
+    startCountdown(pin);
+  }, 2500);
+}
+
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
+
+  socket.on("host_join", (data) => {
+    const { pin, password } = data;
+    liveSessions.set(pin, {
+      hostSocketId: socket.id,
+      password: password || null,
+      players: {},
+      bannedNames: new Set(),
+      quiz: null,
+      status: 'waiting',
+      currentQ: 0,
+      optionStats: [0, 0, 0, 0],
+      timerSeconds: 30,
+      timeLeft: 30,
+      timerHandle: null,
+      countdownHandle: null
+    });
+    socket.join(pin);
+    const session = liveSessions.get(pin);
+    session.players[socket.id] = { name: "Host", score: 0, answeredThisQ: true, optionIdx: -1, isHost: true, streak: 0 };
+    socket.emit("host_ready", { pin });
+    console.log(`Host created room ${pin}`);
+  });
+
+  socket.on("join_room", (data) => {
+    const { pin, name, password } = data;
+    if (!pin || !name) { socket.emit("join_error", { message: "PIN and name required." }); return; }
+    if (!liveSessions.has(pin)) { socket.emit("join_error", { message: "Room not found. Check the PIN." }); return; }
+    const session = liveSessions.get(pin);
+    if (session.password && session.password !== password) { socket.emit("join_error", { message: "Wrong room password." }); return; }
+    if (session.bannedNames.has(name.toLowerCase())) { socket.emit("join_error", { message: "You are banned from this room." }); return; }
+    if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }
+    if (session.status === 'finished') { socket.emit("join_error", { message: "This session has ended." }); return; }
+    const nameTaken = Object.values(session.players).some(p => p.name.toLowerCase() === name.toLowerCase() && !p.isHost);
+    if (nameTaken) { socket.emit("join_error", { message: "Name already taken. Choose another." }); return; }
+    socket.join(pin);
+    session.players[socket.id] = { name, score: 0, answeredThisQ: false, optionIdx: -1, isHost: false, streak: 0 };
+    socket.emit("join_success", { pin, name });
+    io.in(pin).emit("player_list_update", { players: session.players });
+    console.log(`${name} joined room ${pin}`);
+  });
+
+  socket.on("start_game", async (data) => {
+    const pin = typeof data === 'string' ? data : data.pin;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (session.status !== 'waiting') { socket.emit("error_msg", { message: "Game already started." }); return; }
+    const playerCount = Object.values(session.players).filter(p => !p.isHost).length;
+    if (playerCount === 0) { socket.emit("error_msg", { message: "Need at least 1 player to start." }); return; }
+    try {
+      const dbSession = await GameSession.findOne({ pin }).populate("quiz").lean();
+      if (!dbSession || !dbSession.quiz) { socket.emit("error_msg", { message: "Quiz not found in database." }); return; }
+      session.quiz = dbSession.quiz;
+      session.timerSeconds = dbSession.timerSeconds || 30;
+      session.status = 'running';
+      session.currentQ = 0;
+      const questionsForAll = session.quiz.questions.map(q => ({
+        question: q.question,
+        options: q.options
+      }));
+      io.in(pin).emit("game_started", {
+        quiz: { _id: session.quiz._id, title: session.quiz.title, topic: session.quiz.topic, questions: questionsForAll, totalQuestions: session.quiz.questions.length },
+        timerSeconds: session.timerSeconds
+      });
+      startCountdown(pin);
+      console.log(`Game started in room ${pin} with ${playerCount} players`);
+    } catch (err) {
+      console.error("start_game error:", err);
+      socket.emit("error_msg", { message: "Failed to start game." });
     }
   });
 
-  // Host starts the game
-  socket.on("start_game", (pin) => {
-    console.log(`Starting game for room: ${pin}`);
+  socket.on("submit_answer", (data) => {
+    const { pin, optionIdx, timeTaken } = data;
     const session = liveSessions.get(pin);
-    if (session) session.currentQuestion = 0; // reset
-    io.in(pin).emit("game_started");
-  });
-
-  // Host: Ban player
-  socket.on("host_ban", (data) => {
-    const { pin, playerId, name } = data;
-    console.log(`Host banning user ${name} (${playerId}) from room ${pin}`);
-    const session = liveSessions.get(pin);
-    if (session) {
-      session.bannedUsers.add(name);
-      const playerSocket = io.sockets.sockets.get(playerId);
-      if (playerSocket) {
-        playerSocket.emit("kicked", { message: "You have been banned from this room." });
-        playerSocket.disconnect();
-      }
-      delete session.players[playerId];
-      io.in(pin).emit("player_list_update", { players: session.players });
+    if (!session || session.status !== 'running') return;
+    const player = session.players[socket.id];
+    if (!player || player.isHost) return;
+    const q = session.quiz.questions[session.currentQ];
+    if (!q) return;
+    if (player.answeredThisQ && player.optionIdx >= 0 && player.optionIdx < session.optionStats.length) {
+      session.optionStats[player.optionIdx] = Math.max(0, session.optionStats[player.optionIdx] - 1);
     }
+    player.optionIdx = optionIdx;
+    player.answeredThisQ = true;
+    if (optionIdx >= 0 && optionIdx < session.optionStats.length) session.optionStats[optionIdx]++;
+    if (optionIdx === q.correctIndex) {
+      const t = Math.min(timeTaken || session.timerSeconds, session.timerSeconds);
+      const speedBonus = Math.max(0, Math.floor(50 * (1 - t / session.timerSeconds)));
+      player.streak = (player.streak || 0) + 1;
+      const streakBonus = Math.min(player.streak - 1, 5) * 10;
+      player.score += 100 + speedBonus + streakBonus;
+    } else {
+      player.streak = 0;
+    }
+    broadcastStats(pin, session);
+    socket.emit("answer_confirmed", { optionIdx, isCorrect: optionIdx === q.correctIndex });
   });
 
-  // Host: Next Question
   socket.on("host_next", (pin) => {
     const session = liveSessions.get(pin);
-    if (session) {
-      session.currentQuestion++;
-      session.optionStats = [0, 0, 0, 0]; // Reset stats for new question
-      io.in(pin).emit("next_question", { index: session.currentQuestion });
-    }
+    if (!session || session.hostSocketId !== socket.id) return;
+    advanceQuestion(pin);
   });
 
-  // Host: Toggle Leaderboard
-  socket.on("host_leaderboard", (data) => {
-    const { pin, visible } = data;
+  socket.on("host_show_results", (pin) => {
     const session = liveSessions.get(pin);
-    if (session) {
-      session.leaderboardVisible = visible;
-      io.in(pin).emit("sync_leaderboard", { 
-        visible, 
-        leaderboard: Object.values(session.players).sort((a,b) => b.score - a.score) 
-      });
-    }
+    if (!session || session.hostSocketId !== socket.id) return;
+    io.in(pin).emit("reveal_results", { leaderboard: getLeaderboard(session) });
   });
 
-  // Player: Submit Answer
-  socket.on("submit_answer", (data) => {
-    const { pin, isCorrect, timeTaken, optionIdx } = data;
+  socket.on("host_kick", (data) => {
+    const { pin, playerId } = data;
     const session = liveSessions.get(pin);
-    if (session && session.players[socket.id]) {
-      const player = session.players[socket.id];
-      
-      // Handle re-selection: decrement old, increment new
-      if (player.currentAnswer !== -1 && session.optionStats[player.currentAnswer] > 0) {
-         session.optionStats[player.currentAnswer]--;
-      }
-      player.currentAnswer = optionIdx;
-      if (optionIdx !== -1) {
-         session.optionStats[optionIdx]++;
-      }
+    if (!session || session.hostSocketId !== socket.id) return;
+    const target = io.sockets.sockets.get(playerId);
+    if (target) { target.emit("kicked", { message: "You were removed by the host." }); target.leave(pin); }
+    delete session.players[playerId];
+    io.in(pin).emit("player_list_update", { players: session.players });
+  });
 
-      if (isCorrect) {
-        // Base 100 points + speed bonus (max 100)
-        const points = 100 + Math.max(0, Math.floor(100 - (timeTaken * 2)));
-        player.score += points;
-      }
-      
-      // Update Host with new tallies
-      io.in(pin).emit("stats_update", { stats: session.optionStats });
-    }
+  socket.on("host_ban", (data) => {
+    const { pin, playerId, name } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (name) session.bannedNames.add(name.toLowerCase());
+    const target = io.sockets.sockets.get(playerId);
+    if (target) { target.emit("kicked", { message: "You are banned from this room." }); target.leave(pin); }
+    delete session.players[playerId];
+    io.in(pin).emit("player_list_update", { players: session.players });
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    // Cleanup if host or handle player removal?
-    // For now, let's keep it simple.
+    liveSessions.forEach((session, pin) => {
+      if (!session.players[socket.id]) return;
+      const wasHost = session.players[socket.id].isHost;
+      const playerName = session.players[socket.id].name;
+      delete session.players[socket.id];
+      if (wasHost) {
+        if (session.timerHandle) clearTimeout(session.timerHandle);
+        if (session.countdownHandle) clearInterval(session.countdownHandle);
+        io.in(pin).emit("host_left", { message: "Host disconnected. Session ended." });
+        liveSessions.delete(pin);
+      } else {
+        io.in(pin).emit("player_list_update", { players: session.players });
+        io.in(pin).emit("player_left", { name: playerName });
+      }
+    });
+    console.log("Socket disconnected:", socket.id);
   });
 });
-
 // ---------- Start server ----------
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

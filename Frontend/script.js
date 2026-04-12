@@ -29,134 +29,248 @@ const dummyLeaderboard = [
   // ======================
   const socket = io(API_BASE);
   let currentRoomPin = null;
-  let isHost = false; 
+  let isHost = false;
+  let roomTimerSeconds = 30;
+
+  // Render player list in lobby (called from socket events + attachHandlers)
+  function renderPlayerList(players) {
+    const grid = document.getElementById("lobbyPlayerGrid");
+    const countEl = document.getElementById("playerCount");
+    const btnStart = document.getElementById("btnStartGame");
+    if (!grid) return;
+    grid.innerHTML = "";
+    const entries = Object.entries(players);
+    if (entries.length === 0) {
+      grid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
+    }
+    entries.forEach(([id, p]) => {
+      if (p.isHost) return; // don't show host in player list
+      const bubble = document.createElement("div");
+      bubble.className = "player-bubble";
+      bubble.style.position = "relative";
+      bubble.textContent = p.name;
+      if (isHost && id !== socket.id) {
+        const mod = document.createElement("div");
+        mod.style.cssText = "position:absolute;top:-10px;right:-10px;display:flex;gap:4px;";
+        const kick = document.createElement("span");
+        kick.textContent = "✖"; kick.title = "Kick";
+        kick.style.cssText = "cursor:pointer;background:#ef4444;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;";
+        kick.onclick = (e) => { e.stopPropagation(); socket.emit("host_kick", { pin: currentRoomPin, playerId: id }); };
+        const ban = document.createElement("span");
+        ban.textContent = "🚫"; ban.title = "Ban";
+        ban.style.cssText = kick.style.cssText;
+        ban.onclick = (e) => { e.stopPropagation(); if(confirm("Ban " + p.name + "?")) socket.emit("host_ban", { pin: currentRoomPin, playerId: id, name: p.name }); };
+        mod.appendChild(kick); mod.appendChild(ban);
+        bubble.appendChild(mod);
+      }
+      grid.appendChild(bubble);
+    });
+    const playerCount = entries.filter(([,p]) => !p.isHost).length;
+    if (countEl) countEl.textContent = playerCount;
+    if (btnStart) btnStart.disabled = playerCount === 0;
+  }
 
   socket.on("connect", () => {
     console.log("Connected to Samarpan real-time server");
   });
 
-  socket.on("user_joined", (data) => {
-    console.log("Room players update:", data.players);
-    renderPlayerList(data.players);
-  });
-
+  // Player list updated (join/kick/ban/disconnect)
   socket.on("player_list_update", (data) => {
     renderPlayerList(data.players);
   });
 
+  // Kicked or banned
   socket.on("kicked", (data) => {
-    alert(data.message || "You were kicked from the lobby.");
+    alert(data.message || "You were removed from the room.");
+    currentRoomPin = null; isHost = false;
     showView("dashboard");
-    currentRoomPin = null;
-    isHost = false;
   });
 
+  // Host disconnected
+  socket.on("host_left", (data) => {
+    alert(data.message || "Host disconnected. Session ended.");
+    currentRoomPin = null; isHost = false;
+    showView("dashboard");
+  });
+
+  // Join failed (wrong PIN, password, banned, game running)
+  socket.on("join_error", (data) => {
+    const statusEl = document.getElementById("battleStatus") || document.getElementById("joinStatus");
+    const msg = data.message || "Could not join room.";
+    if (statusEl) {
+      statusEl.textContent = "❌ " + msg;
+      statusEl.style.color = "#ef4444";
+    } else {
+      alert(msg);
+    }
+    socket._pendingJoin = null;
+    // Re-enable join button
+    const btn = document.getElementById("btnBattleJoin");
+    if (btn) { btn.disabled = false; btn.textContent = "Join battle"; }
+  });
+
+  // Join succeeded — now set up lobby UI
+  socket.on("join_success", (data) => {
+    const pending = socket._pendingJoin;
+    if (!pending) return;
+    const { pin, name } = pending;
+    socket._pendingJoin = null;
+
+    currentRoomPin = pin;
+    isHost = false;
+
+    const lobbyPinDisplay = document.getElementById("lobbyPinDisplay");
+    const lobbyPlayerGrid = document.getElementById("lobbyPlayerGrid");
+    const playerCount = document.getElementById("playerCount");
+    const btnStart = document.getElementById("btnStartGame");
+    const lobbyTitle = document.querySelector(".lobby-title");
+
+    if (lobbyTitle) lobbyTitle.textContent = "Waiting for Host to start...";
+    if (lobbyPinDisplay) lobbyPinDisplay.textContent = pin;
+    if (lobbyPlayerGrid) lobbyPlayerGrid.innerHTML = `<div class="player-bubble">${name} (You)</div>`;
+    if (playerCount) playerCount.textContent = "1";
+    if (btnStart) btnStart.style.display = "none";
+
+    // Clear any previous error
+    const statusEl = document.getElementById("battleStatus") || document.getElementById("joinStatus");
+    if (statusEl) statusEl.textContent = "";
+
+    // Re-enable join button on success too
+    const btn = document.getElementById("btnBattleJoin");
+    if (btn) { btn.disabled = false; btn.textContent = "Join battle"; }
+
+    showView("lobby");
+  });
+
+  // Host room is ready
+  socket.on("host_ready", (data) => {
+    // Already handled by setupHostLobby
+  });
+
+  // Game started — server sends quiz data directly, no fetch needed
+  socket.on("game_started", (data) => {
+    if (!data || !data.quiz) return;
+    roomTimerSeconds = data.timerSeconds || 30;
+    startQuizPlayer(data.quiz, true);
+  });
+
+  // Server tick — sync timer from server (no client drift)
+  socket.on("timer_tick", (data) => {
+    playerTimeLeft = data.timeLeft;
+    updateTimerUI();
+  });
+
+  // Server reveals correct answer after question ends (2.5s window)
+  socket.on("question_result", (data) => {
+    const els = getPlayerEls();
+    const buttons = els.options ? Array.from(els.options.querySelectorAll("button")) : [];
+    buttons.forEach((b, i) => {
+      b.disabled = true;
+      if (i === data.correctIndex) {
+        b.classList.add("btn-correct");
+        b.style.boxShadow = "0 0 18px rgba(34,197,94,0.7)";
+      } else if (b.classList.contains("btn-selected")) {
+        b.classList.add("btn-wrong");
+      }
+    });
+    if (els.status) {
+      const myIdx = buttons.findIndex(b => b.classList.contains("btn-selected"));
+      if (myIdx === data.correctIndex) {
+        els.status.textContent = "✅ Correct!";
+        els.status.style.color = "#22c55e";
+      } else if (myIdx === -1) {
+        els.status.textContent = "⏱ Time's up!";
+        els.status.style.color = "#9ca3af";
+      } else {
+        els.status.textContent = "❌ Wrong!";
+        els.status.style.color = "#ef4444";
+      }
+      if (data.explanation) els.status.textContent += "  " + data.explanation;
+    }
+  });
+
+  // Server advances to next question
   socket.on("next_question", (data) => {
-    console.log("Host triggered next question:", data.index);
+    if (playerInterval) clearInterval(playerInterval);
     playerIndex = data.index;
-    
-    // Hide leaderboard if visible
+    roomTimerSeconds = data.timerSeconds || roomTimerSeconds;
+    playerTimeLeft = roomTimerSeconds;
+
     const lb = document.getElementById("liveLeaderboardOverlay");
     if (lb) lb.style.display = "none";
-
-    // Reset host stats if host
     const statsContainer = document.getElementById("hostStatsContainer");
     if (statsContainer) statsContainer.innerHTML = "";
-    
+
+    if (!playerQuiz || playerIndex >= playerQuiz.questions.length) {
+      finishPlayerQuiz(); return;
+    }
     renderPlayerQuestion();
   });
 
+  // Quiz finished — server sends final leaderboard
+  socket.on("quiz_finished", (data) => {
+    if (playerInterval) clearInterval(playerInterval);
+    finishPlayerQuiz(data.leaderboard);
+  });
+
+  // Answer confirmed — flash green glow on correct
+  socket.on("answer_confirmed", (data) => {
+    if (!data.isCorrect) return;
+    const els = getPlayerEls();
+    const selected = els.options?.querySelector(".btn-selected");
+    if (selected) selected.style.boxShadow = "0 0 20px rgba(34,197,94,0.6)";
+  });
+
+  // Player left notification (host only)
+  socket.on("player_left", (data) => {
+    if (!isHost) return;
+    const statsContainer = document.getElementById("hostStatsContainer");
+    if (statsContainer) {
+      const note = document.createElement("p");
+      note.style.cssText = "font-size:0.7rem;color:#9ca3af;margin:2px 0;";
+      note.textContent = data.name + " left";
+      statsContainer.prepend(note);
+      setTimeout(() => note.remove(), 3000);
+    }
+  });
+
+  // Live stats update (host sees this)
   socket.on("stats_update", (data) => {
     if (!isHost) return;
     const statsContainer = document.getElementById("hostStatsContainer");
     if (!statsContainer) return;
-
-    const total = data.stats.reduce((a, b) => a + b, 0);
-    statsContainer.innerHTML = `<p style="font-size:0.8rem; color:#9ca3af; margin-bottom:5px;">Responses: ${total}</p>` + 
-      data.stats.map((count, i) => `
-      <div style="height:8px; background:#1f2937; border-radius:4px; margin-bottom:4px; overflow:hidden;">
-        <div style="width:${total > 0 ? (count/total)*100 : 0}%; height:100%; background:var(--accent-neon); transition:width 0.3s ease;"></div>
-      </div>
-    `).join("");
+    const stats = data.stats || [];
+    const optTotal = stats.reduce((a, b) => a + b, 0);
+    statsContainer.innerHTML =
+      `<p style="font-size:0.75rem;color:#9ca3af;margin:0 0 4px;">Responses: ${data.responded||0} / ${data.total||0}</p>` +
+      stats.map((count, i) => `
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+          <span style="font-size:0.7rem;color:#9ca3af;width:12px;">${String.fromCharCode(65+i)}</span>
+          <div style="flex:1;height:7px;background:#1f2937;border-radius:4px;overflow:hidden;">
+            <div style="width:${optTotal>0?Math.round((count/optTotal)*100):0}%;height:100%;background:#6366f1;transition:width 0.3s;"></div>
+          </div>
+          <span style="font-size:0.7rem;color:#e5e7eb;width:16px;text-align:right;">${count}</span>
+        </div>`).join("");
   });
 
+  // Host reveals results
+  socket.on("reveal_results", (data) => {
+    showResultsOverlay(data.leaderboard);
+  });
+
+  // Host toggles live leaderboard mid-quiz
   socket.on("sync_leaderboard", (data) => {
-    const lb = document.getElementById("liveLeaderboardOverlay");
-    if (!lb) return;
-    
     if (data.visible) {
-      const list = document.getElementById("liveLeaderboardList");
-      if (list) {
-        list.innerHTML = data.leaderboard
-          .map((p, i) => `<li><span>${i+1}. ${p.name}</span><strong>${p.score}</strong></li>`)
-          .join("");
-      }
-      lb.style.display = "flex";
+      showResultsOverlay(data.leaderboard);
     } else {
-      lb.style.display = "none";
+      const lb = document.getElementById("liveLeaderboardOverlay");
+      if (lb) lb.style.display = "none";
     }
-  });
-
-  socket.on("game_started", () => {
-    console.log("Game is starting for everyone!");
   });
 
   // ======================
   // Shared Hosting Logic
   // ======================
-
-    function renderPlayerList(players) {
-      const grid = document.getElementById("lobbyPlayerGrid");
-      const countEl = document.getElementById("playerCount");
-      const btnStart = document.getElementById("btnStartGame");
-
-      if (!grid) return;
-      grid.innerHTML = "";
-
-      const playerEntries = Object.entries(players);
-      if (playerEntries.length === 0) {
-        grid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
-      }
-
-      playerEntries.forEach(([id, p]) => {
-        const bubble = document.createElement("div");
-        bubble.className = "player-bubble";
-        bubble.style.position = "relative";
-        bubble.textContent = p.name;
-
-        // If I am the host, I can moderate others
-        if (isHost && id !== socket.id) {
-          const modOverlay = document.createElement("div");
-          modOverlay.style.cssText = "position:absolute; top:-10px; right:-10px; display:flex; gap:4px;";
-          
-          const kickBtn = document.createElement("span");
-          kickBtn.textContent = "✖";
-          kickBtn.title = "Kick player";
-          kickBtn.style.cssText = "cursor:pointer; background:#ef4444; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; border:1px solid #000;";
-          kickBtn.onclick = (e) => {
-            e.stopPropagation();
-            window.kickPlayer(id);
-          };
-
-          const banBtn = document.createElement("span");
-          banBtn.textContent = "🚫";
-          banBtn.title = "Ban player";
-          banBtn.style.cssText = "cursor:pointer; background:var(--accent-red); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; border:1px solid #000;";
-          banBtn.onclick = (e) => {
-            e.stopPropagation();
-            window.banPlayer(id, p.name);
-          };
-
-          modOverlay.appendChild(kickBtn);
-          modOverlay.appendChild(banBtn);
-          bubble.appendChild(modOverlay);
-        }
-        grid.appendChild(bubble);
-      });
-
-      if (countEl) countEl.textContent = playerEntries.length;
-      if (btnStart) btnStart.disabled = playerEntries.length === 0;
-    }
 
     // Global moderation functions
     window.kickPlayer = (id) => {
@@ -178,19 +292,25 @@ const dummyLeaderboard = [
       btnBattleJoin.addEventListener("click", () => {
         const pin = document.getElementById("battleJoinPin")?.value.trim() || "";
         const name = document.getElementById("battleJoinName")?.value.trim() || "";
+        const password = document.getElementById("battleJoinPassword")?.value.trim() || "";
+        const statusEl = document.getElementById("battleStatus");
 
         if (!pin || !name) {
-          alert("Please enter both the Battle PIN and your Name.");
+          if (statusEl) { statusEl.textContent = "❌ Enter both PIN and your name."; statusEl.style.color = "#ef4444"; }
           return;
         }
 
-        console.log(">>> JOIN ATTEMPT:", { pin, name });
-        
-        // Emit join event via global socket
-        socket.emit("join_room", { pin, name });
+        if (statusEl) { statusEl.textContent = "Joining..."; statusEl.style.color = "#9ca3af"; }
+        btnBattleJoin.disabled = true;
+        btnBattleJoin.textContent = "Joining...";
 
-        // Transition to lobby (player view)
-        setupPlayerLobby(pin, name);
+        // Re-enable after 4s in case server doesn't respond
+        setTimeout(() => {
+          btnBattleJoin.disabled = false;
+          btnBattleJoin.textContent = "Join battle";
+        }, 4000);
+
+        setupPlayerLobby(pin, name, password);
       });
     }
 
@@ -207,28 +327,7 @@ const dummyLeaderboard = [
       });
     }
 
-    // Socket: Game Started (Global Listener)
-    socket.on("game_started", async () => {
-      console.log(">>> RECEIVED GAME_STARTED FOR PIN:", currentRoomPin);
-      if (!currentRoomPin) return;
-
-      try {
-        // Fetch the session data first to get the quiz questions
-        const resp = await fetch(`${API_BASE}/api/host/session/${currentRoomPin}`);
-        if (!resp.ok) throw new Error("Could not load session data");
-        const session = await resp.json();
-        
-        if (session && session.quiz) {
-          console.log(">>> STARTING QUIZ PLAYER FOR SESSION:", session._id);
-          startQuizPlayer(session.quiz);
-        } else {
-          alert("Error: Quiz data missing in session.");
-        }
-      } catch (err) {
-        console.error("Failed to transition to game:", err);
-        alert("Wait... something went wrong while starting the game.");
-      }
-    });
+    // game_started is handled at top-level socket section
 
     // Host Battle Button
     const btnBattleHost = document.getElementById("btnBattleHost");
@@ -277,8 +376,9 @@ const dummyLeaderboard = [
           });
           const data = await res.json();
           if (res.ok) {
-            isHost = true; // I created it, I am host
-            setupHostLobby(data.pin);
+            isHost = true;
+            const password = document.getElementById("battle-password")?.value.trim() || "";
+            setupHostLobby(data.pin, password);
           } else {
             alert("Host Error: " + (data.error || "Failed to start"));
           }
@@ -328,56 +428,42 @@ const dummyLeaderboard = [
             })
           });
           const data = await res.json();
-          if (res.ok) setupHostLobby(data.pin);
+          if (res.ok) {
+            isHost = true;
+            const password = document.getElementById("host-password")?.value.trim() || "";
+            setupHostLobby(data.pin, password);
+          }
           else alert(data.error || "Start failed");
         } catch (err) { console.error(err); alert("Network error"); }
       });
     }
 
-  function setupHostLobby(pin) {
-    console.log("Setting up host lobby for PIN:", pin);
+  function setupHostLobby(pin, password) {
     currentRoomPin = pin;
-    const lobbyPinDisplay = document.getElementById("lobbyPinDisplay");
-    const lobbyPlayerGrid = document.getElementById("lobbyPlayerGrid");
-    const playerCount = document.getElementById("playerCount");
-    const btnStart = document.getElementById("btnStartGame");
-
-    if (lobbyPinDisplay) lobbyPinDisplay.textContent = pin;
-    if (lobbyPlayerGrid) {
-      lobbyPlayerGrid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
-    }
-    if (playerCount) playerCount.textContent = "0";
-    if (btnStart) {
-      btnStart.disabled = true;
-      btnStart.style.display = "block"; // Ensure it shows for host
-    }
-
-    // Join the room as host
-    socket.emit("join_room", { pin, name: "Host" });
-
-    showView("lobby");
-  }
-
-  function setupPlayerLobby(pin, name) {
-    console.log("Setting up player lobby for PIN:", pin, "as", name);
-    currentRoomPin = pin; // CRITICAL: store the pin so we can transition when game starts
+    isHost = true;
     const lobbyPinDisplay = document.getElementById("lobbyPinDisplay");
     const lobbyPlayerGrid = document.getElementById("lobbyPlayerGrid");
     const playerCount = document.getElementById("playerCount");
     const btnStart = document.getElementById("btnStartGame");
     const lobbyTitle = document.querySelector(".lobby-title");
 
-    if (lobbyTitle) lobbyTitle.textContent = "Waiting for Host...";
+    if (lobbyTitle) lobbyTitle.textContent = "Game Lobby — You are the Host";
     if (lobbyPinDisplay) lobbyPinDisplay.textContent = pin;
-    if (lobbyPlayerGrid) {
-      lobbyPlayerGrid.innerHTML = `<div class="player-bubble">${name} (You)</div>`;
-    }
-    if (playerCount) playerCount.textContent = "1";
-    
-    // Players cannot start the game
-    if (btnStart) btnStart.style.display = "none";
+    if (lobbyPlayerGrid) lobbyPlayerGrid.innerHTML = '<div class="empty-lobby-msg">Waiting for players to join...</div>';
+    if (playerCount) playerCount.textContent = "0";
+    if (btnStart) { btnStart.disabled = true; btnStart.style.display = "block"; }
 
+    // Tell server to create the live room
+    socket.emit("host_join", { pin, password: password || null });
     showView("lobby");
+  }
+
+  function setupPlayerLobby(pin, name, password) {
+    // Don't move to lobby yet — wait for server confirmation
+    socket.emit("join_room", { pin, name, password: password || null });
+
+    // Temporarily store pending join info
+    socket._pendingJoin = { pin, name };
   }
 
 
@@ -422,34 +508,30 @@ const dummyLeaderboard = [
       fn();
     }
   }
-// -------------------- INSERT DUMMY LEADERBOARD --------------------
+
+// -------------------- LEADERBOARD --------------------
 function loadDummyLeaderboard() {
-  const tableBody = document.getElementById("leaderboard-body") || document.getElementById("leaderboardBody");
+  const tableBody = document.getElementById('leaderboard-body') || document.getElementById('leaderboardBody');
   if (!tableBody) return;
-
-  // clear existing rows (prevents duplicates on multiple calls)
-  while (tableBody.firstChild) tableBody.removeChild(tableBody.firstChild);
-
-  dummyLeaderboard.forEach(player => {
-    // Normalize/sanitize values (avoid undefined)
-    const rank = player.rank ?? "";
-    // replace smart quotes with straight quotes to avoid weird encoding issues
-    const name = String(player.name || "").replace(/[“”]/g, '"');
-    const rating = player.rating ?? "";
-    const quizzes = player.quizzes ?? "";
-    const avgScore = player.avgScore ?? "";
-    const bestRank = player.bestRank ?? "";
-
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${rank}</td>
-      <td>${name}</td>
-      <td>${rating}</td>
-      <td>${quizzes}</td>
-      <td>${avgScore}</td>
-      <td>${bestRank}</td>
-    `;
-    tableBody.appendChild(row);
+  const API = (location.hostname === 'samarpan-quiz.vercel.app') ? 'https://samarpan-9rt8.onrender.com' : 'http://127.0.0.1:5000';
+  tableBody.innerHTML = '<tr><td colspan=6 style=text-align:center;color:#9ca3af;padding:1rem>Loading...</td></tr>';
+  fetch(API + '/leaderboard').then(r => r.json()).then(data => {
+    const scores = data.scores || [];
+    if (!scores.length) throw new Error('empty');
+    tableBody.innerHTML = '';
+    scores.forEach((p, i) => {
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+      const row = document.createElement('tr');
+      row.innerHTML = '<td>'+medal+'</td><td>'+(p.name||'')+'</td><td>'+(p.score||p.globalRating||0)+'</td><td>'+(p.xp||0)+' XP</td><td>-</td><td>-</td>';
+      tableBody.appendChild(row);
+    });
+  }).catch(() => {
+    tableBody.innerHTML = '';
+    dummyLeaderboard.forEach(p => {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td>'+(p.rank||'')+'</td><td>'+(p.name||'')+'</td><td>'+(p.rating||'')+'</td><td>'+(p.quizzes||'')+'</td><td>'+(p.avgScore||'')+'</td><td>'+(p.bestRank||'')+'</td>';
+      tableBody.appendChild(row);
+    });
   });
 }
 
@@ -486,6 +568,11 @@ function loadDummyLeaderboard() {
       next.classList.add("view-active");
       void next.offsetWidth; // force reflow so animation restarts
       next.classList.add("view-anim-in");
+
+      // Auto-reload leaderboard when navigating to it
+      if (viewId === "view-leaderboard") {
+        if (typeof loadDummyLeaderboard === "function") loadDummyLeaderboard();
+      }
     } else if (views[0]) {
       console.warn(`View ID ${viewId} not found, falling back to ${views[0].id}`);
       views[0].classList.add("view-active");
@@ -689,13 +776,19 @@ function loadDummyLeaderboard() {
     };
   }
 
-  function startQuizPlayer(quiz) {
+  function startQuizPlayer(quiz, roomMode = false) {
     const els = getPlayerEls();
-    if (!els.qText) return; // view-player not in DOM
+    if (!els.qText) return;
 
     if (!quiz || !quiz.questions || !quiz.questions.length) {
       els.qText.textContent = "Quiz data missing.";
       return;
+    }
+
+    // If not explicitly in room mode, clear the room pin so solo play works
+    if (!roomMode) {
+      currentRoomPin = null;
+      isHost = false;
     }
 
     playerQuiz = quiz;
@@ -703,7 +796,7 @@ function loadDummyLeaderboard() {
     playerCorrect = 0;
     playerStartTime = Date.now();
     playerQuestionStart = Date.now();
-    playerTimeLeft = 30; // Default or from session metadata
+    playerTimeLeft = roomMode ? roomTimerSeconds : 30;
     if (playerInterval) clearInterval(playerInterval);
 
     if (els.title) els.title.textContent = quiz.title || "Quiz player";
@@ -750,8 +843,9 @@ function loadDummyLeaderboard() {
     hud.style.cssText = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--card-bg); border:1px solid var(--accent-neon); border-radius:12px; padding:1rem; display:flex; gap:10px; z-index:10000; box-shadow: var(--neon-glow);";
     
     const btnNext = document.createElement("button");
+    btnNext.id = "hudBtnNext";
     btnNext.className = "btn btn-primary";
-    btnNext.textContent = "Push Next Question";
+    btnNext.textContent = "Next Question";
     btnNext.onclick = () => socket.emit("host_next", currentRoomPin);
 
     const btnLB = document.createElement("button");
@@ -763,13 +857,23 @@ function loadDummyLeaderboard() {
       socket.emit("host_leaderboard", { pin: currentRoomPin, visible: lbVisible });
     };
 
+    const btnShowResults = document.createElement("button");
+    btnShowResults.id = "hudBtnShowResults";
+    btnShowResults.className = "btn btn-outline";
+    btnShowResults.textContent = "Show Results";
+    btnShowResults.style.display = "none";
+    btnShowResults.onclick = () => socket.emit("host_show_results", currentRoomPin);
+
     const btnEnd = document.createElement("button");
-    btnEnd.className = "btn btn-text-only";
+    btnEnd.className = "btn btn-outline";
+    btnEnd.style.borderColor = "#ef4444";
+    btnEnd.style.color = "#ef4444";
     btnEnd.textContent = "End Session";
-    btnEnd.onclick = () => { if(confirm("End for all?")) showView("dashboard"); };
+    btnEnd.onclick = () => { if(confirm("End session for all players?")) { showView("dashboard"); currentRoomPin = null; isHost = false; } };
 
     hud.appendChild(btnNext);
     hud.appendChild(btnLB);
+    hud.appendChild(btnShowResults);
     hud.appendChild(btnEnd);
 
     const timerHUD = document.createElement("div");
@@ -829,7 +933,7 @@ function loadDummyLeaderboard() {
     }
 
     playerQuestionStart = Date.now();
-    playerTimeLeft = 30; // 30s per question
+    playerTimeLeft = currentRoomPin ? roomTimerSeconds : 30;
     startQuestionTimer();
   }
 
@@ -844,12 +948,32 @@ function loadDummyLeaderboard() {
       if (playerTimeLeft <= 0) {
         clearInterval(playerInterval);
         
-        // AUTO-SKIP LOGIC: If I am host, I push everyone forward
-        if (isHost && currentRoomPin) {
-           console.log("Timer expired, host pushing next question automatically");
-           socket.emit("host_next", currentRoomPin);
+        if (currentRoomPin) {
+          if (isHost) {
+            // Host auto-advances everyone when timer expires
+            socket.emit("host_next", currentRoomPin);
+          } else {
+            // Player: auto-submit skip if not already answered
+            const buttons = els.options?.querySelectorAll("button");
+            const alreadyAnswered = Array.from(buttons || []).some(b => b.classList.contains("btn-selected"));
+            if (!alreadyAnswered) {
+              handlePlayerAnswer(-1);
+            }
+            // Lock buttons — waiting for host to push next
+            buttons?.forEach(b => { b.disabled = true; });
+            if (els.nextBtn) els.nextBtn.textContent = "Time's up! Waiting for host...";
+          }
         } else {
-           handlePlayerAnswer(-1); // Lock for participants
+          // Solo mode: auto-advance
+          handlePlayerAnswer(-1);
+          setTimeout(() => {
+            if (playerIndex < (playerQuiz?.questions?.length || 0) - 1) {
+              playerIndex++;
+              renderPlayerQuestion();
+            } else {
+              finishPlayerQuiz();
+            }
+          }, 1200);
         }
       }
     }, 1000);
@@ -920,15 +1044,36 @@ function loadDummyLeaderboard() {
     // Submit answer to server if in a room
     if (currentRoomPin) {
       socket.emit("submit_answer", { 
-        pin: currentRoomPin, 
-        isCorrect: idx === q.correctIndex, 
-        timeTaken: timeForThis,
-        optionIdx: idx
+        pin: currentRoomPin,
+        optionIdx: idx,
+        timeTaken: timeForThis
       });
     }
   }
 
-  function finishPlayerQuiz() {
+  function showResultsOverlay(leaderboard) {
+    let lb = document.getElementById("liveLeaderboardOverlay");
+    if (!lb) {
+      lb = document.createElement("div");
+      lb.id = "liveLeaderboardOverlay";
+      lb.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(2,6,23,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:2rem;";
+      document.body.appendChild(lb);
+    }
+    lb.innerHTML = `
+      <h2 style="color:#6366f1;margin-bottom:1.5rem;font-size:1.8rem;">🏆 Final Results</h2>
+      <ul id="liveLeaderboardList" style="list-style:none;padding:0;width:100%;max-width:420px;color:#fff;">
+        ${leaderboard.map(p => `
+          <li style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem 1rem;margin-bottom:0.5rem;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;">
+            <span style="font-size:1rem;">${p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : p.rank + '.'} ${p.name}</span>
+            <strong style="color:#6366f1;">${p.score} pts</strong>
+          </li>`).join("")}
+      </ul>
+      <button class="btn btn-outline" style="margin-top:2rem;" onclick="document.getElementById('liveLeaderboardOverlay').style.display='none'; window.Samarpan && window.Samarpan.showView('dashboard');">Back to Dashboard</button>
+    `;
+    lb.style.display = "flex";
+  }
+
+  function finishPlayerQuiz(serverLeaderboard) {
     const els = getPlayerEls();
     if (playerInterval) clearInterval(playerInterval);
     document.getElementById("hostControlHUD")?.remove();
@@ -950,32 +1095,39 @@ function loadDummyLeaderboard() {
       )}s • Avg per question ${avgTime.toFixed(1)}s.`;
     }
 
-    // If participant in room, don't show result card, show waiting screen
+    // If participant in room, show waiting screen (or results if server sent them)
     if (currentRoomPin && !isHost) {
-      if (els.mainCard) {
+      if (serverLeaderboard) {
+        showResultsOverlay(serverLeaderboard);
+      } else if (els.mainCard) {
         els.mainCard.innerHTML = `
           <div style="text-align:center; padding:3rem;">
-            <h2 style="color:var(--accent-neon); text-shadow: var(--neon-glow);">QUIZ FINISHED!</h2>
-            <div style="font-size: 1.2rem; margin: 1.5rem 0; color: #e5e7eb;">
-               Submissions closed. Waiting for the host to reveal the final results...
-            </div>
-            <p style="color:#9ca3af; font-size: 0.9rem;">Your response tally has been sent to the dashboard.</p>
-            <div style="margin-top: 3rem; display: flex; gap: 10px; justify-content: center;">
-               <button class="btn btn-outline" onclick="location.reload()">Back to Home</button>
-            </div>
+            <h2 style="color:#6366f1;">Quiz Finished!</h2>
+            <p style="color:#9ca3af; margin-top:0.5rem;">Waiting for host to reveal results...</p>
           </div>
         `;
       }
       return;
     }
 
-    if (els.mainCard) els.mainCard.style.display = "block";
-    if (els.resultCard) els.resultCard.style.display = "block";
     if (els.mainCard) els.mainCard.style.display = "none";
+    if (els.resultCard) els.resultCard.style.display = "block";
 
-    // Host sees the final session results
+    // Host: show "Show Results" button
     if (isHost && currentRoomPin) {
-       socket.emit("host_leaderboard", { pin: currentRoomPin, visible: true });
+      const btnNext = document.getElementById("hudBtnNext");
+      if (btnNext) btnNext.style.display = "none";
+      const btnShowResults = document.getElementById("hudBtnShowResults");
+      if (btnShowResults) btnShowResults.style.display = "inline-flex";
+      if (els.mainCard) {
+        els.mainCard.style.display = "block";
+        els.mainCard.innerHTML = `
+          <div style="text-align:center; padding:3rem;">
+            <h2 style="color:#6366f1;">Quiz Complete</h2>
+            <p style="color:#9ca3af; margin-top:0.5rem;">Use the controls below to reveal results to players.</p>
+          </div>
+        `;
+      }
     }
   }
 
@@ -2197,7 +2349,10 @@ function loadDummyLeaderboard() {
     showView,
     renderLastAIQuizToDashboard,
   };
-  // Mobile nav binding (safe to place at end of script.js)
+
+})(); // end main IIFE
+
+// Mobile nav binding
 (function() {
   const nav = document.getElementById("mobileNav");
   if (!nav) return;
@@ -2244,11 +2399,7 @@ function loadDummyLeaderboard() {
   }
 
   // set default active (dashboard)
-  // set default active (dashboard)
   setActive("dashboard");
-})();
-
-// Main IIFE Closure Correction
 })();
 
 // =============================================

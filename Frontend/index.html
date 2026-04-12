@@ -842,6 +842,11 @@
                 </div>
               </div>
 
+              <div class="field">
+                <label for="host-password">Room password (optional)</label>
+                <input type="text" id="host-password" placeholder="Leave blank for open room" />
+              </div>
+
               <button class="btn btn-primary full-width" id="btnHostStart">
                 Generate game PIN &amp; start
               </button>
@@ -938,9 +943,15 @@
                 <input type="text" id="battleJoinName" placeholder="Eg. Aman, Team Alpha" />
               </div>
 
+              <div class="field">
+                <label for="battleJoinPassword">Room password (if required)</label>
+                <input type="password" id="battleJoinPassword" placeholder="Leave blank if no password" />
+              </div>
+
               <button class="btn btn-outline full-width" id="btnBattleJoin">
                 Join battle
               </button>
+              <p id="battleStatus" class="form-note" style="color:#ef4444;min-height:1.2rem;"></p>
 
               <p class="form-note">
                 Enter the unique quiz PIN from the host and your name to join the live session instantly.

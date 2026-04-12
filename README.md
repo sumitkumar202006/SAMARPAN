@@ -2,8 +2,7 @@
 
 ### 🌐 Live Demo
 
---> **[Click here to open Frontend](https://samarpan-quiz.vercel.app/)**  
---> **[Click here to open Backend](https://samarpan-9rt8.onrender.com/api/health)**  
+--> **[Click here to open Frontend](https://samarpan-quiz.vercel.app/)**   
 
 
 #Note: The project is best experienced using the deployed live demo.

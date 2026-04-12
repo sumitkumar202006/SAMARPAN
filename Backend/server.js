@@ -690,6 +690,16 @@ io.on("connection", (socket) => {
     io.in(pin).emit("reveal_results", { leaderboard: getLeaderboard(session) });
   });
 
+  socket.on("host_cancel", (pin) => {
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (session.timerHandle) clearTimeout(session.timerHandle);
+    if (session.countdownHandle) clearInterval(session.countdownHandle);
+    io.in(pin).emit("host_left", { message: "Host ended the session." });
+    liveSessions.delete(pin);
+    console.log(`Host cancelled room ${pin}`);
+  });
+
   socket.on("host_kick", (data) => {
     const { pin, playerId } = data;
     const session = liveSessions.get(pin);

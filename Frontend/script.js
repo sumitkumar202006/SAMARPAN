@@ -327,6 +327,31 @@ const dummyLeaderboard = [
       });
     }
 
+    // Lobby: Cancel Session Button
+    const btnCancelLobby = document.getElementById("btnCancelLobby");
+    if (btnCancelLobby) {
+      btnCancelLobby.addEventListener("click", () => {
+        if (!currentRoomPin) {
+          showView("dashboard");
+          return;
+        }
+
+        if (isHost) {
+          if (confirm("End this session for everyone?")) {
+            socket.emit("host_cancel", currentRoomPin);
+            currentRoomPin = null;
+            isHost = false;
+            showView("dashboard");
+          }
+        } else {
+          // For players, just leave and go back
+          currentRoomPin = null;
+          isHost = false;
+          showView("dashboard");
+        }
+      });
+    }
+
     // game_started is handled at top-level socket section
 
     // Host Battle Button
@@ -555,12 +580,13 @@ function loadDummyLeaderboard() {
     });
 
     // Diagnostic Logging to UI (Temporary)
-    const dbg = document.getElementById("debugConsole");
+    const dbg = document.getElementById("debugContent");
     if (dbg) {
       const line = document.createElement("div");
+      line.style.marginBottom = "2px";
       line.textContent = `> showView: ${name} (ID: ${viewId}) - Found: ${!!next}`;
       dbg.prepend(line);
-      if (dbg.childNodes.length > 5) dbg.removeChild(dbg.lastChild);
+      if (dbg.childNodes.length > 8) dbg.removeChild(dbg.lastChild);
     }
 
     // Show selected view + entry animation
@@ -2473,5 +2499,35 @@ function loadDummyLeaderboard() {
   document.addEventListener('mouseenter', function () {
     dot.style.opacity = '1';
     ring.style.opacity = '1';
+  });
+})();
+
+// ======================
+// Diagnostics Toggle
+// ======================
+(function() {
+  const dbg = document.getElementById("debugConsole");
+  const openBtn = document.getElementById("openDebug");
+  const closeBtn = document.getElementById("closeDebug");
+
+  function toggleDebug(show) {
+    if (show) {
+      if (dbg) dbg.style.display = "block";
+      if (openBtn) openBtn.style.display = "none";
+    } else {
+      if (dbg) dbg.style.display = "none";
+      if (openBtn) openBtn.style.display = "block";
+    }
+  }
+
+  if (closeBtn) closeBtn.onclick = () => toggleDebug(false);
+  if (openBtn) openBtn.onclick = () => toggleDebug(true);
+
+  // Keyboard shortcut: Shift + D
+  document.addEventListener("keydown", (e) => {
+    if (e.shiftKey && e.key === "D") {
+      const isHidden = dbg && dbg.style.display === "none";
+      toggleDebug(isHidden);
+    }
   });
 })();

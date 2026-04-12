@@ -1294,9 +1294,19 @@
 
   <!-- DEBUG CONSOLE (Temporary) -->
   <div id="debugConsole"
-    style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; padding:10px; z-index:10000; font-size:12px; border:1px solid #0f0; pointer-events:none; max-width:300px;">
-    DIAGNOSTICS READY
+    style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.9); color:#0f0; font-family:monospace; padding:10px; z-index:10000; font-size:12px; border:1px solid #0f0; max-width:300px; border-radius:4px; transition: opacity 0.3s, transform 0.3s; box-shadow: 0 0 15px rgba(0,255,0,0.2);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #0f0; padding-bottom:4px;">
+      <span style="font-weight:bold; letter-spacing:1px;">DIAGNOSTICS</span>
+      <button id="closeDebug" style="background:none; border:none; color:#0f0; cursor:pointer; font-size:16px; padding:0 4px;">&times;</button>
+    </div>
+    <div id="debugContent">DIAGNOSTICS READY</div>
   </div>
+
+  <!-- Small Toggle Button (Hidden by default, shown when console is closed) -->
+  <button id="openDebug"
+    style="position:fixed; bottom:10px; left:10px; z-index:9999; background:#0f0; color:#000; border:none; padding:4px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer; display:none; opacity:0.6;">
+    SHOW DIAGS
+  </button>
 
   <!-- Socket.io library -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>

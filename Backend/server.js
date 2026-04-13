@@ -4,6 +4,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+console.log("Setting up Express and Socket.io...");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -12,7 +13,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+console.log("Middleware setup start...");
+
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -30,34 +32,32 @@ const GameSession = require("./models/GameSession");
 const aiQuizRoutes = require("./routes/aiQuiz");
 
 // Basic middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL,          // e.g. https://your-frontend.vercel.app
-  "http://127.0.0.1:5500",     // local live server
-  "http://127.0.0.1:5501",
-  "http://127.0.0.1:3000",
-  "http://localhost:5500",
-  "http://localhost:5501",
-  "http://localhost:3000",
-  "https://samarpan-quiz.vercel.app",       
-  "https://samarpan-9rt8.onrender.com"    
-];
-
-app.use(cors({ origin: '*', credentials: true }));
+console.log("Registering global middleware...");
+app.use(cors({ 
+  origin: "*", 
+  credentials: true 
+}));
 
 app.use(express.json());
 app.use(passport.initialize());
+console.log("Passport initialized.");
 
 // ---------- MongoDB ----------
 async function connectDB() {
+  console.log("Attempting to connect to MongoDB...");
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log("MongoDB connected");
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, 
+    });
+    console.log("✅ MongoDB connected successfully");
+    return true;
   } catch (err) {
-    console.error("MongoDB connection error:", err.message);
-    process.exit(1);
+    console.error("❌ MongoDB connection error:", err.message);
+    console.error("Please check if your IP is whitelisted on MongoDB Atlas.");
+    return false;
   }
 }
-connectDB();
+// Moved call to start sequence
 
 // ---------- Helpers ----------
 function createJwtForUser(user) {
@@ -197,6 +197,33 @@ app.post("/api/quizzes", async (req, res) => {
 });
 
 // -------------------------------
+// Quiz fetching
+// -------------------------------
+
+// Get all quizzes for a user by email
+app.get("/api/quizzes/user/:email", async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.params.email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const quizzes = await Quiz.find({ author: user._id }).sort({ createdAt: -1 });
+    return res.json({ quizzes });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch user quizzes" });
+  }
+});
+
+// Get public/trending quizzes for Explore
+app.get("/api/quizzes/public", async (req, res) => {
+  try {
+    // Return all quizzes for now, in a real app we'd filter for public or trending
+    const quizzes = await Quiz.find({}).limit(20).sort({ createdAt: -1 });
+    return res.json({ quizzes });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch public quizzes" });
+  }
+});
+
+// -------------------------------
 // Host / game session (prototype)
 // -------------------------------
 app.post("/api/host/start", async (req, res) => {
@@ -306,8 +333,32 @@ app.get("/leaderboard", async (_req, res) => {
 });
 
 // -------------------------------
-// Rating history by email
+// User Profile & History
 // -------------------------------
+
+// Full profile stats by email
+app.get("/api/profile/:email", async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.params.email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    const quizzesCount = await Quiz.countDocuments({ author: user._id });
+    
+    return res.json({
+      name: user.name,
+      email: user.email,
+      globalRating: user.globalRating,
+      ratings: user.ratings,
+      xp: user.xp,
+      quizzesCount,
+      avatar: user.avatar
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to load profile" });
+  }
+});
+
+// Rating history by email
 app.get("/ratings/:email", async (req, res) => {
   try {
     const email = req.params.email;
@@ -741,7 +792,22 @@ io.on("connection", (socket) => {
   });
 });
 // ---------- Start server ----------
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+async function startServer() {
+  const dbConnected = await connectDB();
+  
+  // Even if DB fails, we might want to start server for health checks, 
+  // but let's be strict for now to debug the hang.
+  if (!dbConnected) {
+    console.error("🛑 Not starting server due to DB connection failure.");
+    // Wait a bit and try again or exit
+    return;
+  }
+
+  const PORT = process.env.PORT || 5000;
+  console.log(`Starting server on port ${PORT}...`);
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}
+
+startServer();

@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f9fafb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-bg-soft: #0b1120;
+  --color-accent: #6366f1;
+  --color-accent-alt: #22c55e;
+  --color-accent-soft: rgba(99, 102, 241, 0.15);
+  --color-text-soft: #9ca3af;
+  --color-border-soft: rgba(148, 163, 184, 0.15);
+  
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  
+  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.7);
+  
+  --animate-laser-sweep: laser-sweep 0.7s ease-out forwards;
+  --animate-border-pulse: border-pulse 0.8s ease-out infinite alternate;
+  
+  @keyframes laser-sweep {
+    0% { left: -60%; }
+    100% { left: 120%; }
+  }
+  
+  @keyframes border-pulse {
+    0% { opacity: 0.4; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1.05); }
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(
+      circle at center,
+      rgba(0, 0, 0, 0.25),
+      rgba(0, 0, 0, 0.65)
+    ),
+    url("https://t3.ftcdn.net/jpg/02/87/87/18/360_F_287871802_GrrmM4RgBQt7hfIPYFTkRqaj2Fb8xvY4.jpg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 999px;
+}

@@ -1,0 +1,238 @@
+'use client';
+
+import React, { useState, useEffect, Suspense } from 'react';
+import { motion } from 'framer-motion';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Input, Select } from '@/components/ui/Input';
+import { Target, Shield, Clock, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import api from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/Button';
+
+function HostContent() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedQuiz, setSelectedQuiz] = useState(searchParams.get('quiz') || '');
+  const [mode, setMode] = useState('battle');
+  const [battleType, setBattleType] = useState('2v2');
+  const [timer, setTimer] = useState(30);
+  const [isRated, setIsRated] = useState(true);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchQuizzes = async () => {
+      if (!user?.email) return;
+      setLoading(true);
+      try {
+        const res = await api.get(`/api/quizzes/user/${user.email}`);
+        setQuizzes(res.data.quizzes || []);
+      } catch (err) {
+        console.error("Failed to fetch quizzes", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (!authLoading) fetchQuizzes();
+  }, [user, authLoading]);
+
+  const handleHost = async () => {
+    if (!selectedQuiz) {
+      alert("Please select a quiz first!");
+      return;
+    }
+    
+    setStatus("Generating room...");
+    try {
+      const res = await api.post('/api/host/start', {
+        quizId: selectedQuiz,
+        hostEmail: user?.email,
+        mode,
+        battleType,
+        timerSeconds: timer,
+        rated: isRated
+      });
+      
+      setStatus('Room created! Redirecting to lobby...');
+      // Pass role=host so the lobby knows to emit host_join
+      router.push(`/lobby/${res.data.pin}?role=host`);
+    } catch (err: any) {
+      console.error("Failed to host quiz", err);
+      setStatus(err.response?.data?.error || "Failed to create session. Try again.");
+    }
+  };
+
+  // Show auth loading state
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto mt-20 p-8 glass rounded-3xl text-center space-y-4">
+        <h2 className="text-2xl font-bold">Not logged in</h2>
+        <p className="text-text-soft">You need to log in before hosting a quiz.</p>
+        <Button onClick={() => router.push('/auth')} className="w-full">Go to Login</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+      <div className="flex flex-col gap-1 mb-8">
+        <h2 className="text-3xl font-bold tracking-tight">Host a Quiz</h2>
+        <p className="text-text-soft">Pick a quiz, set mode and start a rated session.</p>
+      </div>
+
+      <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+        {/* Host Form */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="glass p-8 rounded-[32px] space-y-6"
+        >
+          <div className="space-y-4">
+            <Select 
+              label="Select Quiz" 
+              value={selectedQuiz} 
+              onChange={(e) => setSelectedQuiz(e.target.value)}
+            >
+              <option value="">-- Choose a quiz --</option>
+              {quizzes.map((q) => (
+                <option key={q._id} value={q._id}>{q.title} ({q.questions.length}Q)</option>
+              ))}
+              {loading && <option disabled>Loading your quizzes...</option>}
+            </Select>
+
+            <Select 
+              label="Mode" 
+              value={mode} 
+              onChange={(e) => setMode(e.target.value)}
+            >
+              <option value="rapid">Quiz (Rapid)</option>
+              <option value="blitz">Tournament (Blitz)</option>
+              <option value="battle">Squad Battle</option>
+              <option value="casual">Practice (Casual – unrated)</option>
+            </Select>
+
+            {mode === 'battle' && (
+              <Select 
+                label="Battle Format" 
+                value={battleType} 
+                onChange={(e) => setBattleType(e.target.value)}
+              >
+                <option value="1v1">1v1 Duel</option>
+                <option value="2v2">2v2 Squad</option>
+                <option value="3v3">3v3 Team</option>
+                <option value="4v4">4v4 Mega Battle</option>
+              </Select>
+            )}
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input 
+                label="Timer per question" 
+                type="number" 
+                value={timer} 
+                onChange={(e) => setTimer(parseInt(e.target.value))} 
+              />
+              <Select 
+                label="Rated Session"
+                value={isRated ? "true" : "false"}
+                onChange={(e) => setIsRated(e.target.value === "true")}
+              >
+                <option value="true">Yes, update ratings</option>
+                <option value="false">No, casual only</option>
+              </Select>
+            </div>
+
+            <Input label="Room password (optional)" placeholder="Leave blank for open room" />
+          </div>
+
+          <button 
+            onClick={handleHost}
+            disabled={!selectedQuiz || !!status}
+            className="w-full py-4 rounded-2xl bg-accent text-white font-bold text-lg shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {status || "Generate game PIN & start"}
+          </button>
+          
+          <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/20 text-[11px] text-orange-200/60 leading-relaxed italic">
+            For rated sessions, your rating will increase or decrease based on
+            players’ scores and average rating—similar to chess-style matchmaking.
+          </div>
+        </motion.div>
+
+        {/* Sidebar Info */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="space-y-6"
+        >
+          <div className="glass p-8 rounded-[32px]">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+              <TrendingUp className="text-accent-alt" size={20} />
+              Expected Rating Impact
+            </h3>
+            <ul className="space-y-4">
+              {[
+                { label: 'Win vs higher-rated group', impact: '+10 to +18' },
+                { label: 'Win vs similar rating', impact: '+6 to +10' },
+                { label: 'Win vs lower-rated group', impact: '+1 to +4' },
+                { label: 'Loss vs lower-rated group', impact: '-10 to -18' },
+              ].map((item, i) => (
+                <li key={i} className="flex justify-between items-center text-sm pb-3 border-b border-white/5 last:border-0">
+                  <span className="text-text-soft">{item.label}</span>
+                  <span className={cn("font-bold", item.impact.startsWith('+') ? "text-accent-alt" : "text-red-400")}>
+                    {item.impact}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-8 text-[11px] text-text-soft bg-accent-soft p-4 rounded-2xl border border-accent/20">
+              The system uses a dynamic rating & ranking model (XP, badges, levels + AI-powered analytics).
+            </p>
+          </div>
+
+          {/* Quick Tips */}
+          <div className="glass p-8 rounded-[32px] bg-gradient-to-br from-bg-soft to-background">
+            <h3 className="font-bold text-lg mb-4">Hosting Tips</h3>
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <Shield className="text-accent shrink-0" size={18} />
+                <p className="text-xs text-text-soft">Require passwords for private classroom competitive matches.</p>
+              </div>
+              <div className="flex gap-3">
+                <Clock className="text-accent shrink-0" size={18} />
+                <p className="text-xs text-text-soft">Use 15-20s timers for faster "Blitz" style tournament rounds.</p>
+              </div>
+              <div className="flex gap-3">
+                <Target className="text-accent shrink-0" size={18} />
+                <p className="text-xs text-text-soft">AI-generated quizzes are recommended for practice sessions.</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+export default function HostPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+      </div>
+    }>
+      <HostContent />
+    </Suspense>
+  );
+}

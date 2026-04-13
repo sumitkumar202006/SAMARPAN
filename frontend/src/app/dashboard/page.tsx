@@ -78,10 +78,12 @@ export default function Dashboard() {
     if (!authLoading) fetchData();
   }, [user, authLoading]);
 
-  const filteredQuizzes = quizzes.filter(q => 
-    q.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.topic?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredQuizzes = quizzes.filter(q => {
+    const title = q.title?.toLowerCase() || '';
+    const topic = q.topic?.toLowerCase() || '';
+    const query = searchQuery.toLowerCase();
+    return title.includes(query) || topic.includes(query);
+  });
 
   const handleSyncToCloud = async (q: any) => {
     try {
@@ -279,39 +281,42 @@ export default function Dashboard() {
                   Loading your history...
                 </div>
               ) : filteredQuizzes.length > 0 ? (
-                filteredQuizzes.map((q) => (
-                  <QuizCard 
-                    key={q._id}
-                    title={q.title} 
-                    isLocal={q.isLocal}
-                    description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
-                    lastPlayed={q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString()}
-                    onPlay={async () => {
-                      if (q.isLocal) {
-                        try {
-                          const cloudId = await handleSyncToCloud(q);
-                          router.push(`/play/solo?quiz=${cloudId}`);
-                        } catch (err) {
-                          alert("Sign in to play solo sessions.");
+                filteredQuizzes.map((q) => {
+                  const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
+                  return (
+                    <QuizCard 
+                      key={q._id}
+                      title={q.title} 
+                      isLocal={q.isLocal}
+                      description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
+                      lastPlayed={isRecent ? 'Just Created ✨' : (q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString())}
+                      onPlay={async () => {
+                        if (q.isLocal) {
+                          try {
+                            const cloudId = await handleSyncToCloud(q);
+                            router.push(`/play/solo?quiz=${cloudId}`);
+                          } catch (err) {
+                            alert("Sign in to play solo sessions.");
+                          }
+                        } else {
+                          router.push(`/play/solo?quiz=${q._id}`);
                         }
-                      } else {
-                        router.push(`/play/solo?quiz=${q._id}`);
-                      }
-                    }}
-                    onHost={async () => {
-                      if (q.isLocal) {
-                        try {
-                          const cloudId = await handleSyncToCloud(q);
-                          router.push(`/host?quiz=${cloudId}`);
-                        } catch (err) {
-                          alert("Sign in to host multiplayer sessions.");
+                      }}
+                      onHost={async () => {
+                        if (q.isLocal) {
+                          try {
+                            const cloudId = await handleSyncToCloud(q);
+                            router.push(`/host?quiz=${cloudId}`);
+                          } catch (err) {
+                            alert("Sign in to host multiplayer sessions.");
+                          }
+                        } else {
+                          router.push(`/host?quiz=${q._id}`);
                         }
-                      } else {
-                        router.push(`/host?quiz=${q._id}`);
-                      }
-                    }}
-                  />
-                ))
+                      }}
+                    />
+                  );
+                })
               ) : (
                 <div className="col-span-2 flex flex-col items-center justify-center h-40 text-text-soft border border-dashed border-border-soft rounded-3xl">
                   <BookOpen size={30} className="mb-2 opacity-20" />

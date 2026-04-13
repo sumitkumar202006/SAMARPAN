@@ -40,6 +40,7 @@ export default function CreatePage() {
   // AI Form State
   const [aiData, setAiData] = useState({ topic: '', title: '', difficulty: 'medium', count: 5 });
   const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [createdQuiz, setCreatedQuiz] = useState<any | null>(null);
 
   // Manual Editor State
   const [manualTitle, setManualTitle] = useState('');
@@ -85,16 +86,16 @@ export default function CreatePage() {
         alert('Arena Content Pushed to Cloud (Admin)');
       } else {
         // Normal users save to Local Vault
-        saveLocalQuiz({
+        const localQ = {
           _id: `manual_${Date.now()}`,
           title: manualTitle,
           topic: manualTopic,
           questions,
           aiGenerated: false
-        });
-        alert('Practice Quiz saved to your Local Vault!');
+        };
+        saveLocalQuiz(localQ);
+        setCreatedQuiz(localQ);
       }
-      router.push('/dashboard');
     } catch (err) {
       console.error("Save error:", err);
       alert('Failed to save quiz.');
@@ -116,10 +117,10 @@ export default function CreatePage() {
       // Save the returned quiz data to Local Vault
       if (res.data.quiz) {
         saveLocalQuiz(res.data.quiz);
+        setCreatedQuiz(res.data.quiz);
       }
       
       setAiStatus('Quiz generated successfully! Saved to your Practice Hub.');
-      router.push('/dashboard');
     } catch (err: any) {
       console.error("AI Gen error:", err);
       const errorMsg = err.response?.data?.details || err.message || 'Unknown error';
@@ -186,7 +187,75 @@ export default function CreatePage() {
 
         {/* Content Area */}
         <AnimatePresence mode="wait">
-          {activeTab === 'manual' ? (
+          {createdQuiz ? (
+            <motion.div 
+              key="success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass p-12 rounded-[40px] text-center space-y-8 flex flex-col items-center justify-center min-h-[500px]"
+            >
+              <div className="w-20 h-20 rounded-full bg-accent-alt/20 text-accent-alt flex items-center justify-center mb-4">
+                <Trophy size={40} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-4xl font-black">Forge Successful!</h2>
+                <p className="text-text-soft">“{createdQuiz.title}” is ready for the Arena.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 w-full max-w-md">
+                <Button 
+                  onClick={() => {
+                    // Logic for Solo Play Sync
+                    if (createdQuiz.isLocal) {
+                      api.post('/api/quizzes', {
+                        title: createdQuiz.title,
+                        topic: createdQuiz.topic,
+                        authorId: user?.email,
+                        questions: createdQuiz.questions,
+                        aiGenerated: createdQuiz.aiGenerated
+                      }).then(res => {
+                        router.push(`/play/solo?quiz=${res.data.quizId}`);
+                      }).catch(() => alert("Sign in to play solo sessions."));
+                    } else {
+                      router.push(`/play/solo?quiz=${createdQuiz._id}`);
+                    }
+                  }}
+                  className="py-6 text-lg"
+                >
+                  <Zap size={20} fill="currentColor" /> Practice Solo
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Logic for Host Sync
+                    if (createdQuiz.isLocal) {
+                      api.post('/api/quizzes', {
+                        title: createdQuiz.title,
+                        topic: createdQuiz.topic,
+                        authorId: user?.email,
+                        questions: createdQuiz.questions,
+                        aiGenerated: createdQuiz.aiGenerated
+                      }).then(res => {
+                        router.push(`/host?quiz=${res.data.quizId}`);
+                      }).catch(() => alert("Sign in to host multiplayer sessions."));
+                    } else {
+                      router.push(`/host?quiz=${createdQuiz._id}`);
+                    }
+                  }}
+                  variant="outline"
+                  className="py-6 text-lg border-dashed"
+                >
+                  <Users size={20} /> Host Battle
+                </Button>
+              </div>
+
+              <button 
+                onClick={() => router.push('/dashboard')}
+                className="text-xs font-bold uppercase tracking-widest text-text-soft hover:text-white transition-colors"
+              >
+                Go to Training Hub
+              </button>
+            </motion.div>
+          ) : activeTab === 'manual' ? (
             <motion.div 
               key="manual"
               initial={{ opacity: 0, x: 20 }}

@@ -2,9 +2,8 @@
 
 import React, { useState, Suspense, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Globe, Mail, Lock, User, ArrowLeft, School, BookOpen, Calendar, Trophy, Sparkles, Shield, Zap } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, School, BookOpen, Calendar, Trophy, Shield, Zap } from 'lucide-react';
 import { GithubIcon, FacebookIcon, GoogleIcon } from '@/components/ui/BrandIcons';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';

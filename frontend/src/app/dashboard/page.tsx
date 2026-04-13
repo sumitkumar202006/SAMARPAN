@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
-import { getLocalQuizzes, clearLocalQuizzes, deleteLocalQuiz } from '@/lib/storage';
 
 const container = {
   hidden: { opacity: 0 },
@@ -64,11 +63,8 @@ export default function Dashboard() {
           cloudQuizzes = res.data.quizzes || [];
         }
 
-        // 2. Fetch Local Practice Quizzes
-        const localQuizzes = getLocalQuizzes();
-
-        // 3. Merge (Local First for recent practice)
-        setQuizzes([...localQuizzes, ...cloudQuizzes]);
+        // 2. Set State
+        setQuizzes(cloudQuizzes);
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
@@ -86,23 +82,9 @@ export default function Dashboard() {
   });
 
   const handleSyncToCloud = async (q: any) => {
-    try {
-      setLoading(true);
-      const res = await api.post('/api/quizzes', {
-        title: q.title,
-        topic: q.topic,
-        authorId: user?.email,
-        questions: q.questions,
-        aiGenerated: q.aiGenerated,
-        tags: q.tags
-      });
-      return res.data.quizId;
-    } catch (err) {
-      console.error("Sync error:", err);
-      throw new Error("Failed to sync quiz.");
-    } finally {
-      setLoading(false);
-    }
+    // This is now redundant but kept for compatibility if needed.
+    // In Full Cloud mode, we just return the existing ID.
+    return q._id;
   };
 
   return (
@@ -239,23 +221,9 @@ export default function Dashboard() {
             <div className="flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <div className="flex flex-col">
-                  <h3 className="font-bold text-lg">{user ? 'Practice Hub / History' : 'Featured Arena Quizzes'}</h3>
-                  <span className="text-[10px] text-accent font-bold uppercase tracking-widest">LocalStorage Enabled</span>
+                  <h3 className="font-bold text-lg">{user ? 'Training Hub / History' : 'Featured Arena Quizzes'}</h3>
                 </div>
                 <div className="flex items-center gap-4">
-                  {quizzes.some(q => q.isLocal) && (
-                    <button 
-                      onClick={() => {
-                        if(confirm('Wipe all local practice quizzes?')) {
-                          clearLocalQuizzes();
-                          window.location.reload();
-                        }
-                      }}
-                      className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors"
-                    >
-                      Clear Practice Hub
-                    </button>
-                  )}
                   <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
                     View all <ArrowRight size={14} />
                   </Link>
@@ -287,33 +255,10 @@ export default function Dashboard() {
                     <QuizCard 
                       key={q._id}
                       title={q.title} 
-                      isLocal={q.isLocal}
-                      description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
-                      lastPlayed={isRecent ? 'Just Created ✨' : (q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString())}
-                      onPlay={async () => {
-                        if (q.isLocal) {
-                          try {
-                            const cloudId = await handleSyncToCloud(q);
-                            router.push(`/play/solo?quiz=${cloudId}`);
-                          } catch (err) {
-                            alert("Sign in to play solo sessions.");
-                          }
-                        } else {
-                          router.push(`/play/solo?quiz=${q._id}`);
-                        }
-                      }}
-                      onHost={async () => {
-                        if (q.isLocal) {
-                          try {
-                            const cloudId = await handleSyncToCloud(q);
-                            router.push(`/host?quiz=${cloudId}`);
-                          } catch (err) {
-                            alert("Sign in to host multiplayer sessions.");
-                          }
-                        } else {
-                          router.push(`/host?quiz=${q._id}`);
-                        }
-                      }}
+                      description={`${q.questions.length} questions • ${q.aiGenerated ? 'AI Forge' : 'Elite Cloud'}`}
+                      lastPlayed={isRecent ? 'Just Created ✨' : new Date(q.createdAt).toLocaleDateString()}
+                      onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
+                      onHost={() => router.push(`/host?quiz=${q._id}`)}
                     />
                   );
                 })

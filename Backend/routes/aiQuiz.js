@@ -48,20 +48,20 @@ router.post("/generate-quiz", async (req, res) => {
       count || 5
     );
 
-    // Bypassing Cloud DB Save - Returning raw for LocalStorage
-    const quizResponse = {
-      _id: `ai_${Date.now()}`,
+    // PERSISTENCE: Save to Cloud DB 
+    const newQuiz = await Quiz.create({
       title,
       topic,
+      author: authorId,
       questions,
       aiGenerated: true,
-      tags: tags || [],
-      createdAt: new Date().toISOString()
-    };
+      difficulty,
+      tags: tags || []
+    });
 
     res.json({
-      message: "AI Questions Generated Successfully",
-      quiz: quizResponse,
+      message: "AI Questions Generated & Saved Successfully",
+      quiz: newQuiz,
     });
   } catch (err) {
     debugLog(`TOPIC AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);
@@ -103,7 +103,7 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
       return res.status(400).json({ error: "PDF contains too little text to generate a quiz" });
     }
 
-    // Convert Email OR ID to ObjectId (for author field)
+    // Convert Email OR ID to ObjectId (Optional association)
     let authorId = null;
     if (userId) {
       if (userId.includes("@")) {
@@ -123,20 +123,20 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
     );
     debugLog("AI Questions generated successfully. Count: " + questions.length);
 
-    // Bypassing Cloud DB Save - Returning raw for LocalStorage
-    const quizResponse = {
-      _id: `pdf_${Date.now()}`,
+    // PERSISTENCE: Save to Cloud DB
+    const newQuiz = await Quiz.create({
       title,
       topic: `PDF: ${req.file.originalname}`,
+      author: authorId,
       questions,
+      difficulty,
       aiGenerated: true,
-      tags: tags || ["pdf-upload"],
-      createdAt: new Date().toISOString()
-    };
+      tags: tags || ["pdf-upload"]
+    });
 
     res.json({
-      message: "AI PDF Questions Generated Successfully",
-      quiz: quizResponse,
+      message: "AI PDF Questions Generated & Saved Successfully",
+      quiz: newQuiz,
     });
   } catch (err) {
     debugLog(`PDF AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);

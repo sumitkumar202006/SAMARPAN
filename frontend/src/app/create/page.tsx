@@ -24,7 +24,6 @@ import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { saveLocalQuiz } from '@/lib/storage';
 
 interface Question {
   question: string;
@@ -85,17 +84,14 @@ export default function CreatePage() {
           aiGenerated: false
         });
         alert('Arena Content Pushed to Cloud (Admin)');
-      } else {
-        // Normal users save to Local Vault
-        const localQ = {
-          _id: `manual_${Date.now()}`,
+        const res = await api.post('/api/quizzes', {
           title: manualTitle,
           topic: manualTopic,
+          authorId: user?.email,
           questions,
           aiGenerated: false
-        };
-        saveLocalQuiz(localQ);
-        setCreatedQuiz(localQ);
+        });
+        setCreatedQuiz(res.data.quiz);
       }
     } catch (err) {
       console.error("Save error:", err);
@@ -115,13 +111,12 @@ export default function CreatePage() {
         userId: user?.email
       });
       
-      // Save the returned quiz data to Local Vault
+      // Save the returned quiz data (already saved in DB by backend)
       if (res.data.quiz) {
-        saveLocalQuiz(res.data.quiz);
         setCreatedQuiz(res.data.quiz);
       }
       
-      setAiStatus('Quiz generated successfully! Saved to your Practice Hub.');
+      setAiStatus('Quiz generated & saved to Cloud successfully!');
     } catch (err: any) {
       console.error("AI Gen error:", err);
       const errorMsg = err.response?.data?.details || err.message || 'Unknown error';
@@ -205,43 +200,13 @@ export default function CreatePage() {
 
               <div className="grid sm:grid-cols-2 gap-4 w-full max-w-md">
                 <Button 
-                  onClick={() => {
-                    // Logic for Solo Play Sync
-                    if (createdQuiz.isLocal) {
-                      api.post('/api/quizzes', {
-                        title: createdQuiz.title,
-                        topic: createdQuiz.topic,
-                        authorId: user?.email,
-                        questions: createdQuiz.questions,
-                        aiGenerated: createdQuiz.aiGenerated
-                      }).then(res => {
-                        router.push(`/play/solo?quiz=${res.data.quizId}`);
-                      }).catch(() => alert("Sign in to play solo sessions."));
-                    } else {
-                      router.push(`/play/solo?quiz=${createdQuiz._id}`);
-                    }
-                  }}
+                  onClick={() => router.push(`/play/solo?quiz=${createdQuiz._id}`)}
                   className="py-6 text-lg"
                 >
                   <Zap size={20} fill="currentColor" /> Practice Solo
                 </Button>
                 <Button 
-                  onClick={() => {
-                    // Logic for Host Sync
-                    if (createdQuiz.isLocal) {
-                      api.post('/api/quizzes', {
-                        title: createdQuiz.title,
-                        topic: createdQuiz.topic,
-                        authorId: user?.email,
-                        questions: createdQuiz.questions,
-                        aiGenerated: createdQuiz.aiGenerated
-                      }).then(res => {
-                        router.push(`/host?quiz=${res.data.quizId}`);
-                      }).catch(() => alert("Sign in to host multiplayer sessions."));
-                    } else {
-                      router.push(`/host?quiz=${createdQuiz._id}`);
-                    }
-                  }}
+                  onClick={() => router.push(`/host?quiz=${createdQuiz._id}`)}
                   variant="outline"
                   className="py-6 text-lg border-dashed"
                 >

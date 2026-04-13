@@ -31,22 +31,13 @@ router.post("/generate-quiz", async (req, res) => {
       });
     }
 
-    // Convert Email OR ID to ObjectId
+    // Convert Email OR ID to ObjectId (Optional association)
     let authorId = null;
-
     if (userId) {
       if (userId.includes("@")) {
-        // CASE 1: Email sent
         const user = await User.findOne({ email: userId });
-        if (!user) {
-          return res.status(400).json({ 
-            error: "User not found", 
-            details: `Identity '${userId}' does not match any commander in the Arena.`
-          });
-        }
-        authorId = user._id;
+        if (user) authorId = user._id;
       } else {
-        // CASE 2: MongoDB ID sent
         authorId = userId;
       }
     }

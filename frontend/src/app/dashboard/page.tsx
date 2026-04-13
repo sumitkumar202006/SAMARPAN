@@ -244,9 +244,27 @@ export default function Dashboard() {
                     title={q.title} 
                     description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
                     lastPlayed={q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString()}
-                    onHost={() => {
+                    onHost={async () => {
                       if (q.isLocal) {
-                        alert("Local practice quizzes can be played solo. Cloud Hosting is coming soon for Local Vault.");
+                        try {
+                          setLoading(true);
+                          // Sync local quiz to Cloud for hosting
+                          const res = await api.post('/api/quizzes', {
+                            title: q.title,
+                            topic: q.topic,
+                            authorId: user?.email,
+                            questions: q.questions,
+                            aiGenerated: q.aiGenerated,
+                            tags: q.tags
+                          });
+                          const cloudId = res.data.quizId;
+                          router.push(`/host?quiz=${cloudId}`);
+                        } catch (err) {
+                          console.error("Hosting sync error:", err);
+                          alert("Failed to sync quiz for multiplayer. Please ensure you are logged in.");
+                        } finally {
+                          setLoading(false);
+                        }
                       } else {
                         router.push(`/host?quiz=${q._id}`);
                       }

@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import Link from 'next/link';
+import { getLocalQuizzes, clearLocalQuizzes, deleteLocalQuiz } from '@/lib/storage';
 
 const container = {
   hidden: { opacity: 0 },
@@ -47,18 +48,25 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // 1. Fetch Cloud Quizzes
+        let cloudQuizzes = [];
         if (user?.email) {
           const [profileRes, quizzesRes] = await Promise.all([
             api.get(`/api/profile/${user.email}`),
             api.get(`/api/quizzes/user/${user.email}`)
           ]);
           setStats(profileRes.data);
-          setQuizzes(quizzesRes.data.quizzes || []);
+          cloudQuizzes = quizzesRes.data.quizzes || [];
         } else {
-          // Fetch public quizzes for guests
           const res = await api.get('/api/quizzes/public');
-          setQuizzes(res.data.quizzes || []);
+          cloudQuizzes = res.data.quizzes || [];
         }
+
+        // 2. Fetch Local Practice Quizzes
+        const localQuizzes = getLocalQuizzes();
+
+        // 3. Merge (Local First for recent practice)
+        setQuizzes([...localQuizzes, ...cloudQuizzes]);
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
@@ -200,10 +208,28 @@ export default function Dashboard() {
           {/* Quizzes History */}
           <div className="glass p-6 rounded-[24px] flex flex-col gap-6">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">{user ? 'Your quizzes / history' : 'Featured Arena Quizzes'}</h3>
-              <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
-                View all <ArrowRight size={14} />
-              </Link>
+              <div className="flex flex-col">
+                <h3 className="font-bold text-lg">{user ? 'Practice Hub / History' : 'Featured Arena Quizzes'}</h3>
+                <span className="text-[10px] text-accent font-bold uppercase tracking-widest">LocalStorage Enabled</span>
+              </div>
+              <div className="flex items-center gap-4">
+                {quizzes.some(q => q.isLocal) && (
+                  <button 
+                    onClick={() => {
+                      if(confirm('Wipe all local practice quizzes?')) {
+                        clearLocalQuizzes();
+                        window.location.reload();
+                      }
+                    }}
+                    className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors"
+                  >
+                    Clear Practice Hub
+                  </button>
+                )}
+                <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
+                  View all <ArrowRight size={14} />
+                </Link>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4 flex-1">
@@ -216,9 +242,15 @@ export default function Dashboard() {
                   <QuizCard 
                     key={q._id}
                     title={q.title} 
-                    description={`${q.questions.length} questions • ${q.aiGenerated ? 'AI' : 'Manual'}`}
-                    lastPlayed={new Date(q.createdAt).toLocaleDateString()}
-                    onHost={() => router.push(`/host?quiz=${q._id}`)}
+                    description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
+                    lastPlayed={q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString()}
+                    onHost={() => {
+                      if (q.isLocal) {
+                        alert("Local practice quizzes can be played solo. Cloud Hosting is coming soon for Local Vault.");
+                      } else {
+                        router.push(`/host?quiz=${q._id}`);
+                      }
+                    }}
                   />
                 ))
               ) : (

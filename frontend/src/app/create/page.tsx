@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import { saveLocalQuiz } from '@/lib/storage';
 
 interface Question {
   question: string;
@@ -72,14 +73,27 @@ export default function CreatePage() {
     }
     
     try {
-      await api.post('/api/quizzes', {
-        title: manualTitle,
-        topic: manualTopic,
-        authorId: user?.email,
-        questions,
-        aiGenerated: false
-      });
-      alert('Quiz saved successfully!');
+      // If Admin is logged in, they can still push to Cloud DB
+      if (user?.email === 'admin@samarpan.com') {
+        await api.post('/api/quizzes', {
+          title: manualTitle,
+          topic: manualTopic,
+          authorId: user?.email,
+          questions,
+          aiGenerated: false
+        });
+        alert('Arena Content Pushed to Cloud (Admin)');
+      } else {
+        // Normal users save to Local Vault
+        saveLocalQuiz({
+          _id: `manual_${Date.now()}`,
+          title: manualTitle,
+          topic: manualTopic,
+          questions,
+          aiGenerated: false
+        });
+        alert('Practice Quiz saved to your Local Vault!');
+      }
       router.push('/dashboard');
     } catch (err) {
       console.error("Save error:", err);
@@ -94,15 +108,21 @@ export default function CreatePage() {
     }
     setAiStatus('Generating questions using AI...');
     try {
-      await api.post('/api/ai/generate-quiz', {
+      const res = await api.post('/api/ai/generate-quiz', {
         ...aiData,
         userId: user?.email
       });
-      setAiStatus('Quiz generated successfully! Saving to your account...');
+      
+      // Save the returned quiz data to Local Vault
+      if (res.data.quiz) {
+        saveLocalQuiz(res.data.quiz);
+      }
+      
+      setAiStatus('Quiz generated successfully! Saved to your Practice Hub.');
       router.push('/dashboard');
     } catch (err) {
       console.error("AI Gen error:", err);
-      setAiStatus('AI generation failed.');
+      setAiStatus('AI generation failed. Please try again.');
     }
   };
 

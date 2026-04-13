@@ -51,19 +51,20 @@ router.post("/generate-quiz", async (req, res) => {
       count || 5
     );
 
-    const quiz = await Quiz.create({
+    // Bypassing Cloud DB Save - Returning raw for LocalStorage
+    const quizResponse = {
+      _id: `ai_${Date.now()}`,
       title,
       topic,
-      author: authorId,
       questions,
       aiGenerated: true,
       tags: tags || [],
-    });
+      createdAt: new Date().toISOString()
+    };
 
     res.json({
-      message: "AI Quiz Generated Successfully",
-      quizId: quiz._id,
-      quiz,
+      message: "AI Questions Generated Successfully",
+      quiz: quizResponse,
     });
   } catch (err) {
     debugLog(`TOPIC AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);
@@ -125,22 +126,20 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
     );
     debugLog("AI Questions generated successfully. Count: " + questions.length);
 
-    // Save to Database
-    debugLog("Saving quiz to database...");
-    const quiz = await Quiz.create({
+    // Bypassing Cloud DB Save - Returning raw for LocalStorage
+    const quizResponse = {
+      _id: `pdf_${Date.now()}`,
       title,
-      topic: "PDF Upload",
-      author: authorId,
+      topic: `PDF: ${req.file.originalname}`,
       questions,
       aiGenerated: true,
       tags: tags || ["pdf-upload"],
-    });
-    debugLog("Quiz saved with ID: " + quiz._id);
+      createdAt: new Date().toISOString()
+    };
 
     res.json({
-      message: "AI Quiz Generated from PDF Successfully",
-      quizId: quiz._id,
-      quiz,
+      message: "AI PDF Questions Generated Successfully",
+      quiz: quizResponse,
     });
   } catch (err) {
     debugLog(`PDF AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);

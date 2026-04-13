@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Trophy,
   Wand2,
-  ListPlus
+  ListPlus,
+  Users
 } from 'lucide-react';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';

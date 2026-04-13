@@ -228,6 +228,18 @@ app.get("/api/quizzes/public", async (req, res) => {
   }
 });
 
+// Get individual quiz by ID
+app.get("/api/quizzes/:id", async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ error: "Quiz not found" });
+    return res.json(quiz);
+  } catch (err) {
+    console.error("Fetch quiz by ID error:", err);
+    return res.status(500).json({ error: "Failed to fetch quiz" });
+  }
+});
+
 // -------------------------------
 // Host / game session (prototype)
 // -------------------------------

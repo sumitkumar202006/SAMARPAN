@@ -1,0 +1,11 @@
+{
+  "ignore": [
+    "debug.log",
+    "scripts/*",
+    "node_modules/*",
+    ".git/*"
+  ],
+  "watch": ["./"],
+  "ext": "js,mjs,cjs,json",
+  "delay": "1000"
+}

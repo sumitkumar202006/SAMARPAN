@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import Link from 'next/link';
+import { Search } from 'lucide-react';
 import { getLocalQuizzes, clearLocalQuizzes, deleteLocalQuiz } from '@/lib/storage';
 
 const container = {
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,6 +77,31 @@ export default function Dashboard() {
     };
     if (!authLoading) fetchData();
   }, [user, authLoading]);
+
+  const filteredQuizzes = quizzes.filter(q => 
+    q.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    q.topic?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSyncToCloud = async (q: any) => {
+    try {
+      setLoading(true);
+      const res = await api.post('/api/quizzes', {
+        title: q.title,
+        topic: q.topic,
+        authorId: user?.email,
+        questions: q.questions,
+        aiGenerated: q.aiGenerated,
+        tags: q.tags
+      });
+      return res.data.quizId;
+    } catch (err) {
+      console.error("Sync error:", err);
+      throw new Error("Failed to sync quiz.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 lg:py-10">
@@ -207,28 +234,42 @@ export default function Dashboard() {
 
           {/* Quizzes History */}
           <div className="glass p-6 rounded-[24px] flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col">
-                <h3 className="font-bold text-lg">{user ? 'Practice Hub / History' : 'Featured Arena Quizzes'}</h3>
-                <span className="text-[10px] text-accent font-bold uppercase tracking-widest">LocalStorage Enabled</span>
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <h3 className="font-bold text-lg">{user ? 'Practice Hub / History' : 'Featured Arena Quizzes'}</h3>
+                  <span className="text-[10px] text-accent font-bold uppercase tracking-widest">LocalStorage Enabled</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {quizzes.some(q => q.isLocal) && (
+                    <button 
+                      onClick={() => {
+                        if(confirm('Wipe all local practice quizzes?')) {
+                          clearLocalQuizzes();
+                          window.location.reload();
+                        }
+                      }}
+                      className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors"
+                    >
+                      Clear Practice Hub
+                    </button>
+                  )}
+                  <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
+                    View all <ArrowRight size={14} />
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                {quizzes.some(q => q.isLocal) && (
-                  <button 
-                    onClick={() => {
-                      if(confirm('Wipe all local practice quizzes?')) {
-                        clearLocalQuizzes();
-                        window.location.reload();
-                      }
-                    }}
-                    className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors"
-                  >
-                    Clear Practice Hub
-                  </button>
-                )}
-                <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
-                  View all <ArrowRight size={14} />
-                </Link>
+
+              {/* Local Search Bar */}
+              <div className="relative group">
+                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" />
+                <input 
+                  type="text"
+                  placeholder="Search your vault (Topic, Title...)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-background/50 border border-border-soft rounded-xl py-3 pl-10 pr-4 text-xs focus:ring-1 focus:ring-accent outline-none transition-all"
+                />
               </div>
             </div>
 
@@ -237,33 +278,33 @@ export default function Dashboard() {
                 <div className="col-span-2 flex items-center justify-center h-40 text-text-soft animate-pulse">
                   Loading your history...
                 </div>
-              ) : quizzes.length > 0 ? (
-                quizzes.map((q) => (
+              ) : filteredQuizzes.length > 0 ? (
+                filteredQuizzes.map((q) => (
                   <QuizCard 
                     key={q._id}
                     title={q.title} 
+                    isLocal={q.isLocal}
                     description={`${q.questions.length} questions • ${q.isLocal ? 'Local Vault' : (q.aiGenerated ? 'AI' : 'Elite Cloud')}`}
                     lastPlayed={q.isLocal ? 'Practice Mode' : new Date(q.createdAt).toLocaleDateString()}
+                    onPlay={async () => {
+                      if (q.isLocal) {
+                        try {
+                          const cloudId = await handleSyncToCloud(q);
+                          router.push(`/play/solo?quiz=${cloudId}`);
+                        } catch (err) {
+                          alert("Sign in to play solo sessions.");
+                        }
+                      } else {
+                        router.push(`/play/solo?quiz=${q._id}`);
+                      }
+                    }}
                     onHost={async () => {
                       if (q.isLocal) {
                         try {
-                          setLoading(true);
-                          // Sync local quiz to Cloud for hosting
-                          const res = await api.post('/api/quizzes', {
-                            title: q.title,
-                            topic: q.topic,
-                            authorId: user?.email,
-                            questions: q.questions,
-                            aiGenerated: q.aiGenerated,
-                            tags: q.tags
-                          });
-                          const cloudId = res.data.quizId;
+                          const cloudId = await handleSyncToCloud(q);
                           router.push(`/host?quiz=${cloudId}`);
                         } catch (err) {
-                          console.error("Hosting sync error:", err);
-                          alert("Failed to sync quiz for multiplayer. Please ensure you are logged in.");
-                        } finally {
-                          setLoading(false);
+                          alert("Sign in to host multiplayer sessions.");
                         }
                       } else {
                         router.push(`/host?quiz=${q._id}`);

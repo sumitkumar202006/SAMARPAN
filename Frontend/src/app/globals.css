@@ -31,8 +31,36 @@
   
   @keyframes border-pulse {
     0% { opacity: 0.4; transform: scale(1); }
-    100% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1.03); }
   }
+  
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+  
+  @keyframes breathe {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.05); }
+  }
+
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  @keyframes flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+}
+
+@utility animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+@utility animate-flow {
+  animation: flow 3s ease infinite;
 }
 
 body {
@@ -40,24 +68,65 @@ body {
   color: var(--foreground);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
-  background-image:
-    radial-gradient(
-      circle at center,
-      rgba(0, 0, 0, 0.25),
-      rgba(0, 0, 0, 0.65)
-    ),
-    url("https://t3.ftcdn.net/jpg/02/87/87/18/360_F_287871802_GrrmM4RgBQt7hfIPYFTkRqaj2Fb8xvY4.jpg");
+  position: relative;
+  overflow-x: hidden;
+  /* Custom Bike Cursor - Only on desktop */
+  @media (pointer: fine) {
+    cursor: none !important;
+  }
+  background-image: 
+    linear-gradient(to bottom, rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.9)),
+    url("/bg-gaming.png");
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
 }
 
+/* Atmospheric Overlays */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(2, 6, 23, 0.4) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(99, 102, 241, 0.1);
+  opacity: 0.2;
+  pointer-events: none;
+  animation: scanline 8s linear infinite;
+  z-index: 2;
+}
+
 /* Glassmorphism utility */
 .glass {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(11, 17, 32, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  /* Ensure cursor is hidden on glass elements too */
+  @media (pointer: fine) {
+    cursor: none !important;
+  }
+}
+
+.glass-glow {
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.glass-glow:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
 }
 
 /* Custom scrollbar */

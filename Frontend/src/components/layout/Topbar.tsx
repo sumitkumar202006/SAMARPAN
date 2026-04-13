@@ -1,13 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart } from 'lucide-react';
+import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX } from 'lucide-react';
+import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export const Topbar = () => {
+  const router = useRouter();
   const { user, logout } = useAuth();
+  const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
@@ -30,24 +35,64 @@ export const Topbar = () => {
         </div>
 
         {/* Right: Actions & User */}
-        <div className="flex items-center gap-3">
-          <button className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-wider hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button 
+            onClick={() => {
+              playAccelerate();
+              router.push('/host');
+            }}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-[11px] font-black uppercase tracking-[0.1em] hover:bg-accent hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_25px_rgba(99,102,241,0.3)]"
+          >
             Host Quiz
           </button>
           
-          <button className="p-2 rounded-full text-text-soft hover:bg-background hover:text-white transition-all">
+          <button 
+            onClick={toggleMute}
+            className="p-2 rounded-full text-text-soft hover:bg-background hover:text-white transition-all flex items-center justify-center"
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+
+          <button className="hidden xs:flex p-2 rounded-full text-text-soft hover:bg-background hover:text-white transition-all">
             <Bell size={20} />
           </button>
 
           <div className="relative">
-            <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 p-1 pl-2 rounded-full border border-border-soft bg-background/50 hover:border-accent/50 transition-all shadow-[0_0_15px_rgba(99,102,241,0.1)]"
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-semibold text-sm overflow-hidden">
-                {user?.avatar ? <img src={user.avatar} alt="user" className="w-full h-full object-cover" /> : user?.name?.charAt(0).toUpperCase() || <UserIcon size={16} />}
+            {user ? (
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 p-1 pl-2 rounded-full border border-border-soft bg-background/50 hover:border-accent/50 transition-all shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-semibold text-sm overflow-hidden">
+                  {user?.avatar ? <img src={user.avatar} alt="user" className="w-full h-full object-cover" /> : user?.name?.charAt(0).toUpperCase() || <UserIcon size={16} />}
+                </div>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link 
+                  href="/auth"
+                  onClick={() => playAccelerate()}
+                  className="relative group overflow-hidden flex flex-col items-center justify-center px-6 py-2 rounded-2xl bg-gradient-to-r from-[#00c6ff] via-[#0072ff] to-[#00c6ff] bg-[length:200%_auto] animate-flow text-white shadow-[0_0_20px_rgba(0,198,255,0.4)] hover:shadow-[0_0_40px_rgba(0,198,255,0.6)] transition-all duration-500 hover:-translate-y-1 active:scale-95 border border-white/20"
+                >
+                  <span className="relative z-10 text-[10px] font-black uppercase tracking-[0.15em] drop-shadow-lg">Again? Respect!</span>
+                  <span className="relative z-10 text-[9px] font-bold uppercase opacity-90 italic tracking-widest mt-0.5">Login</span>
+                  {/* High-gloss shimmer */}
+                  <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:animate-shimmer" />
+                </Link>
+                
+                <Link 
+                  href="/auth?mode=signup"
+                  onClick={() => playAccelerate()}
+                  className="relative group overflow-hidden flex flex-col items-center justify-center px-6 py-2 rounded-2xl bg-gradient-to-r from-[#00b09b] via-[#96c93d] to-[#00b09b] bg-[length:200%_auto] animate-flow text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-[0_0_40px_rgba(34,197,94,0.6)] transition-all duration-500 hover:-translate-y-1 active:scale-95 border border-white/20"
+                >
+                  <span className="relative z-10 text-[10px] font-black uppercase tracking-[0.15em] drop-shadow-lg">First Time? Good Luck!</span>
+                  <span className="relative z-10 text-[9px] font-bold uppercase opacity-90 italic tracking-widest mt-0.5">Sign up</span>
+                  {/* High-gloss shimmer */}
+                  <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:animate-shimmer" />
+                </Link>
               </div>
-            </button>
+            )}
 
             <AnimatePresence>
               {isDropdownOpen && (

@@ -24,7 +24,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user?.email) return;
+      if (!user?.email) {
+        setLoading(false);
+        return;
+      }
       try {
         const [profileRes, historyRes] = await Promise.all([
           api.get(`/api/profile/${user.email}`),
@@ -48,7 +51,7 @@ export default function ProfilePage() {
         <p className="text-text-soft">Your rating, progress and recent performance across modes.</p>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
         {/* Profile Main Stats */}
         <div className="space-y-8">
           <motion.div 
@@ -70,12 +73,24 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                <h1 className="text-4xl font-black mb-1">{user?.name || 'User Name'}</h1>
-                <p className="text-accent font-bold uppercase tracking-widest text-xs mb-4">Host • Team Samarpan</p>
-                <div className="flex gap-4">
-                  <div className="px-4 py-2 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest">Lv. 24 Master</div>
-                  <div className="px-4 py-2 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest">XP: {stats?.xp || 0}</div>
-                </div>
+                <h1 className="text-4xl font-black mb-1">{user?.name || 'Guest Explorer'}</h1>
+                <p className="text-accent font-bold uppercase tracking-widest text-xs mb-4">
+                  {user ? 'Verified Competitor' : 'Unregistered Terminal'}
+                </p>
+                {!user && (
+                  <button 
+                    onClick={() => window.location.href = '/auth'}
+                    className="px-6 py-2 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-widest hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all"
+                  >
+                    Login to Track Stats
+                  </button>
+                )}
+                {user && (
+                  <div className="flex gap-4">
+                    <div className="px-4 py-2 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest">Lv. 24 Master</div>
+                    <div className="px-4 py-2 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest">XP: {stats?.xp || 0}</div>
+                  </div>
+                )}
               </div>
             </div>
 

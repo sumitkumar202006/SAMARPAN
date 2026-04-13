@@ -1,6 +1,8 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { motion, HTMLMotionProps } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { useAudio } from '@/context/AudioContext';
+
 
 interface ButtonProps extends HTMLMotionProps<'button'> {
   variant?: 'primary' | 'outline' | 'ghost' | 'danger';
@@ -24,6 +26,13 @@ export const Button: React.FC<ButtonProps> = ({
     danger: 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 active:scale-95'
   };
 
+  const { playAccelerate } = useAudio();
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    playAccelerate();
+    if (props.onClick) props.onClick(e);
+  };
+
   const sizes = {
     sm: 'px-4 py-2 text-xs',
     md: 'px-6 py-3 text-sm',
@@ -35,18 +44,32 @@ export const Button: React.FC<ButtonProps> = ({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={cn(
-        "rounded-2xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2",
+        "rounded-2xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 relative overflow-hidden group",
         variants[variant],
         sizes[size],
         className
       )}
       disabled={isLoading}
       {...props}
+      onClick={handleClick}
     >
       {isLoading ? (
         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       ) : null}
-      {children}
+      
+      <span className="relative z-10 flex items-center gap-2">
+        {children}
+        {variant === 'primary' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileHover={{ opacity: 1 }}
+            className="w-1 h-1 rounded-full bg-white hidden sm:block"
+          />
+        )}
+      </span>
+
+      {/* Glossy overlay effect */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
     </motion.button>
   );
 };

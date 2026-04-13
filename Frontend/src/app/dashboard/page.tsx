@@ -45,14 +45,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user?.email) return;
+      setLoading(true);
       try {
-        const [profileRes, quizzesRes] = await Promise.all([
-          api.get(`/api/profile/${user.email}`),
-          api.get(`/api/quizzes/user/${user.email}`)
-        ]);
-        setStats(profileRes.data);
-        setQuizzes(quizzesRes.data.quizzes || []);
+        if (user?.email) {
+          const [profileRes, quizzesRes] = await Promise.all([
+            api.get(`/api/profile/${user.email}`),
+            api.get(`/api/quizzes/user/${user.email}`)
+          ]);
+          setStats(profileRes.data);
+          setQuizzes(quizzesRes.data.quizzes || []);
+        } else {
+          // Fetch public quizzes for guests
+          const res = await api.get('/api/quizzes/public');
+          setQuizzes(res.data.quizzes || []);
+        }
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
@@ -78,7 +84,7 @@ export default function Dashboard() {
         className="space-y-10"
       >
         {/* Hero Section */}
-        <motion.section variants={item} className="grid lg:grid-cols-[1fr_350px] gap-8">
+        <motion.section variants={item} className="grid xl:grid-cols-[1fr_350px] gap-10">
           <div className="flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-wider mb-4 w-fit">
               Samarpan Arena
@@ -103,20 +109,29 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="flex gap-8">
+            <div className="flex flex-wrap gap-x-8 gap-y-4">
               <div className="flex flex-col">
-                <span className="text-xs text-text-soft uppercase font-bold tracking-widest mb-1">Quizzes hosted</span>
+                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Quizzes hosted</span>
                 <span className="text-2xl font-black">{stats?.quizzesCount || 0}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-text-soft uppercase font-bold tracking-widest mb-1">XP Points</span>
+                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">XP Points</span>
                 <span className="text-2xl font-black">{stats?.xp || 0}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-text-soft uppercase font-bold tracking-widest mb-1">Global Rating</span>
-                <span className="text-2xl font-black text-accent-alt">{stats?.globalRating || 1200}</span>
+                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Global Rating</span>
+                <span className="text-2xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</span>
               </div>
             </div>
+
+            {!user && (
+              <div className="mt-8 p-4 rounded-2xl bg-accent-soft border border-accent/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-sm font-medium">Sync your stats and save your quizzes across terminals.</p>
+                <Link href="/auth" className="px-6 py-2 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-widest whitespace-nowrap">
+                  Login & Sync
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:block relative">
@@ -185,7 +200,7 @@ export default function Dashboard() {
           {/* Quizzes History */}
           <div className="glass p-6 rounded-[24px] flex flex-col gap-6">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-lg">Your quizzes / history</h3>
+              <h3 className="font-bold text-lg">{user ? 'Your quizzes / history' : 'Featured Arena Quizzes'}</h3>
               <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
                 View all <ArrowRight size={14} />
               </Link>

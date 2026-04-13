@@ -61,9 +61,9 @@ export default function LeaderboardPage() {
                     <th className="px-6 py-4">#</th>
                     <th className="px-6 py-4">Player</th>
                     <th className="px-6 py-4">Rating</th>
-                    <th className="px-6 py-4">Quizzes</th>
-                    <th className="px-6 py-4">Avg Score</th>
-                    <th className="px-6 py-4">Best Rank</th>
+                    <th className="px-6 py-4 hidden sm:table-cell">Quizzes</th>
+                    <th className="px-6 py-4 hidden md:table-cell">Avg Score</th>
+                    <th className="px-6 py-4 hidden lg:table-cell">Best Rank</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -91,9 +91,9 @@ export default function LeaderboardPage() {
                             {player.rating || player.score || 0}
                           </span>
                         </td>
-                        <td className="px-6 py-5 text-sm text-text-soft">{player.quizzes || 0}</td>
-                        <td className="px-6 py-5 text-sm text-text-soft">{player.avgScore || '-'}</td>
-                        <td className="px-6 py-5 text-sm text-text-soft">{player.bestRank || '-'}</td>
+                        <td className="px-6 py-5 text-sm text-text-soft hidden sm:table-cell">{player.quizzes || 0}</td>
+                        <td className="px-6 py-5 text-sm text-text-soft hidden md:table-cell">{player.avgScore || '-'}</td>
+                        <td className="px-6 py-5 text-sm text-text-soft hidden lg:table-cell">{player.bestRank || '-'}</td>
                       </motion.tr>
                     ))
                   )}

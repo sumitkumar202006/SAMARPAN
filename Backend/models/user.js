@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema(
       casual: { type: Number, default: 1200 },
     },
     xp: { type: Number, default: 0 },
+
+    // academic & personal metadata
+    college: { type: String },
+    course: { type: String },
+    dob: { type: Date },
   },
   { timestamps: true }
 );

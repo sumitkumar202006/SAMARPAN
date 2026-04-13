@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle2, XCircle, ChevronRight, Trophy, ArrowLeft } from 'lucide-react';
+import { useAudio } from '@/context/AudioContext';
+import { BikeArrow } from '@/components/ui/BikeArrow';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +43,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [correctIdx, setCorrectIdx] = useState<number | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
+  const { playAccelerate } = useAudio();
 
   const currentQuestion = quiz.questions[currentIndex];
 
@@ -115,6 +118,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   };
 
   const handleNext = () => {
+    playAccelerate();
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setTimeLeft(30);
@@ -137,10 +141,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       className="max-w-4xl mx-auto w-full"
     >
       {/* Header Info */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-black uppercase tracking-widest text-accent">Question {currentIndex + 1} of {quiz.questions.length}</span>
-          <h2 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{quiz.title}</h2>
+          <h2 className="text-xl font-bold truncate max-w-full sm:max-w-md">{quiz.title}</h2>
         </div>
 
         <div className={cn(
@@ -241,7 +245,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         {!isLive && isLocked && (
           <Button onClick={handleNext} className="group">
             {currentIndex < quiz.questions.length - 1 ? 'Next Question' : 'View Results'}
-            <ChevronRight className="group-hover:translate-x-1 transition-all" size={18} />
+            <BikeArrow className="group-hover:translate-x-1 transition-all" />
           </Button>
         )}
 

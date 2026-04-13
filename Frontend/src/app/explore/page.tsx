@@ -44,7 +44,7 @@ export default function ExplorePage() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid lg:grid-cols-3 gap-8 mb-16"
+        className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16"
       >
         <div className="glass p-8 rounded-[32px] space-y-6">
           <div className="flex items-center gap-3 mb-2">

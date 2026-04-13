@@ -10,7 +10,7 @@ const debugLog = (msg) => {
 const pdfParse = require("pdf-parse");
 const { generateQuizQuestions, generateQuizFromText } = require("../services/gptService");
 const Quiz = require("../models/Quiz");
-const User = require("../models/user"); 
+const User = require("../models/User"); 
 
 // Configure multer for memory storage
 const upload = multer({ 

@@ -3,11 +3,13 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Input, Select } from '@/components/ui/Input';
 import { Target, Shield, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/Button';
 
 function HostContent() {
@@ -65,34 +67,16 @@ function HostContent() {
     }
   };
 
-  // Show auth loading state
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  // Not logged in
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto mt-20 p-8 glass rounded-3xl text-center space-y-4">
-        <h2 className="text-2xl font-bold">Not logged in</h2>
-        <p className="text-text-soft">You need to log in before hosting a quiz.</p>
-        <Button onClick={() => router.push('/auth')} className="w-full">Go to Login</Button>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+    <AuthGuard>
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
       <div className="flex flex-col gap-1 mb-8">
         <h2 className="text-3xl font-bold tracking-tight">Host a Quiz</h2>
         <p className="text-text-soft">Pick a quiz, set mode and start a rated session.</p>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
         {/* Host Form */}
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
@@ -151,6 +135,12 @@ function HostContent() {
                 <option value="true">Yes, update ratings</option>
                 <option value="false">No, casual only</option>
               </Select>
+              {quizzes.length === 0 && (
+                <div className="mt-2 text-xs text-text-soft flex items-center gap-2">
+                  <span>No quizzes found.</span>
+                  <Link href="/create" className="text-accent underline font-bold">Create one now</Link>
+                </div>
+              )}
             </div>
 
             <Input label="Room password (optional)" placeholder="Leave blank for open room" />
@@ -222,6 +212,7 @@ function HostContent() {
         </motion.div>
       </div>
     </div>
+    </AuthGuard>
   );
 }
 

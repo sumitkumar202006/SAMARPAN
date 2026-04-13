@@ -14,6 +14,7 @@ import {
   Info,
   LogOut
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils'; // I'll need to create this helper
 
@@ -66,15 +67,29 @@ export const Sidebar = () => {
               className={cn(
                 "group relative flex items-center justify-between p-3 rounded-xl text-sm transition-all overflow-hidden",
                 isActive 
-                  ? "bg-gradient-to-r from-accent to-accent-alt text-white shadow-lg" 
+                  ? "bg-gradient-to-r from-accent to-accent-alt text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]" 
                   : "text-text-soft hover:bg-background hover:text-white"
               )}
             >
-              <div className="flex items-center gap-3">
-                <item.icon size={18} className={cn(isActive ? "text-white" : "text-text-soft group-hover:text-accent")} />
-                <span className="font-medium">{item.name}</span>
+              <div className="flex items-center gap-3 relative z-10">
+                <item.icon 
+                  size={18} 
+                  className={cn(
+                    isActive ? "text-white animate-pulse" : "text-text-soft group-hover:text-accent transition-colors"
+                  )} 
+                />
+                <span className="font-bold tracking-tight">{item.name}</span>
               </div>
               
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active"
+                  className="absolute inset-0 bg-white/10 z-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                />
+              )}
+
               {/* Neon pulse effect on hover */}
               {!isActive && (
                 <div className="absolute inset-0 border border-accent/0 group-hover:border-accent/40 rounded-xl transition-all pointer-events-none group-hover:shadow-[0_0_15px_rgba(99,102,241,0.3)]" />

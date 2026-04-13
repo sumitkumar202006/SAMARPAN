@@ -20,6 +20,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 
@@ -106,13 +107,14 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+    <AuthGuard>
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
       <div className="flex flex-col gap-1 mb-12 text-center lg:text-left">
         <h2 className="text-3xl font-bold tracking-tight">Create Quiz</h2>
         <p className="text-text-soft">Choose how you want to build your next arena experience.</p>
       </div>
 
-      <div className="grid lg:grid-cols-[400px_1fr] gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-8">
         {/* Selection Sidebar */}
         <div className="space-y-4">
           <button 
@@ -147,7 +149,7 @@ export default function CreatePage() {
             </div>
           </button>
           
-          <div className="glass p-8 rounded-[32px] hidden lg:block bg-gradient-to-br from-bg-soft to-transparent">
+          <div className="glass p-8 rounded-[32px] hidden xl:block bg-gradient-to-br from-bg-soft to-transparent">
              <h4 className="font-bold text-sm mb-4 flex items-center gap-2">
                <HelpCircle size={16} className="text-accent" />
                Tips for better quizzes
@@ -363,5 +365,6 @@ export default function CreatePage() {
         </AnimatePresence>
       </div>
     </div>
+    </AuthGuard>
   );
 }

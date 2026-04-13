@@ -23,7 +23,7 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 
 // Models
-const User = require("./models/user");
+const User = require("./models/User");
 const Quiz = require("./models/Quiz");
 const RatingHistory = require("./models/RatingHistory");
 const GameSession = require("./models/GameSession");
@@ -87,9 +87,9 @@ app.get("/api/health", (_req, res) => {
 // Signup
 app.post("/api/signup", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, college, course, dob } = req.body;
     if (!name || !email || !password) {
-      return res.status(400).json({ error: "All fields required" });
+      return res.status(400).json({ error: "All required fields must be filled" });
     }
 
     const exists = await User.findOne({ email });
@@ -104,23 +104,28 @@ app.post("/api/signup", async (req, res) => {
       email,
       passwordHash: hash,
       provider: "local",
+      college,
+      course,
+      dob
     });
 
     const token = createJwtForUser(user);
 
     return res.json({
       message: "Signup successful",
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      globalRating: user.globalRating,
-      ratings: user.ratings,
-      xp: user.xp,
+      user: {
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        globalRating: user.globalRating,
+        ratings: user.ratings,
+        xp: user.xp,
+      },
       token,
     });
   } catch (err) {
     console.error("Signup error:", err);
-    return res.status(500).json({ error: "Signup failed" });
+    return res.status(500).json({ error: "Registrations are temporarily unavailable. Please try again later." });
   }
 });
 
@@ -260,13 +265,21 @@ app.post("/api/host/start", async (req, res) => {
     // Try to create a unique 6-digit PIN
     let pin;
     let attempts = 0;
-    console.log("Generating PIN...");
-    do {
+    let pinFound = false;
+    console.log("Generating unique PIN...");
+    while (attempts < 10) {
       pin = String(Math.floor(100000 + Math.random() * 900000));
       const exists = await GameSession.findOne({ pin });
-      if (!exists) break;
+      if (!exists) {
+        pinFound = true;
+        break;
+      }
       attempts++;
-    } while (attempts < 5);
+    }
+
+    if (!pinFound) {
+      throw new Error("Unable to generate a unique room PIN. The arena is currently at full capacity.");
+    }
 
     console.log("Creating GameSession with PIN:", pin);
     const game = await GameSession.create({

@@ -44,7 +44,7 @@ export default function BattlesPage() {
         <p className="text-text-soft">Host or join squad battles (2v2 & 4v4) using a quiz PIN.</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Host a Battle */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

@@ -9,8 +9,11 @@ import { Trophy, ArrowLeft, BarChart3, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { useAuth } from '@/context/AuthContext';
 
 function LivePlayContent() {
+  const { user } = useAuth(); // Added for AuthGuard
   const searchParams = useSearchParams();
   const router = useRouter();
   const pin = searchParams.get('pin');

@@ -56,34 +56,48 @@ CRITICAL INSTRUCTIONS:
 }
 
 async function callGroq(prompt) {
-  try {
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-    });
+  const models = ["llama-3.3-70b-specdec", "llama-3.1-8b-instant"];
+  let lastError = null;
 
-    let rawText = response.choices[0].message.content.trim();
-    
-    // 1. Log the attempt
-    console.log(`[AI-GEN] Raw output received. Length: ${rawText.length}`);
+  for (const model of models) {
+    try {
+      console.log(`[AI-FORGE] Attempting generation with model: ${model}`);
+      const response = await groq.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+      });
 
-    // 2. Robustly extract JSON array if AI wrapped it in markdown or added text
-    // Matches everything between the first [ and the last ]
-    const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (jsonMatch) {
-      rawText = jsonMatch[0];
-    } else {
-      console.warn("[AI-GEN] No JSON array detected in raw output. Attempting direct parse.");
+      let rawText = response.choices[0].message.content.trim();
+      
+      // Sanitizer 2.0: Aggressively clean JSON
+      // Handle markdown code blocks
+      rawText = rawText.replace(/```json|```/gi, "");
+      
+      // Extract array between first [ and last ]
+      const startIdx = rawText.indexOf("[");
+      const endIdx = rawText.lastIndexOf("]");
+      
+      if (startIdx !== -1 && endIdx !== -1) {
+        rawText = rawText.substring(startIdx, endIdx + 1);
+      }
+
+      // Final cleanup of common parsing blockers
+      rawText = rawText
+        .replace(/,\s*\]/g, "]") // remove trailing comma before array end
+        .replace(/,\s*\}/g, "}"); // remove trailing comma before object end
+
+      return JSON.parse(rawText);
+    } catch (err) {
+      console.warn(`[AI-FORGE] Model ${model} failed. Error: ${err.message}`);
+      lastError = err;
+      // Continue to next model
     }
-
-    // 3. Try to parse
-    return JSON.parse(rawText);
-  } catch (err) {
-    console.error("AI GENERATION OR PARSE ERROR:", err);
-    // Rethrow with context to be caught by the route handler
-    throw new Error(`AI Forge Error: ${err.message}`);
   }
+
+  // If all models fail
+  console.error("AI FORGE - TOTAL ENGINE FAILURE:", lastError);
+  throw new Error(`AI System exhausted: ${lastError?.message}`);
 }
 
 module.exports = { generateQuizQuestions, generateQuizFromText };

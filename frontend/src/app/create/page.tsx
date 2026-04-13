@@ -120,9 +120,10 @@ export default function CreatePage() {
       
       setAiStatus('Quiz generated successfully! Saved to your Practice Hub.');
       router.push('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       console.error("AI Gen error:", err);
-      setAiStatus('AI generation failed. Please try again.');
+      const errorMsg = err.response?.data?.details || err.message || 'Unknown error';
+      setAiStatus(`AI failure: ${errorMsg}. Please check console or try again.`);
     }
   };
 

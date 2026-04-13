@@ -66,8 +66,9 @@ router.post("/generate-quiz", async (req, res) => {
       quiz,
     });
   } catch (err) {
+    debugLog(`TOPIC AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);
     console.error("AI Quiz Error:", err);
-    res.status(500).json({ error: "AI Quiz generation failed" });
+    res.status(500).json({ error: "AI Quiz generation failed", details: err.message });
   }
 });
 
@@ -142,9 +143,9 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
       quiz,
     });
   } catch (err) {
-    debugLog("PDF AI Quiz Error: " + err.message + "\n" + err.stack);
+    debugLog(`PDF AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);
     console.error("PDF AI Quiz Error:", err);
-    res.status(500).json({ error: "AI Quiz generation from PDF failed" });
+    res.status(500).json({ error: "AI Quiz generation from PDF failed", details: err.message });
   }
 });
 

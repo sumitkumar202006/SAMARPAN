@@ -56,25 +56,33 @@ CRITICAL INSTRUCTIONS:
 }
 
 async function callGroq(prompt) {
-  const response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
-  });
-
-  let rawText = response.choices[0].message.content.trim();
-
-  // Robustly extract JSON if AI still wrapped it in markdown or added text
-  const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-  if (jsonMatch) {
-    rawText = jsonMatch[0];
-  }
-
   try {
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+    });
+
+    let rawText = response.choices[0].message.content.trim();
+    
+    // 1. Log the attempt
+    console.log(`[AI-GEN] Raw output received. Length: ${rawText.length}`);
+
+    // 2. Robustly extract JSON array if AI wrapped it in markdown or added text
+    // Matches everything between the first [ and the last ]
+    const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      rawText = jsonMatch[0];
+    } else {
+      console.warn("[AI-GEN] No JSON array detected in raw output. Attempting direct parse.");
+    }
+
+    // 3. Try to parse
     return JSON.parse(rawText);
   } catch (err) {
-    console.error("Failed to parse AI JSON:", rawText);
-    throw new Error("AI returned invalid JSON structure");
+    console.error("AI GENERATION OR PARSE ERROR:", err);
+    // Rethrow with context to be caught by the route handler
+    throw new Error(`AI Forge Error: ${err.message}`);
   }
 }
 

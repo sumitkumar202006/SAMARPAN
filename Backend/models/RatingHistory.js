@@ -12,4 +12,7 @@ const ratingHistorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Performance index for progress charts
+ratingHistorySchema.index({ user: 1, createdAt: -1 });
+
 module.exports = mongoose.model("RatingHistory", ratingHistorySchema);

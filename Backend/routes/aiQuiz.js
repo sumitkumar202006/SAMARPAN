@@ -25,7 +25,10 @@ router.post("/generate-quiz", async (req, res) => {
     const { title, topic, difficulty, count, userId, tags } = req.body;
 
     if (!title || !topic || !difficulty) {
-      return res.status(400).json({ error: "title, topic & difficulty required" });
+      return res.status(400).json({ 
+        error: "title, topic & difficulty required", 
+        details: `Missing fields: ${!title ? 'title ' : ''}${!topic ? 'topic ' : ''}${!difficulty ? 'difficulty' : ''}`
+      });
     }
 
     // Convert Email OR ID to ObjectId
@@ -36,7 +39,10 @@ router.post("/generate-quiz", async (req, res) => {
         // CASE 1: Email sent
         const user = await User.findOne({ email: userId });
         if (!user) {
-          return res.status(400).json({ error: "User not found" });
+          return res.status(400).json({ 
+            error: "User not found", 
+            details: `Identity '${userId}' does not match any commander in the Arena.`
+          });
         }
         authorId = user._id;
       } else {
@@ -87,12 +93,12 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
 
     if (!req.file) {
       debugLog("Error: No PDF file uploaded");
-      return res.status(400).json({ error: "No PDF file uploaded" });
+      return res.status(400).json({ error: "No PDF file uploaded", details: "File buffer was empty or missing." });
     }
 
     if (!title || !difficulty) {
       debugLog("Error: title & difficulty required");
-      return res.status(400).json({ error: "title & difficulty required" });
+      return res.status(400).json({ error: "title & difficulty required", details: "A valid title and difficulty tier are mandatory for PDF Forge." });
     }
 
     // Extract text from PDF

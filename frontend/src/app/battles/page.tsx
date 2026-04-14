@@ -44,94 +44,116 @@ export default function BattlesPage() {
         <p className="text-text-soft">Host or join squad battles (2v2 & 4v4) using a quiz PIN.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Host a Battle */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Host a Competitive Battle */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass p-8 rounded-[32px] space-y-6 flex flex-col"
+          className="glass p-8 rounded-[32px] space-y-6 flex flex-col border-accent-alt/30"
         >
           <div className="flex items-center gap-3 mb-2">
-            <Sword className="text-accent" size={24} />
-            <h3 className="text-xl font-bold">Start a Battle</h3>
+            <Trophy className="text-accent-alt" size={24} />
+            <h3 className="text-xl font-bold">Competitive Arena</h3>
+          </div>
+
+          <div className="space-y-4 flex-1">
+            <div className="bg-accent-alt/5 border border-accent-alt/20 rounded-2xl p-4 mb-4">
+              <p className="text-[11px] text-accent-alt font-medium leading-relaxed">
+                Classic high-stakes mode. Global ratings (ELO) are affected. Win to climb the ladder, lose and drop. 
+              </p>
+            </div>
+            <ul className="space-y-2 text-[11px] text-text-soft">
+              <li className="flex items-center gap-2">• Affects Global Rating</li>
+              <li className="flex items-center gap-2">• Awards Standard XP</li>
+              <li className="flex items-center gap-2">• Strictly Anti-Cheat Active</li>
+            </ul>
+          </div>
+
+          <button 
+            onClick={() => router.push('/host')}
+            className="w-full py-4 rounded-2xl bg-gradient-to-tr from-accent-alt to-bg-soft text-white font-bold text-lg shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-[1.02] transition-all"
+          >
+            Enter Ranked
+          </button>
+        </motion.div>
+
+        {/* Host a Friendly Battle */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass p-8 rounded-[32px] space-y-6 flex flex-col border-accent/30"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <Gamepad2 className="text-accent" size={24} />
+            <h3 className="text-xl font-bold">Friendly Battle</h3>
           </div>
 
           <div className="space-y-4 flex-1">
             <div className="bg-accent/5 border border-accent/20 rounded-2xl p-4 mb-4">
               <p className="text-[11px] text-accent font-medium leading-relaxed">
-                Hosting a battle? Choose a quiz from your library to generate a PIN. Players can join once you're in the lobby!
+                Low-stakes practice. Global rating is preserved. Perfect for teaching, 1v1s with friends, or testing quizzes.
               </p>
             </div>
+            <ul className="space-y-2 text-[11px] text-text-soft">
+              <li className="flex items-center gap-2">• No Rating Changes</li>
+              <li className="flex items-center gap-2">• Maintains Daily Streak</li>
+              <li className="flex items-center gap-2">• Earns Participation XP</li>
+            </ul>
           </div>
 
-          <div className="space-y-3 pt-4">
-            <button 
-              onClick={handleHost}
-              className="w-full py-4 rounded-2xl bg-accent text-white font-bold text-lg shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:scale-[1.02] transition-all active:scale-95"
-            >
-              Go to Host Arena
-            </button>
-            <button className="w-full py-4 rounded-2xl bg-bg-soft/50 border border-border-soft text-white font-bold hover:bg-bg-soft transition-all flex items-center justify-center gap-2">
-              <Gamepad2 size={18} />
-              Start Local Battle
-            </button>
-          </div>
-          
-          {hostStatus && <p className="text-center text-sm text-text-soft">{hostStatus}</p>}
+          <button 
+            onClick={() => router.push('/host?friendly=true')}
+            className="w-full py-4 rounded-2xl bg-accent text-white font-bold text-lg shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] transition-all"
+          >
+            Host Casual
+          </button>
         </motion.div>
 
         {/* Join a Battle */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass p-8 rounded-[32px] space-y-6 flex flex-col bg-gradient-to-br from-bg-soft/50 to-background/50"
+          transition={{ delay: 0.2 }}
+          className="glass p-8 rounded-[32px] space-y-6 flex flex-col bg-bg-soft/20"
         >
           <div className="flex items-center gap-3 mb-2">
-            <Zap className="text-accent-alt" size={24} />
-            <h3 className="text-xl font-bold">Enter Arena</h3>
+            <Zap className="text-yellow-400" size={24} />
+            <h3 className="text-xl font-bold">Join Room</h3>
           </div>
 
           <div className="space-y-4 flex-1">
-            <div className="bg-accent-alt/5 border border-accent-alt/20 rounded-2xl p-4 mb-4">
-              <p className="text-[11px] text-accent-alt/80 font-medium leading-relaxed">
-                Joining a battle? Enter the PIN provided by the host. Team play requires coordinated answers!
-              </p>
-            </div>
-
             <Input 
-              label="Battle PIN from friend" 
-              placeholder="Enter PIN here" 
+              label="Battle PIN" 
+              placeholder="Enter PIN" 
               maxLength={6} 
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="text-center text-2xl font-black tracking-widest uppercase placeholder:text-lg placeholder:font-normal placeholder:tracking-normal" 
+              className="text-center text-2xl font-black tracking-widest uppercase" 
             />
             
             <Input 
-              label="Your Name / Team" 
-              placeholder="Eg. Aman, Team Alpha" 
+              label="Join As" 
+              placeholder="Your Name" 
               value={joinName}
               onChange={(e) => setJoinName(e.target.value)}
             />
-            
+
             <Input 
-              label="Room Password (if required)" 
-              type="password" 
+              label="Password" 
+              type="password"
+              placeholder="If required" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Leave blank if no password" 
             />
           </div>
 
           <button 
             onClick={handleJoin}
-            className="w-full py-4 rounded-2xl bg-accent-alt text-white font-bold text-lg shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-[1.02] transition-all active:scale-95"
+            className="w-full py-4 rounded-2xl bg-white/10 border border-white/10 text-white font-bold text-lg hover:bg-white/20 transition-all"
           >
-            Join Battle
+            Join Arena
           </button>
-          
-          {joinStatus && <p className="text-center text-sm text-red-400 font-bold">{joinStatus}</p>}
         </motion.div>
       </div>
 

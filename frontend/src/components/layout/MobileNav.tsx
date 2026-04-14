@@ -3,13 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, PlusSquare, User, UserCircle } from 'lucide-react';
+import { LayoutDashboard, PlusSquare, User, UserCircle, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { name: 'Home', icon: LayoutDashboard, href: '/dashboard' },
+  { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
-  { name: 'Host', icon: User, href: '/host' },
   { name: 'Profile', icon: UserCircle, href: '/profile' },
 ];
 

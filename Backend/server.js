@@ -851,6 +851,16 @@ io.on("connection", (socket) => {
     }
     broadcastStats(pin, session);
     socket.emit("answer_confirmed", { optionIdx, isCorrect: optionIdx === q.correctIndex });
+    
+    // Notify host of the choice in real-time (Oversight feature)
+    if (session.hostSocketId) {
+      io.to(session.hostSocketId).emit("player_choice", {
+        playerId: socket.id,
+        name: player.name,
+        optionIdx,
+        timeTaken
+      });
+    }
   });
 
   socket.on("host_next", (pin) => {
@@ -894,6 +904,17 @@ io.on("connection", (socket) => {
     if (target) { target.emit("kicked", { message: "You are banned from this room." }); target.leave(pin); }
     delete session.players[playerId];
     io.in(pin).emit("player_list_update", { players: session.players });
+  });
+
+  socket.on("host_patch_quiz", (data) => {
+    const { pin, questions } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (session.status !== 'waiting') return; // Only patch before start for stability
+    
+    session.quiz.questions = questions;
+    // Notify all players that the quiz has been updated/prepared
+    io.in(pin).emit("quiz_updated", { title: session.quiz.title });
   });
 
   socket.on("disconnect", () => {

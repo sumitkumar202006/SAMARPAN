@@ -12,6 +12,7 @@ import api from '@/lib/axios';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
+import { HostNexus } from '@/components/play/HostNexus';
 
 function LivePlayContent() {
   const { user } = useAuth(); // Added for AuthGuard
@@ -25,6 +26,7 @@ function LivePlayContent() {
   const [isFinished, setIsFinished] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isHost, setIsHost] = useState(false);
 
   const fetchSession = useCallback(async () => {
     if (!pin) return;
@@ -32,6 +34,10 @@ function LivePlayContent() {
       const res = await api.get(`/api/host/session/${pin}`);
       if (res.data.quiz) {
         setQuiz(res.data.quiz);
+        // Determine hosting status - GameSession 'host' is the user ID
+        if (user && res.data.host === user.userId) {
+          setIsHost(true);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch session state", err);
@@ -146,16 +152,24 @@ function LivePlayContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-      <QuizEngine 
-        quiz={quiz} 
-        isLive={true} 
-        socket={socket} 
-        pin={pin || ''}
-        onFinish={(score, total, lb) => {
-          setIsFinished(true);
-          if (lb) setLeaderboard(lb);
-        }}
-      />
+      {isHost ? (
+        <HostNexus 
+          quiz={quiz} 
+          socket={socket} 
+          pin={pin || ''} 
+        />
+      ) : (
+        <QuizEngine 
+          quiz={quiz} 
+          isLive={true} 
+          socket={socket} 
+          pin={pin || ''}
+          onFinish={(score, total, lb) => {
+            setIsFinished(true);
+            if (lb) setLeaderboard(lb);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -60,8 +60,12 @@ function LobbyContent() {
     });
 
     socket.on('game_started', (data) => {
-      // Navigate to the quiz player
-      router.push(`/play/live?pin=${pin}`);
+      // Navigate to the correct destination
+      if (role === 'host') {
+        router.push(`/host/live/${pin}`);
+      } else {
+        router.push(`/play/live?pin=${pin}`);
+      }
     });
 
     return () => {

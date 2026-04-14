@@ -386,6 +386,80 @@ app.post("/api/host/start", async (req, res) => {
   }
 });
 
+app.get("/api/host/analytics/:pin", async (req, res) => {
+  const { pin } = req.params;
+  try {
+    const session = await prisma.gameSession.findUnique({
+      where: { pin },
+      include: {
+        quiz: true,
+        answerLogs: true
+      }
+    });
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    // Aggregate Data
+    const players: any = {};
+    const questionPerformance: any = [];
+    const questions = session.quiz.questions;
+
+    // Initialize question performance array
+    questions.forEach((_q, index) => {
+      questionPerformance[index] = {
+        correct: 0,
+        incorrect: 0,
+        totalTime: 0,
+        responses: 0
+      };
+    });
+
+    session.answerLogs.forEach(log => {
+      // Player aggregation
+      if (!players[log.playerName]) {
+        players[log.playerName] = {
+          name: log.playerName,
+          correct: 0,
+          total: 0,
+          totalTime: 0,
+          answers: []
+        };
+      }
+      players[log.playerName].total++;
+      if (log.isCorrect) players[log.playerName].correct++;
+      players[log.playerName].totalTime += log.timeTaken;
+      players[log.playerName].answers.push(log);
+
+      // Question aggregation
+      if (questionPerformance[log.questionIndex]) {
+        questionPerformance[log.questionIndex].responses++;
+        if (log.isCorrect) questionPerformance[log.questionIndex].correct++;
+        else questionPerformance[log.questionIndex].incorrect++;
+        questionPerformance[log.questionIndex].totalTime += log.timeTaken;
+      }
+    });
+
+    return res.json({
+      session: {
+        pin: session.pin,
+        title: session.quiz.title,
+        mode: session.mode,
+        createdAt: session.createdAt
+      },
+      playerPerformance: Object.values(players),
+      questionPerformance: questionPerformance.map((q, idx) => ({
+        ...q,
+        accuracy: q.responses > 0 ? (q.correct / q.responses) * 100 : 0,
+        avgTime: q.responses > 0 ? q.totalTime / q.responses : 0,
+        question: questions[idx].question
+      }))
+    });
+  } catch (err) {
+    console.error("Analytics error:", err);
+    res.status(500).json({ error: "Failed to load analytics" });
+  }
+});
+
 // -------------------------------
 // Public leaderboard (top 50)
 // -------------------------------
@@ -666,6 +740,31 @@ app.use("/api/admin", isAdmin, adminRoutes);
 const liveSessions = new Map();
 
 /**
+ * HELPER: Log Answer to Database
+ */
+async function logAnswerToDb(session, player, data) {
+  try {
+    const dbSession = await prisma.gameSession.findUnique({ where: { pin: session.pin } });
+    if (!dbSession) return;
+
+    await prisma.answerLog.create({
+      data: {
+        sessionId: dbSession.id,
+        questionIndex: session.currentQ,
+        userId: player.id || null, // If player is logged in
+        playerName: player.name,
+        selectedIdx: data.optionIdx,
+        isCorrect: data.isCorrect,
+        timeTaken: data.timeTaken || 0,
+        ipAddress: data.ipAddress || null
+      }
+    });
+  } catch (err) {
+    console.error("Failed to log answer:", err);
+  }
+}
+
+/**
  * HELPER: Persistent Session Recovery
  * If a PIN exists in DB but not in memory, we re-initialize it.
  */
@@ -691,6 +790,7 @@ async function ensureSessionInMemory(pin) {
         optionStats: [0, 0, 0, 0],
         timerSeconds: dbSession.timerSeconds || 30,
         timeLeft: dbSession.timerSeconds || 30,
+        isPaused: false,
         timerHandle: null,
         countdownHandle: null
       });
@@ -811,7 +911,15 @@ io.on("connection", (socket) => {
     }
 
     socket.join(pin);
-    session.players[socket.id] = { name: "Host", score: 0, answeredThisQ: true, optionIdx: -1, isHost: true, streak: 0 };
+      session.players[socket.id] = { 
+        name: "Host", 
+        score: 0, 
+        answeredThisQ: true, 
+        optionIdx: -1, 
+        isHost: true, 
+        streak: 0,
+        latency: 0 
+      };
     socket.emit("host_ready", { pin });
     console.log(`Host joined/created room ${pin}`);
   });
@@ -832,7 +940,17 @@ io.on("connection", (socket) => {
     const nameTaken = Object.values(session.players).some(p => p.name.toLowerCase() === name.toLowerCase() && !p.isHost);
     if (nameTaken) { socket.emit("join_error", { message: "Name already taken. Choose another." }); return; }
     socket.join(pin);
-    session.players[socket.id] = { name, score: 0, answeredThisQ: false, optionIdx: -1, isHost: false, streak: 0 };
+    session.players[socket.id] = { 
+      name, 
+      score: 0, 
+      answeredThisQ: false, 
+      optionIdx: -1, 
+      isHost: false, 
+      streak: 0,
+      ip: socket.handshake.address,
+      isSuspicious: false,
+      idleTimeout: null
+    };
     socket.emit("join_success", { pin, name });
     io.in(pin).emit("player_list_update", { players: session.players });
     console.log(`${name} joined room ${pin}`);
@@ -895,7 +1013,14 @@ io.on("connection", (socket) => {
     player.optionIdx = optionIdx;
     player.answeredThisQ = true;
     if (optionIdx >= 0 && optionIdx < session.optionStats.length) session.optionStats[optionIdx]++;
-    if (optionIdx === q.correctIndex) {
+    const isCorrect = optionIdx === q.correctIndex;
+    
+    // Suspicious Activity Detection
+    if (timeTaken < 1.5) { // 1.5s threshold
+      player.isSuspicious = true;
+    }
+
+    if (isCorrect) {
       const t = Math.min(timeTaken || session.timerSeconds, session.timerSeconds);
       const speedBonus = Math.max(0, Math.floor(50 * (1 - t / session.timerSeconds)));
       player.streak = (player.streak || 0) + 1;
@@ -904,8 +1029,10 @@ io.on("connection", (socket) => {
     } else {
       player.streak = 0;
     }
+
+    logAnswerToDb(session, player, { optionIdx, isCorrect, timeTaken, ipAddress: socket.handshake.address });
     broadcastStats(pin, session);
-    socket.emit("answer_confirmed", { optionIdx, isCorrect: optionIdx === q.correctIndex });
+    socket.emit("answer_confirmed", { optionIdx, isCorrect });
     
     // Notify host of the choice in real-time (Oversight feature)
     if (session.hostSocketId) {
@@ -970,6 +1097,30 @@ io.on("connection", (socket) => {
     session.quiz.questions = questions;
     // Notify all players that the quiz has been updated/prepared
     io.in(pin).emit("quiz_updated", { title: session.quiz.title });
+  });
+
+  socket.on("host_pause", (pin) => {
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    session.isPaused = true;
+    if (session.timerHandle) clearTimeout(session.timerHandle);
+    if (session.countdownHandle) clearInterval(session.countdownHandle);
+    io.in(pin).emit("game_paused");
+  });
+
+  socket.on("host_resume", (pin) => {
+    const session = liveSessions.get(pin);
+    if (!session || !session.isPaused || session.hostSocketId !== socket.id) return;
+    session.isPaused = false;
+    startCountdown(pin);
+    io.in(pin).emit("game_resumed");
+  });
+
+  socket.on("host_broadcast", (data) => {
+    const { pin, message, type } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    io.in(pin).emit("broadcast_message", { message, type: type || 'info' });
   });
 
   socket.on("disconnect", () => {

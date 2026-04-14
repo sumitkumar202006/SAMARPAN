@@ -66,11 +66,30 @@ model GameSession {
   rated         Boolean         @default(true)
   pin           String          @unique
   status        String          @default("waiting")
+  metadata      Json?           // Stores aggregated results like avg accuracy, etc.
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   host          User            @relation("UserSessions", fields: [hostId], references: [id])
   quiz          Quiz            @relation(fields: [quizId], references: [id])
   ratingHistory RatingHistory[]
+  answerLogs    AnswerLog[]
+}
+
+model AnswerLog {
+  id            String      @id @default(uuid())
+  sessionId     String
+  questionIndex Int
+  userId        String?     // Null if player isn't logged in (PIN join)
+  playerName    String      // To identify guest players too
+  selectedIdx   Int
+  isCorrect     Boolean
+  timeTaken     Float
+  ipAddress     String?
+  timestamp     DateTime    @default(now())
+  session       GameSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@index([questionIndex])
 }
 
 model RatingHistory {

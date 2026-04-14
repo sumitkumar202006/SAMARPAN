@@ -56,67 +56,74 @@ export const AuraCursor = () => {
 
   if (!isVisible) return null;
 
+  const sharedStyles: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    pointerEvents: 'none',
+    zIndex: 9991,
+    translateX: '-50%',
+    translateY: '-50%',
+    willChange: 'transform',
+  };
+
   return (
-    <motion.div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        x: rawX,
-        y: rawY,
-        pointerEvents: 'none',
-        zIndex: 9991, // Keep core accessible
-        translateX: '-50%',
-        translateY: '-50%',
-        willChange: 'transform',
-      }}
-    >
-      <div className="relative flex items-center justify-center">
-        {/* Decorative Trailing Elements (Spring-based lag effect) */}
+    <>
+      {/* 1. Decorative Trailing Layer (Spring-based lag) */}
+      <motion.div
+        style={{
+          ...sharedStyles,
+          x: trailX,
+          y: trailY,
+        }}
+        className="flex items-center justify-center p-4"
+      >
+        {/* Outer Pulsing Aura */}
         <motion.div
-          style={{
-            position: 'absolute',
-            x: trailX,
-            y: trailY,
+          animate={{
+            scale: isHovering ? [1, 1.4, 1] : [1, 1.2, 1],
+            opacity: isHovering ? 0.6 : 0.3,
           }}
-          className="relative flex items-center justify-center pointer-events-none"
+          transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute w-12 h-12 rounded-full bg-accent/30 blur-xl"
+        />
+
+        {/* Outer Segmented Ring */}
+        <motion.svg
+          width="40"
+          height="40"
+          viewBox="0 0 40 40"
+          animate={{ rotate: isHovering ? 720 : 360 }}
+          transition={{ duration: isHovering ? 0.8 : 3, repeat: Infinity, ease: "linear" }}
+          className="absolute text-accent"
         >
-          {/* Outer Pulsing Aura */}
-          <motion.div
-            animate={{
-              scale: isHovering ? [1, 1.4, 1] : [1, 1.2, 1],
-              opacity: isHovering ? 0.6 : 0.3,
-            }}
-            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute w-12 h-12 rounded-full bg-accent/30 blur-xl"
-          />
+          <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="1" strokeDasharray="20 40" fill="none" opacity={isHovering ? 1 : 0.5} />
+        </motion.svg>
 
-          {/* Outer Segmented Ring */}
-          <motion.svg
-            width="40"
-            height="40"
-            viewBox="0 0 40 40"
-            animate={{ rotate: isHovering ? 720 : 360 }}
-            transition={{ duration: isHovering ? 0.8 : 3, repeat: Infinity, ease: "linear" }}
-            className="absolute text-accent"
-          >
-            <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="1" strokeDasharray="20 40" fill="none" opacity={isHovering ? 1 : 0.5} />
-          </motion.svg>
+        {/* Inner Segmented Ring */}
+        <motion.svg
+          width="28"
+          height="28"
+          viewBox="0 0 28 28"
+          animate={{ rotate: isHovering ? -720 : -360 }}
+          transition={{ duration: isHovering ? 0.6 : 2, repeat: Infinity, ease: "linear" }}
+          className="absolute text-accent-alt"
+        >
+          <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="2" strokeDasharray="10 20" fill="none" opacity={isHovering ? 1 : 0.5} />
+        </motion.svg>
+      </motion.div>
 
-          {/* Inner Segmented Ring */}
-          <motion.svg
-            width="28"
-            height="28"
-            viewBox="0 0 28 28"
-            animate={{ rotate: isHovering ? -720 : -360 }}
-            transition={{ duration: isHovering ? 0.6 : 2, repeat: Infinity, ease: "linear" }}
-            className="absolute text-accent-alt"
-          >
-            <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="2" strokeDasharray="10 20" fill="none" opacity={isHovering ? 1 : 0.5} />
-          </motion.svg>
-        </motion.div>
-
-        {/* The Central Core (Zero Latency - Pure Hardware Accelerated) */}
+      {/* 2. Primary Core Layer (Zero Latency - Native Speed) */}
+      <motion.div
+        style={{
+          ...sharedStyles,
+          x: rawX,
+          y: rawY,
+          zIndex: 9992, // Core on top
+        }}
+        className="flex items-center justify-center"
+      >
+        {/* The Central Core */}
         <motion.div
           animate={{
             scale: isClicking ? 0.5 : (isHovering ? 1.8 : 1),
@@ -140,7 +147,7 @@ export const AuraCursor = () => {
             />
           )}
         </AnimatePresence>
-      </div>
-    </motion.div>
+      </motion.div>
+    </>
   );
 };

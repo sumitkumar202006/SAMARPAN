@@ -78,7 +78,7 @@ export default function CreatePage() {
       const res = await api.post('/api/quizzes', {
         title: manualTitle,
         topic: manualTopic,
-        authorId: user?.email,
+        authorId: user?.email || user?.userId,
         questions,
         aiGenerated: false
       });
@@ -102,7 +102,7 @@ export default function CreatePage() {
     try {
       const res = await api.post('/api/ai/generate-quiz', {
         ...aiData,
-        userId: user?.email
+        userId: user?.email || user?.userId
       });
       
       // Save the returned quiz data (already saved in DB by backend)

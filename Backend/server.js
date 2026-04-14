@@ -176,7 +176,7 @@ app.post("/api/quizzes", async (req, res) => {
 
     // If caller passed an email instead of ObjectId, resolve it to the user's _id
     if (typeof authorId === "string" && authorId.includes("@")) {
-      const user = await User.findOne({ email: authorId });
+      const user = await User.findOne({ email: authorId.toLowerCase().trim() });
       if (!user) {
         return res
           .status(400)
@@ -364,7 +364,7 @@ app.get("/leaderboard", async (_req, res) => {
 // Full profile stats by email
 app.get("/api/profile/:email", async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email });
+    const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
     if (!user) return res.status(404).json({ error: "User not found" });
     
     const quizzesCount = await Quiz.countDocuments({ author: user._id });
@@ -516,6 +516,7 @@ function sendSocialLoginRedirect(req, res) {
   const redirectUrl =
     FRONTEND_URL +
     `?token=${encodeURIComponent(token)}` +
+    `&userId=${encodeURIComponent(user._id.toString())}` +
     `&name=${encodeURIComponent(user.name || "")}` +
     `&email=${encodeURIComponent(user.email || "")}` +
     `&avatar=${encodeURIComponent(user.avatar || "")}`;

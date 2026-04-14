@@ -20,7 +20,7 @@ const upload = multer({
 
 // Generate AI Quiz from Topic
 router.post("/generate-quiz", async (req, res) => {
-  debugLog("POST /api/ai/generate-quiz reached content: " + req.body.topic);
+  debugLog(`POST /api/ai/generate-quiz | Topic: ${req.body.topic} | UserID: ${req.body.userId}`);
   try {
     const { title, topic, difficulty, count, userId, tags } = req.body;
 
@@ -35,8 +35,14 @@ router.post("/generate-quiz", async (req, res) => {
     let authorId = null;
     if (userId) {
       if (typeof userId === "string" && userId.includes("@")) {
-        const user = await User.findOne({ email: userId.toLowerCase().trim() });
-        if (user) authorId = user._id;
+        const normalizedEmail = userId.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
+        if (user) {
+          authorId = user._id;
+          debugLog(`Resolved Author: ${user.email} (${user._id})`);
+        } else {
+          debugLog(`FAILED to resolve author email: ${normalizedEmail}. Quiz will be orphan.`);
+        }
       } else {
         authorId = userId;
       }
@@ -72,7 +78,7 @@ router.post("/generate-quiz", async (req, res) => {
 
 // Generate AI Quiz from PDF
 router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
-  debugLog("POST /api/ai/generate-from-pdf reached. File: " + (req.file ? req.file.originalname : "NONE"));
+  debugLog(`POST /api/ai/generate-from-pdf | File: ${req.file ? req.file.originalname : "NONE"} | UserID: ${req.body.userId}`);
   try {
     const { title, difficulty, userId, tags } = req.body;
     let { count } = req.body;
@@ -107,8 +113,14 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
     let authorId = null;
     if (userId) {
       if (typeof userId === "string" && userId.includes("@")) {
-        const user = await User.findOne({ email: userId.toLowerCase().trim() });
-        if (user) authorId = user._id;
+        const normalizedEmail = userId.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
+        if (user) {
+          authorId = user._id;
+          debugLog(`Resolved Author (PDF): ${user.email} (${user._id})`);
+        } else {
+          debugLog(`FAILED to resolve author email (PDF): ${normalizedEmail}. Quiz will be orphan.`);
+        }
       } else {
         authorId = userId;
       }

@@ -342,6 +342,7 @@ function LiveDashboardContent() {
              <form onSubmit={handleBroadcast} className="space-y-4">
                 <div className="relative">
                   <Input 
+                    label="Broadcast Message"
                     placeholder="Blast message to players..." 
                     value={broadcastText}
                     onChange={(e) => setBroadcastText(e.target.value)}

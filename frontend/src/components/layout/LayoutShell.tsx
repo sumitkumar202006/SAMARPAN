@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { Sidebar } from "@/components/layout/Sidebar";
+import { OrbitalNav } from "@/components/layout/OrbitalNav";
 import { Topbar } from "@/components/layout/Topbar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Footer } from "@/components/layout/Footer";
@@ -34,9 +34,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <DynamicBackground />
       <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
-      <div className="flex min-h-screen relative z-10">
+      <div className="flex min-h-screen relative z-10 lg:pl-24">
         <Suspense fallback={null}>
-          <Sidebar />
+          <OrbitalNav />
         </Suspense>
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar />

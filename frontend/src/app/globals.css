@@ -23,6 +23,7 @@
   
   --animate-laser-sweep: laser-sweep 0.7s ease-out forwards;
   --animate-border-pulse: border-pulse 0.8s ease-out infinite alternate;
+  --animate-scan: scanline 4s linear infinite;
   
   @keyframes laser-sweep {
     0% { left: -60%; }
@@ -61,6 +62,10 @@
 
 @utility animate-flow {
   animation: flow 3s ease infinite;
+}
+
+@utility animate-scan {
+  animation: scanline 4s linear infinite;
 }
 
 body {

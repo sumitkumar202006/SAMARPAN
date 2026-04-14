@@ -17,6 +17,10 @@ export const AuraCursor = () => {
   const springX = useSpring(rawX, springConfig);
   const springY = useSpring(rawY, springConfig);
 
+  // Dedicated trail springs (slightly slower for the 'exhaust' effect)
+  const trailX = useSpring(rawX, { damping: 25, stiffness: 300 });
+  const trailY = useSpring(rawY, { damping: 25, stiffness: 300 });
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isVisible) setIsVisible(true);
@@ -72,8 +76,8 @@ export const AuraCursor = () => {
         <motion.div
           style={{
             position: 'absolute',
-            x: useSpring(useMotionValue(0), { damping: 25, stiffness: 300 }), // Dedicated trail lag
-            y: useSpring(useMotionValue(0), { damping: 25, stiffness: 300 }),
+            x: trailX,
+            y: trailY,
           }}
           className="relative flex items-center justify-center pointer-events-none"
         >

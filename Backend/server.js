@@ -42,17 +42,8 @@ app.use(passport.initialize());
 console.log("Passport initialized.");
 
 // ---------- PostgreSQL (Prisma) ----------
-async function connectDB() {
-  console.log("Attempting to connect to PostgreSQL via Prisma...");
-  try {
-    await prisma.$connect();
-    console.log("✅ PostgreSQL connected successfully");
-    return true;
-  } catch (err) {
-    console.error("❌ PostgreSQL connection error:", err.message);
-    return false;
-  }
-}
+// Database connection handled by startServer with retries
+
 
 // ---------- Helpers ----------
 function createJwtForUser(user) {
@@ -962,21 +953,45 @@ io.on("connection", (socket) => {
   });
 });
 // ---------- Start server ----------
+// ---------- Start server ----------
 async function startServer() {
-  const dbConnected = await connectDB();
-  
-  // Even if DB fails, we might want to start server for health checks, 
-  // but let's be strict for now to debug the hang.
-  if (!dbConnected) {
-    console.error("🛑 Not starting server due to DB connection failure.");
-    // Wait a bit and try again or exit
-    return;
+  const MAX_RETRIES = 5;
+  const RETRY_DELAY = 5000; // 5 seconds
+  let retryCount = 0;
+  let dbConnected = false;
+
+  console.log("🚀 Initializing Samarpan Backend...");
+
+  while (retryCount < MAX_RETRIES && !dbConnected) {
+    try {
+      if (retryCount > 0) {
+        console.log(`🔄 Connection retry ${retryCount}/${MAX_RETRIES} in ${RETRY_DELAY/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      }
+
+      console.log("📡 Attempting to connect to PostgreSQL via Prisma...");
+      await prisma.$connect();
+      console.log("✅ PostgreSQL connected successfully");
+      dbConnected = true;
+    } catch (err) {
+      retryCount++;
+      console.error(`❌ DB Connection Attempt ${retryCount} failed:`, err.message);
+      
+      if (retryCount >= MAX_RETRIES) {
+        console.error("🛑 CRITICAL: Maximum database connection retries reached.");
+        console.error("Please verify your DATABASE_URL in .env and ensure Neon PostgreSQL is active.");
+      }
+    }
   }
 
-  const PORT = process.env.PORT || 5000;
-  console.log(`Starting server on port ${PORT}...`);
+  // We start the server regardless of DB status for health checks, 
+  // but most routes will fail without it.
+  const PORT = process.env.PORT || 5001;
   server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 Samarpan Server running on port ${PORT}`);
+    if (!dbConnected) {
+      console.warn("⚠️ Server started but DATABASE CONNECTION IS NOT ESTABLISHED.");
+    }
   });
 }
 

@@ -3,14 +3,13 @@ const fs = require("fs");
 const path = require("path");
 const router = express.Router();
 const multer = require("multer");
+const prisma = require("../services/db");
 const debugLog = (msg) => {
   const logMsg = `[${new Date().toISOString()}] ${msg}\n`;
   fs.appendFileSync(path.join(__dirname, "../debug.log"), logMsg);
 };
 const pdfParse = require("pdf-parse");
 const { generateQuizQuestions, generateQuizFromText } = require("../services/gptService");
-const Quiz = require("../models/Quiz");
-const User = require("../models/User"); 
 
 // Configure multer for memory storage
 const upload = multer({ 
@@ -28,26 +27,28 @@ async function ensureAuthorId(userId) {
   try {
     if (typeof userId === "string" && userId.includes("@")) {
       const normalizedEmail = userId.toLowerCase().trim();
-      let user = await User.findOne({ email: normalizedEmail });
+      let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
       
       if (!user) {
         debugLog(`User record missing for ${normalizedEmail}. AUTO-CREATING...`);
         // Extract a name from email if possible
         const guessedName = normalizedEmail.split('@')[0].split(/[._+-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
         
-        user = await User.create({
-          name: guessedName || "New Player",
-          email: normalizedEmail,
-          provider: "automatic",
-          globalRating: 1200,
-          xp: 0
+        user = await prisma.user.create({
+          data: {
+            name: guessedName || "New Player",
+            email: normalizedEmail,
+            provider: "automatic",
+            globalRating: 1200,
+            xp: 0
+          }
         });
-        debugLog(`Auto-created user: ${user.email} (${user._id})`);
+        debugLog(`Auto-created user: ${user.email} (${user.id})`);
       }
-      return user._id;
+      return user.id;
     }
     
-    // If it's an ID string, verify it's valid
+    // If it's an ID string, verify it's valid (already a UUID in our new system)
     return userId; 
   } catch (err) {
     debugLog(`Error in ensureAuthorId for ${userId}: ${err.message}`);
@@ -70,7 +71,7 @@ router.post("/generate-quiz", async (req, res) => {
 
     // Ensure we have a valid DB record for the author
     const authorId = await ensureAuthorId(userId);
-    const user = await User.findById(authorId);
+    const user = authorId ? await prisma.user.findUnique({ where: { id: authorId } }) : null;
 
     const questions = await generateQuizQuestions(
       topic,
@@ -80,14 +81,16 @@ router.post("/generate-quiz", async (req, res) => {
     );
 
     // PERSISTENCE: Save to Cloud DB 
-    const newQuiz = await Quiz.create({
-      title,
-      topic,
-      author: authorId,
-      questions,
-      aiGenerated: true,
-      difficulty,
-      tags: tags || []
+    const newQuiz = await prisma.quiz.create({
+      data: {
+        title,
+        topic,
+        authorId: authorId,
+        questions, // Stored as JSON
+        aiGenerated: true,
+        difficulty,
+        tags: tags || []
+      }
     });
 
     res.json({
@@ -147,14 +150,16 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
     debugLog("AI Questions generated successfully. Count: " + questions.length);
 
     // PERSISTENCE: Save to Cloud DB
-    const newQuiz = await Quiz.create({
-      title,
-      topic: `PDF: ${req.file.originalname}`,
-      author: authorId,
-      questions,
-      difficulty,
-      aiGenerated: true,
-      tags: tags || ["pdf-upload"]
+    const newQuiz = await prisma.quiz.create({
+      data: {
+        title,
+        topic: `PDF: ${req.file.originalname}`,
+        authorId: authorId,
+        questions,
+        difficulty,
+        aiGenerated: true,
+        tags: tags || ["pdf-upload"]
+      }
     });
 
     res.json({

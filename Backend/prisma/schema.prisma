@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  passwordHash   String?
+  avatar         String?
+  provider       String?
+  googleId       String?
+  facebookId     String?
+  globalRating   Int             @default(1200)
+  xp             Int             @default(0)
+  ratings        Json?
+  college        String?
+  course         String?
+  dob            DateTime?
+  preferredField String          @default("General")
+  settings       Json?
+  role           String          @default("user")
+  status         String          @default("active")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  hostedSessions GameSession[]   @relation("UserSessions")
+  quizzes        Quiz[]          @relation("UserQuizzes")
+  ratingHistory  RatingHistory[]
+
+  @@index([email])
+  @@index([globalRating(sort: Desc)])
+}
+
+model Quiz {
+  id          String        @id @default(uuid())
+  title       String
+  topic       String?
+  authorId    String?
+  questions   Json
+  aiGenerated Boolean       @default(false)
+  tags        String[]
+  difficulty  String        @default("medium")
+  playCount   Int           @default(0)
+  isPublished Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  sessions    GameSession[]
+  author      User?         @relation("UserQuizzes", fields: [authorId], references: [id])
+
+  @@index([topic])
+  @@index([difficulty])
+  @@index([playCount(sort: Desc)])
+}
+
+model GameSession {
+  id            String          @id @default(uuid())
+  quizId        String
+  hostId        String
+  mode          String          @default("battle")
+  timerSeconds  Int             @default(30)
+  rated         Boolean         @default(true)
+  pin           String          @unique
+  status        String          @default("waiting")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  host          User            @relation("UserSessions", fields: [hostId], references: [id])
+  quiz          Quiz            @relation(fields: [quizId], references: [id])
+  ratingHistory RatingHistory[]
+}
+
+model RatingHistory {
+  id        String      @id @default(uuid())
+  userId    String
+  gameId    String
+  mode      String?
+  before    Int?
+  after     Int?
+  delta     Int?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  game      GameSession @relation(fields: [gameId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}

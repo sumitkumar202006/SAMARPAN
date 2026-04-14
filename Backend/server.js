@@ -15,18 +15,14 @@ const io = new Server(server, {
 });
 console.log("Middleware setup start...");
 
-const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 
-// Models
-const User = require("./models/User");
-const Quiz = require("./models/Quiz");
-const RatingHistory = require("./models/RatingHistory");
-const GameSession = require("./models/GameSession");
+// Prisma Client Singleton
+const prisma = require("./services/db");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
@@ -44,28 +40,24 @@ app.use(express.json());
 app.use(passport.initialize());
 console.log("Passport initialized.");
 
-// ---------- MongoDB ----------
+// ---------- PostgreSQL (Prisma) ----------
 async function connectDB() {
-  console.log("Attempting to connect to MongoDB...");
+  console.log("Attempting to connect to PostgreSQL via Prisma...");
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000, 
-    });
-    console.log("✅ MongoDB connected successfully");
+    await prisma.$connect();
+    console.log("✅ PostgreSQL connected successfully");
     return true;
   } catch (err) {
-    console.error("❌ MongoDB connection error:", err.message);
-    console.error("Please check if your IP is whitelisted on MongoDB Atlas.");
+    console.error("❌ PostgreSQL connection error:", err.message);
     return false;
   }
 }
-// Moved call to start sequence
 
 // ---------- Helpers ----------
 function createJwtForUser(user) {
   return jwt.sign(
     {
-      userId: user._id,
+      userId: user.id || user._id, // Support both during migration if needed
       email: user.email,
       name: user.name,
     },
@@ -94,21 +86,23 @@ app.post("/api/signup", async (req, res) => {
       return res.status(400).json({ error: "All required fields must be filled" });
     }
 
-    const exists = await User.findOne({ email });
+    const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) {
       return res.status(400).json({ error: "Email already registered" });
     }
 
     const hash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      name,
-      email,
-      passwordHash: hash,
-      provider: "local",
-      college,
-      course,
-      dob
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash: hash,
+        provider: "local",
+        college,
+        course,
+        dob: dob ? new Date(dob) : null
+      }
     });
 
     const token = createJwtForUser(user);
@@ -116,7 +110,7 @@ app.post("/api/signup", async (req, res) => {
     return res.json({
       message: "Signup successful",
       user: {
-        userId: user._id,
+        userId: user.id,
         name: user.name,
         email: user.email,
         globalRating: user.globalRating,
@@ -135,7 +129,7 @@ app.post("/api/signup", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordHash) {
       return res.status(400).json({ error: "User not found" });
     }
@@ -147,7 +141,7 @@ app.post("/api/login", async (req, res) => {
 
     return res.json({
       message: "Login successful",
-      userId: user._id,
+      userId: user.id,
       name: user.name,
       email: user.email,
       globalRating: user.globalRating,
@@ -176,27 +170,29 @@ app.post("/api/quizzes", async (req, res) => {
 
     let resolvedAuthorId = authorId;
 
-    // If caller passed an email instead of ObjectId, resolve it to the user's _id
+    // If caller passed an email instead of UUID/ObjectId, resolve it
     if (typeof authorId === "string" && authorId.includes("@")) {
-      const user = await User.findOne({ email: authorId.toLowerCase().trim() });
+      const user = await prisma.user.findUnique({ where: { email: authorId.toLowerCase().trim() } });
       if (!user) {
         return res
           .status(400)
           .json({ error: "User not found for this authorId" });
       }
-      resolvedAuthorId = user._id;
+      resolvedAuthorId = user.id;
     }
 
-    const quiz = await Quiz.create({
-      title,
-      topic: topic || "",
-      author: resolvedAuthorId,
-      questions,
-      aiGenerated: !!aiGenerated,
-      tags: tags || (topic ? [topic.toLowerCase()] : []),
+    const quiz = await prisma.quiz.create({
+      data: {
+        title,
+        topic: topic || "",
+        authorId: resolvedAuthorId,
+        questions,
+        aiGenerated: !!aiGenerated,
+        tags: tags || (topic ? [topic.toLowerCase()] : []),
+      }
     });
 
-    return res.json({ message: "Quiz created", quizId: quiz._id, quiz });
+    return res.json({ message: "Quiz created", quizId: quiz.id, quiz });
   } catch (err) {
     console.error("Create quiz error:", err);
     return res.status(500).json({ error: "Failed to create quiz" });
@@ -210,12 +206,14 @@ app.post("/api/quizzes", async (req, res) => {
 // Get all quizzes for a user by email
 app.get("/api/quizzes/user/:email", async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
+    const user = await prisma.user.findUnique({ where: { email: req.params.email.toLowerCase().trim() } });
     if (!user) {
-      // Return empty list instead of 404 to avoid frontend crash
       return res.json({ quizzes: [] });
     }
-    const quizzes = await Quiz.find({ author: user._id }).sort({ createdAt: -1 });
+    const quizzes = await prisma.quiz.findMany({ 
+      where: { authorId: user.id },
+      orderBy: { createdAt: "desc" }
+    });
     return res.json({ quizzes });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch user quizzes" });
@@ -225,8 +223,10 @@ app.get("/api/quizzes/user/:email", async (req, res) => {
 // Get public/trending quizzes for Explore
 app.get("/api/quizzes/public", async (req, res) => {
   try {
-    // Return all quizzes for now, in a real app we'd filter for public or trending
-    const quizzes = await Quiz.find({}).limit(20).sort({ createdAt: -1 });
+    const quizzes = await prisma.quiz.findMany({
+      take: 20,
+      orderBy: { createdAt: "desc" }
+    });
     return res.json({ quizzes });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch public quizzes" });
@@ -236,7 +236,7 @@ app.get("/api/quizzes/public", async (req, res) => {
 // Get individual quiz by ID
 app.get("/api/quizzes/:id", async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = await prisma.quiz.findUnique({ where: { id: req.params.id } });
     if (!quiz) return res.status(404).json({ error: "Quiz not found" });
     return res.json(quiz);
   } catch (err) {
@@ -251,18 +251,23 @@ app.get("/api/quizzes/search", async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json({ quizzes: [] });
     
-    // Simple regex search on title and topic
-    const quizzes = await Quiz.find({
-      $or: [
-        { title: { $regex: q, $options: "i" } },
-        { topic: { $regex: q, $options: "i" } },
-        { tags: { $in: [new RegExp(q, "i")] } }
-      ],
-      isPublished: true
-    }).limit(30).sort({ playCount: -1 });
+    // Prisma search with contains
+    const quizzes = await prisma.quiz.findMany({
+      where: {
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { topic: { contains: q, mode: "insensitive" } },
+          { tags: { has: q } } // For exact tag match, or use a more complex filter
+        ],
+        isPublished: true
+      },
+      take: 30,
+      orderBy: { playCount: "desc" }
+    });
 
     return res.json({ quizzes });
   } catch (err) {
+    console.error("Search error:", err);
     return res.status(500).json({ error: "Search failed" });
   }
 });
@@ -270,21 +275,26 @@ app.get("/api/quizzes/search", async (req, res) => {
 app.get("/api/explore/home", async (req, res) => {
   try {
     // 1. Trending: Top 5 by playCount
-    const trending = await Quiz.find({ isPublished: true })
-      .sort({ playCount: -1 })
-      .limit(5);
+    const trending = await prisma.quiz.findMany({
+      where: { isPublished: true },
+      orderBy: { playCount: "desc" },
+      take: 5
+    });
 
     // 2. Upcoming Events: Active waiting sessions
-    // We populate with 'quiz' to get info
-    const events = await GameSession.find({ status: "waiting" })
-      .populate("quiz")
-      .limit(5)
-      .sort({ createdAt: -1 });
+    const events = await prisma.gameSession.findMany({
+      where: { status: "waiting" },
+      include: { quiz: true },
+      take: 5,
+      orderBy: { createdAt: "desc" }
+    });
 
-    // 3. Recommended: Random high playCount or recent
-    const recommended = await Quiz.find({ isPublished: true })
-      .sort({ createdAt: -1 })
-      .limit(3);
+    // 3. Recommended: Recent
+    const recommended = await prisma.quiz.findMany({
+      where: { isPublished: true },
+      orderBy: { createdAt: "desc" },
+      take: 3
+    });
 
     return res.json({ trending, events, recommended });
   } catch (err) {
@@ -295,14 +305,16 @@ app.get("/api/explore/home", async (req, res) => {
 
 app.get("/api/explore/categories", async (req, res) => {
   try {
-    // Return counts for major topics
     const categories = ["Computer Science", "Aptitude", "Mathematics", "GATE", "General Knowledge"];
     const results = await Promise.all(categories.map(async (cat) => {
-      const count = await Quiz.countDocuments({ topic: { $regex: cat, $options: "i" } });
+      const count = await prisma.quiz.count({
+        where: { topic: { contains: cat, mode: "insensitive" } }
+      });
       return { name: cat, count };
     }));
     return res.json({ categories: results });
   } catch (err) {
+    console.error("Categories error:", err);
     return res.status(500).json({ error: "Failed to load categories" });
   }
 });
@@ -319,36 +331,29 @@ app.post("/api/host/start", async (req, res) => {
       return res.status(400).json({ error: "quizId and hostEmail required" });
     }
 
-    // Validate that quizId is a valid MongoDB ObjectId to avoid CastError
-    if (!mongoose.Types.ObjectId.isValid(quizId)) {
-      console.warn("Invalid Quiz ID attempted for hosting:", quizId);
-      return res.status(400).json({ 
-        error: "Invalid Quiz ID. If you created this quiz manually, please ensure you have 'Saved' it to your account first." 
-      });
-    }
-
+    // For UUID/ID validation, we'll let Prisma handle it or just check if it's a string
+    // In Postgres, IDs can be arbitrary strings (we used UUID as default)
     console.log("Looking for host user:", hostEmail);
-    const user = await User.findOne({ email: hostEmail.toLowerCase().trim() });
+    const user = await prisma.user.findUnique({ where: { email: hostEmail.toLowerCase().trim() } });
     if (!user) {
       console.warn("Host user not found:", hostEmail);
       return res.status(400).json({ error: "Host user not found. Please ensure you are logged in correctly." });
     }
 
     console.log("Looking for quiz:", quizId);
-    const quiz = await Quiz.findById(quizId);
+    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
     if (!quiz) {
       console.warn("Quiz not found:", quizId);
       return res.status(404).json({ error: "Quiz not found" });
     }
 
-    // Try to create a unique 6-digit PIN
     let pin;
     let attempts = 0;
     let pinFound = false;
     console.log("Generating unique PIN...");
     while (attempts < 10) {
       pin = String(Math.floor(100000 + Math.random() * 900000));
-      const exists = await GameSession.findOne({ pin });
+      const exists = await prisma.gameSession.findUnique({ where: { pin } });
       if (!exists) {
         pinFound = true;
         break;
@@ -361,19 +366,21 @@ app.post("/api/host/start", async (req, res) => {
     }
 
     console.log("Creating GameSession with PIN:", pin);
-    const game = await GameSession.create({
-      quiz: quiz._id,
-      host: user._id,
-      mode: mode || "rapid",
-      timerSeconds: timerSeconds || 30,
-      rated: rated !== false,
-      pin,
+    const game = await prisma.gameSession.create({
+      data: {
+        quizId: quiz.id,
+        hostId: user.id,
+        mode: mode || "rapid",
+        timerSeconds: timerSeconds || 30,
+        rated: rated !== false,
+        pin,
+      }
     });
 
-    console.log("Game Session created successfully:", game._id);
+    console.log("Game Session created successfully:", game.id);
     return res.json({
       message: "Game session created",
-      gameId: game._id,
+      gameId: game.id,
       pin: game.pin,
     });
   } catch (err) {
@@ -405,10 +412,11 @@ app.get("/api/host/session/:pin", async (req, res) => {
 // -------------------------------
 app.get("/leaderboard", async (_req, res) => {
   try {
-    const users = await User.find({})
-      .sort({ globalRating: -1 })
-      .limit(50)
-      .select("name globalRating xp");
+    const users = await prisma.user.findMany({
+      orderBy: { globalRating: "desc" },
+      take: 50,
+      select: { name: true, globalRating: true, xp: true }
+    });
 
     const scores = users.map((u, idx) => ({
       rank: idx + 1,
@@ -431,9 +439,11 @@ app.get("/leaderboard", async (_req, res) => {
 // Full profile stats by email
 app.get("/api/profile/:email", async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
+    const user = await prisma.user.findUnique({ 
+      where: { email: req.params.email.toLowerCase().trim() },
+      include: { _count: { select: { quizzes: true } } }
+    });
     if (!user) {
-      // Return a basic profile instead of 404
       return res.json({
         name: "Anonymous Player",
         email: req.params.email,
@@ -451,10 +461,11 @@ app.get("/api/profile/:email", async (req, res) => {
       globalRating: user.globalRating,
       ratings: user.ratings,
       xp: user.xp,
-      quizzesCount,
+      quizzesCount: user._count.quizzes,
       avatar: user.avatar
     });
   } catch (err) {
+    console.error("Profile fetch error:", err);
     return res.status(500).json({ error: "Failed to load profile" });
   }
 });
@@ -463,12 +474,13 @@ app.get("/api/profile/:email", async (req, res) => {
 app.get("/ratings/:email", async (req, res) => {
   try {
     const email = req.params.email;
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const history = await RatingHistory.find({ user: user._id })
-      .sort({ createdAt: -1 })
-      .lean();
+    const history = await prisma.ratingHistory.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" }
+    });
 
     return res.json({ history });
   } catch (err) {
@@ -496,31 +508,30 @@ passport.use(
 
         if (!email) return done(new Error("No email from Google"), null);
 
-        let user = await User.findOne({ email });
+        let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-          user = await User.create({
-            name,
-            email,
-            avatar,
-            provider: "google",
-            googleId: profile.id,
+          user = await prisma.user.create({
+            data: {
+              name,
+              email,
+              avatar,
+              provider: "google",
+              googleId: profile.id,
+            }
           });
         } else {
-          // update missing pieces, keep it idempotent
-          let changed = false;
-          if (!user.provider) {
-            user.provider = "google";
-            changed = true;
+          // update missing pieces
+          const updateData = {};
+          if (!user.provider) updateData.provider = "google";
+          if (!user.googleId) updateData.googleId = profile.id;
+          if (!user.avatar && avatar) updateData.avatar = avatar;
+          
+          if (Object.keys(updateData).length > 0) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: updateData
+            });
           }
-          if (!user.googleId) {
-            user.googleId = profile.id;
-            changed = true;
-          }
-          if (!user.avatar && avatar) {
-            user.avatar = avatar;
-            changed = true;
-          }
-          if (changed) await user.save();
         }
 
         done(null, user);
@@ -550,30 +561,29 @@ passport.use(
 
         if (!email) return done(new Error("No email from Facebook"), null);
 
-        let user = await User.findOne({ email });
+        let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-          user = await User.create({
-            name,
-            email,
-            avatar,
-            provider: "facebook",
-            facebookId: profile.id,
+          user = await prisma.user.create({
+            data: {
+              name,
+              email,
+              avatar,
+              provider: "facebook",
+              facebookId: profile.id,
+            }
           });
         } else {
-          let changed = false;
-          if (!user.provider) {
-            user.provider = "facebook";
-            changed = true;
+          const updateData = {};
+          if (!user.provider) updateData.provider = "facebook";
+          if (!user.facebookId) updateData.facebookId = profile.id;
+          if (!user.avatar && avatar) updateData.avatar = avatar;
+          
+          if (Object.keys(updateData).length > 0) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: updateData
+            });
           }
-          if (!user.facebookId) {
-            user.facebookId = profile.id;
-            changed = true;
-          }
-          if (!user.avatar && avatar) {
-            user.avatar = avatar;
-            changed = true;
-          }
-          if (changed) await user.save();
         }
 
         done(null, user);
@@ -592,7 +602,7 @@ function sendSocialLoginRedirect(req, res) {
   const redirectUrl =
     FRONTEND_URL +
     `?token=${encodeURIComponent(token)}` +
-    `&userId=${encodeURIComponent(user._id.toString())}` +
+    `&userId=${encodeURIComponent(user.id.toString())}` +
     `&name=${encodeURIComponent(user.name || "")}` +
     `&email=${encodeURIComponent(user.email || "")}` +
     `&avatar=${encodeURIComponent(user.avatar || "")}`;
@@ -628,9 +638,10 @@ app.get(
 // -------------------------------
 app.get("/api/host/session/:pin", async (req, res) => {
   try {
-    const session = await GameSession.findOne({ pin: req.params.pin })
-      .populate("quiz")
-      .lean();
+    const session = await prisma.gameSession.findUnique({
+      where: { pin: req.params.pin },
+      include: { quiz: true }
+    });
     if (!session) return res.status(404).json({ error: "Session not found" });
     return res.json(session);
   } catch (err) {
@@ -653,7 +664,7 @@ async function isAdmin(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ error: "Access denied. Admin only." });
     }
@@ -804,18 +815,30 @@ io.on("connection", (socket) => {
     const playerCount = Object.values(session.players).filter(p => !p.isHost).length;
     if (playerCount === 0) { socket.emit("error_msg", { message: "Need at least 1 player to start." }); return; }
     try {
-      const dbSession = await GameSession.findOne({ pin }).populate("quiz").lean();
-      if (!dbSession || !dbSession.quiz) { socket.emit("error_msg", { message: "Quiz not found in database." }); return; }
+      const dbSession = await prisma.gameSession.findUnique({
+        where: { pin },
+        include: { quiz: true }
+      });
+      if (!dbSession || !dbSession.quiz) { 
+        socket.emit("error_msg", { message: "Quiz not found in database." }); 
+        return; 
+      }
       session.quiz = dbSession.quiz;
       session.timerSeconds = dbSession.timerSeconds || 30;
       session.status = 'running';
       session.currentQ = 0;
-      const questionsForAll = session.quiz.questions.map(q => ({
+      const questionsForAll = (session.quiz.questions || []).map(q => ({
         question: q.question,
         options: q.options
       }));
       io.in(pin).emit("game_started", {
-        quiz: { _id: session.quiz._id, title: session.quiz.title, topic: session.quiz.topic, questions: questionsForAll, totalQuestions: session.quiz.questions.length },
+        quiz: { 
+          id: session.quiz.id, 
+          title: session.quiz.title, 
+          topic: session.quiz.topic, 
+          questions: questionsForAll, 
+          totalQuestions: (session.quiz.questions || []).length 
+        },
         timerSeconds: session.timerSeconds
       });
       startCountdown(pin);

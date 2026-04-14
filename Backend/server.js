@@ -386,18 +386,6 @@ app.post("/api/host/start", async (req, res) => {
   }
 });
 
-// Added explicit game start endpoint for robustness if needed, 
-// but primarily we use socket start_game.
-app.get("/api/host/session/:pin", async (req, res) => {
-  try {
-    const game = await GameSession.findOne({ pin: req.params.pin }).populate("quiz");
-    if (!game) return res.status(404).json({ error: "Session not found" });
-    return res.json(game);
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 // -------------------------------
 // Public leaderboard (top 50)
 // -------------------------------
@@ -677,6 +665,43 @@ app.use("/api/admin", isAdmin, adminRoutes);
 
 const liveSessions = new Map();
 
+/**
+ * HELPER: Persistent Session Recovery
+ * If a PIN exists in DB but not in memory, we re-initialize it.
+ */
+async function ensureSessionInMemory(pin) {
+  if (liveSessions.has(pin)) return liveSessions.get(pin);
+
+  try {
+    const dbSession = await prisma.gameSession.findUnique({
+      where: { pin },
+      include: { quiz: true }
+    });
+
+    if (dbSession) {
+      console.log(`♻️ Rehydrating session ${pin} from database...`);
+      liveSessions.set(pin, {
+        hostSocketId: null, // Host will reconnect and claim this
+        password: null,
+        players: {},
+        bannedNames: new Set(),
+        quiz: dbSession.quiz,
+        status: dbSession.status || 'waiting',
+        currentQ: 0,
+        optionStats: [0, 0, 0, 0],
+        timerSeconds: dbSession.timerSeconds || 30,
+        timeLeft: dbSession.timerSeconds || 30,
+        timerHandle: null,
+        countdownHandle: null
+      });
+      return liveSessions.get(pin);
+    }
+  } catch (err) {
+    console.error(`Session recovery error for PIN ${pin}:`, err);
+  }
+  return null;
+}
+
 function getLeaderboard(session) {
   return Object.values(session.players)
     .filter(p => !p.isHost)
@@ -758,34 +783,48 @@ function advanceQuestion(pin) {
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
-  socket.on("host_join", (data) => {
+  socket.on("host_join", async (data) => {
     const { pin, password } = data;
-    liveSessions.set(pin, {
-      hostSocketId: socket.id,
-      password: password || null,
-      players: {},
-      bannedNames: new Set(),
-      quiz: null,
-      status: 'waiting',
-      currentQ: 0,
-      optionStats: [0, 0, 0, 0],
-      timerSeconds: 30,
-      timeLeft: 30,
-      timerHandle: null,
-      countdownHandle: null
-    });
+    
+    // Recovery: Check if session exists in DB if not in memory
+    let session = await ensureSessionInMemory(pin);
+    
+    if (!session) {
+      liveSessions.set(pin, {
+        hostSocketId: socket.id,
+        password: password || null,
+        players: {},
+        bannedNames: new Set(),
+        quiz: null,
+        status: 'waiting',
+        currentQ: 0,
+        optionStats: [0, 0, 0, 0],
+        timerSeconds: 30,
+        timeLeft: 30,
+        timerHandle: null,
+        countdownHandle: null
+      });
+      session = liveSessions.get(pin);
+    } else {
+      session.hostSocketId = socket.id;
+      if (password) session.password = password;
+    }
+
     socket.join(pin);
-    const session = liveSessions.get(pin);
     session.players[socket.id] = { name: "Host", score: 0, answeredThisQ: true, optionIdx: -1, isHost: true, streak: 0 };
     socket.emit("host_ready", { pin });
-    console.log(`Host created room ${pin}`);
+    console.log(`Host joined/created room ${pin}`);
   });
 
-  socket.on("join_room", (data) => {
+  socket.on("join_room", async (data) => {
     const { pin, name, password } = data;
     if (!pin || !name) { socket.emit("join_error", { message: "PIN and name required." }); return; }
-    if (!liveSessions.has(pin)) { socket.emit("join_error", { message: "Room not found. Check the PIN." }); return; }
-    const session = liveSessions.get(pin);
+    
+    // Recovery check
+    const session = await ensureSessionInMemory(pin);
+    
+    if (!session) { socket.emit("join_error", { message: "Room not found. Check the PIN." }); return; }
+    
     if (session.password && session.password !== password) { socket.emit("join_error", { message: "Wrong room password." }); return; }
     if (session.bannedNames.has(name.toLowerCase())) { socket.emit("join_error", { message: "You are banned from this room." }); return; }
     if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }

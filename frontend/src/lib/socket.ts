@@ -1,10 +1,13 @@
 import { io } from 'socket.io-client';
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'samarpan-quiz.vercel.app'
-  ? 'https://samarpan-9rt8.onrender.com'
-  : 'http://localhost:5001');
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname === 'samarpan-quiz.vercel.app' || 
+   window.location.hostname.endsWith('.vercel.app'));
 
-const socket = io(API_BASE, {
+const SOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 
+  (isProduction ? 'https://samarpan-9rt8.onrender.com' : 'http://localhost:5001');
+
+const socket = io(SOCKET_URL, {
   autoConnect: false, // We will connect manually when the user is logged in
 });
 

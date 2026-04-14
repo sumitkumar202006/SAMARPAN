@@ -400,8 +400,8 @@ app.get("/api/host/analytics/:pin", async (req, res) => {
     if (!session) return res.status(404).json({ error: "Session not found" });
 
     // Aggregate Data
-    const players: any = {};
-    const questionPerformance: any = [];
+    const players = {};
+    const questionPerformance = [];
     const questions = session.quiz.questions;
 
     // Initialize question performance array

@@ -26,6 +26,8 @@ model User {
   settings       Json?
   role           String          @default("user")
   status         String          @default("active")
+  dailyStreak    Int             @default(0)
+  lastPlayedAt   DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   hostedSessions GameSession[]   @relation("UserSessions")
@@ -64,6 +66,8 @@ model GameSession {
   mode          String          @default("battle")
   timerSeconds  Int             @default(30)
   rated         Boolean         @default(true)
+  battleType    String?         // 1v1, 2v2, 4v4
+  teamScores    Json?           // { teamA: 0, teamB: 0 }
   pin           String          @unique
   status        String          @default("waiting")
   metadata      Json?           // Stores aggregated results like avg accuracy, etc.

@@ -25,6 +25,7 @@ function LivePlayContent() {
   const [quiz, setQuiz] = useState<any>(null);
   const [isFinished, setIsFinished] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [teamScores, setTeamScores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
 
@@ -61,6 +62,9 @@ function LivePlayContent() {
       setIsFinished(true);
       if (data.leaderboard) {
         setLeaderboard(data.leaderboard);
+      }
+      if (data.teamScores) {
+        setTeamScores(data.teamScores);
       }
     });
 
@@ -101,7 +105,32 @@ function LivePlayContent() {
       >
         <Trophy className="mx-auto text-accent mb-6" size={80} />
         <h1 className="text-4xl font-black mb-2 uppercase tracking-tight">Quiz Finished!</h1>
-        <p className="text-text-soft mb-12 text-lg">The battle is over. Are you on the podium?</p>
+        <p className="text-text-soft mb-8 text-lg">The battle is over. Are you on the podium?</p>
+
+        {teamScores && (
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="grid grid-cols-2 gap-4 mb-8"
+          >
+            <div className={cn(
+              "glass p-6 rounded-3xl border-2 flex flex-col items-center justify-center gap-2",
+              teamScores['Team A'] > teamScores['Team B'] ? "border-blue-500 bg-blue-500/10" : "border-white/5 opacity-60"
+            )}>
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Team A</span>
+              <span className="text-3xl font-black text-white">{teamScores['Team A'] || 0}</span>
+              {teamScores['Team A'] > teamScores['Team B'] && <span className="text-[10px] font-black bg-blue-500 text-white px-2 py-1 rounded-full">VICTORY</span>}
+            </div>
+            <div className={cn(
+              "glass p-6 rounded-3xl border-2 flex flex-col items-center justify-center gap-2",
+              teamScores['Team B'] > teamScores['Team A'] ? "border-red-500 bg-red-500/10" : "border-white/5 opacity-60"
+            )}>
+              <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Team B</span>
+              <span className="text-3xl font-black text-white">{teamScores['Team B'] || 0}</span>
+              {teamScores['Team B'] > teamScores['Team A'] && <span className="text-[10px] font-black bg-red-500 text-white px-2 py-1 rounded-full">VICTORY</span>}
+            </div>
+          </motion.div>
+        )}
 
         <div className="glass p-8 rounded-[32px] mb-12 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_15px_rgba(99,102,241,0.5)]" />

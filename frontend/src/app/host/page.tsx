@@ -41,7 +41,14 @@ function HostContent() {
       }
     };
     if (!authLoading) fetchQuizzes();
-  }, [user, authLoading]);
+
+    // Handle Friendly Preset
+    if (searchParams.get('friendly') === 'true') {
+      setMode('battle');
+      setIsRated(false);
+      setBattleType('1v1'); // Default to 1v1 for friendly battles
+    }
+  }, [user, authLoading, searchParams]);
 
   const handleHost = async () => {
     if (!selectedQuiz) {

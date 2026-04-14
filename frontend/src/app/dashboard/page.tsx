@@ -131,6 +131,10 @@ export default function Dashboard() {
                 <Zap size={20} fill="currentColor" />
                 Start a battle
               </Link>
+              <Link href="/host?friendly=true" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-accent-alt text-white font-bold shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-105 transition-all">
+                <Users size={20} />
+                Friendly Battle
+              </Link>
               <Link href="/create" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-bg-soft/50 border border-border-soft text-white font-bold hover:bg-bg-soft transition-all">
                 <Plus size={20} />
                 Create new quiz

@@ -24,6 +24,7 @@ const FacebookStrategy = require("passport-facebook").Strategy;
 // Prisma Client Singleton
 const prisma = require("./services/db");
 const { mapId } = require("./services/compatibility");
+const RatingEngine = require("./services/RatingEngine");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
@@ -316,7 +317,7 @@ app.get("/api/explore/categories", async (req, res) => {
 app.post("/api/host/start", async (req, res) => {
   console.log("POST /api/host/start - Request received", req.body);
   try {
-    const { quizId, hostEmail, mode, timerSeconds, rated } = req.body;
+    const { quizId, hostEmail, mode, timerSeconds, rated, battleType } = req.body;
 
     if (!quizId || !hostEmail) {
       return res.status(400).json({ error: "quizId and hostEmail required" });
@@ -364,6 +365,8 @@ app.post("/api/host/start", async (req, res) => {
         mode: mode || "rapid",
         timerSeconds: timerSeconds || 30,
         rated: rated !== false,
+        battleType: battleType || null,
+        teamScores: battleType && battleType !== '1v1' ? { 'Team A': 0, 'Team B': 0 } : null,
         pin,
       }
     });
@@ -877,7 +880,15 @@ function advanceQuestion(pin) {
 
     if (session.currentQ >= session.quiz.questions.length) {
       session.status = 'finished';
-      io.in(pin).emit("quiz_finished", { leaderboard: getLeaderboard(session) });
+      
+      // Determine Rated status and Battle configuration
+      const isRated = session.rated !== false; // Default to rated
+      RatingEngine.processGameResults(pin, session.players, isRated);
+
+      io.in(pin).emit("quiz_finished", { 
+        leaderboard: getLeaderboard(session),
+        teamScores: session.teamScores || null
+      });
       setTimeout(() => liveSessions.delete(pin), 10 * 60 * 1000);
       return;
     }
@@ -914,7 +925,10 @@ io.on("connection", (socket) => {
         timerSeconds: 30,
         timeLeft: 30,
         timerHandle: null,
-        countdownHandle: null
+        countdownHandle: null,
+        rated: true,
+        battleType: null,
+        teamScores: null
       });
       session = liveSessions.get(pin);
     } else {
@@ -954,6 +968,9 @@ io.on("connection", (socket) => {
     socket.join(pin);
     session.players[socket.id] = { 
       name, 
+      userId: data.userId || null,
+      email: data.email || null,
+      team: data.team || null, // Team A or Team B
       score: 0, 
       answeredThisQ: false, 
       optionIdx: -1, 
@@ -986,6 +1003,9 @@ io.on("connection", (socket) => {
       }
       session.quiz = dbSession.quiz;
       session.timerSeconds = dbSession.timerSeconds || 30;
+      session.rated = dbSession.rated;
+      session.battleType = dbSession.battleType;
+      session.teamScores = dbSession.teamScores;
       session.status = 'running';
       session.currentQ = 0;
       const questionsForAll = (session.quiz.questions || []).map(q => ({
@@ -1037,7 +1057,14 @@ io.on("connection", (socket) => {
       const speedBonus = Math.max(0, Math.floor(50 * (1 - t / session.timerSeconds)));
       player.streak = (player.streak || 0) + 1;
       const streakBonus = Math.min(player.streak - 1, 5) * 10;
-      player.score += 100 + speedBonus + streakBonus;
+      const points = 100 + speedBonus + streakBonus;
+      player.score += points;
+
+      // Update Team Score if in a team battle
+      if (player.team && session.teamScores) {
+        if (!session.teamScores[player.team]) session.teamScores[player.team] = 0;
+        session.teamScores[player.team] += points;
+      }
     } else {
       player.streak = 0;
     }

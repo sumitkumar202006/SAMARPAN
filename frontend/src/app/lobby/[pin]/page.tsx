@@ -23,6 +23,8 @@ function LobbyContent() {
   
   const [players, setPlayers] = useState<Record<string, Player>>({});
   const [isHost, setIsHost] = useState(false);
+  const [battleType, setBattleType] = useState<string | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<'Team A' | 'Team B' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,11 +34,28 @@ function LobbyContent() {
     const password = searchParams.get('password');
     const role = searchParams.get('role'); // 'host' or 'player'
 
+    const fetchSession = async () => {
+      try {
+        const res = await api.get(`/api/host/session/${pin}`);
+        setBattleType(res.data.battleType || null);
+      } catch (err) {
+        console.warn("Failed to fetch session type");
+      }
+    };
+    fetchSession();
+
     if (role === 'host') {
       setIsHost(true);
       socket.emit('host_join', { pin, password });
     } else {
-      socket.emit('join_room', { pin, name, password });
+      socket.emit('join_room', { 
+        pin, 
+        name, 
+        password, 
+        userId: user?.userId || user?.email, 
+        email: user?.email,
+        team: selectedTeam 
+      });
     }
 
     socket.on('player_list_update', (data) => {
@@ -75,7 +94,19 @@ function LobbyContent() {
       socket.off('host_left');
       socket.off('game_started');
     };
-  }, [isConnected, pin, socket, user, router, searchParams]);
+  }, [isConnected, pin, socket, user, router, searchParams, selectedTeam]);
+
+  const handlePickTeam = (team: 'Team A' | 'Team B') => {
+    setSelectedTeam(team);
+    // Real-time update for others to see
+    socket.emit('join_room', { 
+      pin, 
+      name: searchParams.get('name') || user?.name || 'Guest', 
+      userId: user?.userId || user?.email,
+      email: user?.email,
+      team 
+    });
+  };
 
   const handleStartGame = () => {
     socket.emit('start_game', pin);
@@ -142,8 +173,21 @@ function LobbyContent() {
                       exit={{ scale: 0, opacity: 0 }}
                       className="glass p-4 rounded-2xl flex flex-col items-center justify-center gap-2 text-center group relative overflow-hidden"
                     >
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-bold text-lg shadow-lg">
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-lg relative",
+                        p.team === 'Team A' ? "bg-blue-500 shadow-blue-500/20" : 
+                        p.team === 'Team B' ? "bg-red-500 shadow-red-500/20" :
+                        "bg-gradient-to-tr from-accent to-accent-alt"
+                      )}>
                         {p.name.charAt(0).toUpperCase()}
+                        {p.team && (
+                          <div className={cn(
+                            "absolute -top-1 -right-1 w-4 h-4 rounded-full border border-white flex items-center justify-center text-[8px] font-black",
+                            p.team === 'Team A' ? "bg-blue-600" : "bg-red-600"
+                          )}>
+                            {p.team === 'Team A' ? 'A' : 'B'}
+                          </div>
+                        )}
                       </div>
                       <span className="text-xs font-bold truncate w-full">{p.name}</span>
                       
@@ -179,6 +223,35 @@ function LobbyContent() {
                   <span className="text-sm font-bold">{isConnected ? 'Connected to Arena' : 'Connecting...'}</span>
                 </div>
               </div>
+
+              {battleType && battleType !== '1v1' && !isHost && (
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                  <p className="text-[10px] uppercase font-black text-accent tracking-widest">Select Your Squad</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => handlePickTeam('Team A')}
+                      className={cn(
+                        "py-3 rounded-xl font-bold text-xs transition-all border-2",
+                        selectedTeam === 'Team A' ? "bg-blue-500/20 border-blue-500 text-blue-400" : "bg-white/5 border-transparent text-text-soft hover:bg-white/10"
+                      )}
+                    >
+                      TEAM A
+                    </button>
+                    <button 
+                      onClick={() => handlePickTeam('Team B')}
+                      className={cn(
+                        "py-3 rounded-xl font-bold text-xs transition-all border-2",
+                        selectedTeam === 'Team B' ? "bg-red-500/20 border-red-500 text-red-400" : "bg-white/5 border-transparent text-text-soft hover:bg-white/10"
+                      )}
+                    >
+                      TEAM B
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-text-soft italic leading-relaxed">
+                    Balance the teams for a fair battle. Your score will contribute to your team's total.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-text-soft">

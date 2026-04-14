@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_BASE = typeof window !== 'undefined' && window.location.hostname === 'samarpan-quiz.vercel.app'
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || (typeof window !== 'undefined' && window.location.hostname === 'samarpan-quiz.vercel.app'
   ? 'https://samarpan-9rt8.onrender.com'
-  : 'http://localhost:5001';
+  : 'http://localhost:5001');
 
 const api = axios.create({
   baseURL: API_BASE,

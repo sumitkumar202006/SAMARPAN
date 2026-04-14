@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Samarpan is a premium AI-powered quiz platform designed for students and educators.",
 };
 
+import { DynamicBackground } from "@/components/ui/DynamicBackground";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,9 +32,10 @@ export default function RootLayout({
             <SocketProvider>
               <InteractionListener />
               <AuraCursor />
+              <DynamicBackground />
               
-              {/* Digital Texture Overlay */}
-              <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
+              {/* Refined Digital Texture Overlay */}
+              <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
               <div className="flex min-h-screen relative z-10">
                 {/* Sidebar: Desktop only */}

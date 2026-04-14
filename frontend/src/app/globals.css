@@ -70,17 +70,10 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
-  /* Custom Bike Cursor - Only on desktop */
+  /* Custom Cursor - Handled by UI components */
   @media (pointer: fine) {
     cursor: none !important;
   }
-  background-image: 
-    linear-gradient(to bottom, rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.9)),
-    url("/bg-gaming.png");
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
 }
 
 /* Atmospheric Overlays */
@@ -99,20 +92,22 @@ body::after {
   top: 0;
   left: 0;
   width: 100%;
-  height: 2px;
-  background: rgba(99, 102, 241, 0.1);
-  opacity: 0.2;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.2), transparent);
+  opacity: 0.1;
   pointer-events: none;
-  animation: scanline 8s linear infinite;
+  animation: scanline 12s linear infinite;
   z-index: 2;
 }
 
 /* Glassmorphism utility */
 .glass {
-  background: rgba(11, 17, 32, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  background: rgba(8, 12, 24, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  box-shadow: 
+    0 10px 40px -10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.02);
   /* Ensure cursor is hidden on glass elements too */
   @media (pointer: fine) {
     cursor: none !important;

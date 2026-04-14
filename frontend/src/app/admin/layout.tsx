@@ -101,7 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <button 
-            onClick={() => { logout(); router.push('/admin/login'); }}
+            onClick={() => { logout(); router.push('/'); }}
             className="w-full flex items-center gap-3 p-4 rounded-2xl text-sm font-black text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/10"
           >
             <LogOut size={18} />

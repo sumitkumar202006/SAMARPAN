@@ -259,13 +259,13 @@ export default function CreatePage() {
                     />
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-2 gap-6">
                     {currentQ.options.map((opt, i) => (
-                      <div key={i} className="relative">
+                      <div key={i} className="space-y-3">
                         <Input 
                           label={`Option ${i+1}`} 
                           placeholder={`Enter option ${i+1}`} 
-                          className={cn(currentQ.correctIndex === i && "border-accent-alt bg-accent-alt/5")}
+                          className={cn(currentQ.correctIndex === i && "border-accent-alt bg-accent-alt/5 ring-1 ring-accent-alt/20")}
                           value={opt}
                           onChange={(e) => {
                             const newOpts = [...currentQ.options];
@@ -276,11 +276,13 @@ export default function CreatePage() {
                         <button 
                           onClick={() => setCurrentQ({...currentQ, correctIndex: i})}
                           className={cn(
-                            "absolute right-3 bottom-3 w-6 h-6 rounded-lg transition-all flex items-center justify-center",
-                            currentQ.correctIndex === i ? "bg-accent-alt text-white" : "bg-bg-soft text-text-soft hover:text-white"
+                            "w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                            currentQ.correctIndex === i 
+                              ? "bg-accent-alt text-white border-accent-alt shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
+                              : "bg-bg-soft/30 text-text-soft border-white/5 hover:border-white/20"
                           )}
                         >
-                          {currentQ.correctIndex === i ? <Save size={14} /> : i + 1}
+                          {currentQ.correctIndex === i ? "✓ Correct Answer" : "Mark as Correct"}
                         </button>
                       </div>
                     ))}

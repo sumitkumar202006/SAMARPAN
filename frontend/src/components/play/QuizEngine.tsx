@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 interface Question {
   question: string;
   options: string[];
-  correctAnswer?: number;
+  correctIndex?: number;
   explanation?: string;
 }
 
@@ -118,14 +118,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       // In live mode, we don't lock immediately - server reveals result for everyone at once
     } else {
       setIsLocked(true);
-      const isCorrect = idx === currentQuestion.correctAnswer;
+      const isCorrect = idx === currentQuestion.correctIndex;
       if (isCorrect) {
         setScore(s => s + 1);
         playSuccess();
       } else {
         playError();
       }
-      setCorrectIdx(currentQuestion.correctAnswer!);
+      setCorrectIdx(currentQuestion.correctIndex!);
       setExplanation(currentQuestion.explanation || null);
     }
   };

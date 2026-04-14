@@ -98,6 +98,18 @@ export const Sidebar = () => {
                 />
                 <span className="font-bold tracking-tight">{item.name}</span>
               </div>
+
+              {item.href.includes('friendly=true') && (
+                <span className="text-[8px] font-black bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 relative z-10 ml-2">
+                  CASUAL
+                </span>
+              )}
+
+              {item.href === '/host' && (
+                <span className="text-[8px] font-black bg-accent/20 text-accent-alt px-1.5 py-0.5 rounded-full border border-accent/30 relative z-10 ml-2">
+                  RATED
+                </span>
+              )}
               
               {isActive && (
                 <motion.div

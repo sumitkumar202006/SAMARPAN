@@ -289,6 +289,12 @@ function HostContent() {
   );
 }
 
+function HostPageWrapper() {
+  const searchParams = useSearchParams();
+  const key = searchParams.get('friendly') || 'standard';
+  return <HostContent key={key} />;
+}
+
 export default function HostPage() {
   return (
     <Suspense fallback={
@@ -296,7 +302,7 @@ export default function HostPage() {
         <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
       </div>
     }>
-      <HostContent />
+      <HostPageWrapper />
     </Suspense>
   );
 }

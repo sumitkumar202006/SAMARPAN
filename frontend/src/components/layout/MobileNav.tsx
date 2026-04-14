@@ -7,7 +7,8 @@ import { LayoutDashboard, PlusSquare, User, UserCircle, Zap } from 'lucide-react
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { name: 'Home', icon: LayoutDashboard, href: '/dashboard' },
+  { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  { name: 'Host', icon: User, href: '/host' },
   { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
   { name: 'Profile', icon: UserCircle, href: '/profile' },

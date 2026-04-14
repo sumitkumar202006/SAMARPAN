@@ -23,8 +23,14 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localQuestions, setLocalQuestions] = useState(quiz.questions);
 
+  const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
-    if (!socket) return;
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !isMounted) return;
 
     socket.on('player_list_update', (data: any) => {
       setPlayers(data.players);
@@ -49,14 +55,17 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
     
     // Oversight: Live choice tracking
     socket.on('player_choice', (data: any) => {
-      setPlayers((prev: any) => ({
-        ...prev,
-        [data.playerId]: {
-          ...prev[data.playerId],
-          optionIdx: data.optionIdx,
-          answeredThisQ: true
-        }
-      }));
+      setPlayers((prev: any) => {
+        if (!prev[data.playerId]) return prev; // Safety: Prevent crash if player record doesn't exist yet
+        return {
+          ...prev,
+          [data.playerId]: {
+            ...prev[data.playerId],
+            optionIdx: data.optionIdx,
+            answeredThisQ: true
+          }
+        };
+      });
     });
 
     return () => {
@@ -67,7 +76,9 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       socket.off('next_question');
       socket.off('player_choice');
     };
-  }, [socket]);
+  }, [socket, isMounted]);
+
+  if (!isMounted) return null;
 
   const handleStart = () => {
     socket.emit('start_game', pin);

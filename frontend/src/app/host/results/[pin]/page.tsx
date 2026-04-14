@@ -216,7 +216,7 @@ function ResultsPageContent() {
           <span className="font-bold text-sm">{new Date(data.session.createdAt).toLocaleDateString()}</span>
         </div>
         <div className="w-[1px] h-8 bg-white/10" />
-        <Button variant="accent" size="sm" onClick={() => router.push('/battles')}>Host Again</Button>
+        <Button variant="primary" size="sm" onClick={() => router.push('/battles')}>Host Again</Button>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -34,6 +35,7 @@ interface Question {
 
 export default function CreatePage() {
   const { user } = useAuth();
+  const { playSuccess } = useAudio();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
   

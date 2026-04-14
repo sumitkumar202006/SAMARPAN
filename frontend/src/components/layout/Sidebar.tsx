@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 import { cn } from '@/lib/utils'; // I'll need to create this helper
 
 const navItems = [

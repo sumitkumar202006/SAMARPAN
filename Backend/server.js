@@ -243,6 +243,68 @@ app.get("/api/quizzes/:id", async (req, res) => {
   }
 });
 
+// SEARCH & EXPLORE
+app.get("/api/quizzes/search", async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ quizzes: [] });
+    
+    // Simple regex search on title and topic
+    const quizzes = await Quiz.find({
+      $or: [
+        { title: { $regex: q, $options: "i" } },
+        { topic: { $regex: q, $options: "i" } },
+        { tags: { $in: [new RegExp(q, "i")] } }
+      ],
+      isPublished: true
+    }).limit(30).sort({ playCount: -1 });
+
+    return res.json({ quizzes });
+  } catch (err) {
+    return res.status(500).json({ error: "Search failed" });
+  }
+});
+
+app.get("/api/explore/home", async (req, res) => {
+  try {
+    // 1. Trending: Top 5 by playCount
+    const trending = await Quiz.find({ isPublished: true })
+      .sort({ playCount: -1 })
+      .limit(5);
+
+    // 2. Upcoming Events: Active waiting sessions
+    // We populate with 'quiz' to get info
+    const events = await GameSession.find({ status: "waiting" })
+      .populate("quiz")
+      .limit(5)
+      .sort({ createdAt: -1 });
+
+    // 3. Recommended: Random high playCount or recent
+    const recommended = await Quiz.find({ isPublished: true })
+      .sort({ createdAt: -1 })
+      .limit(3);
+
+    return res.json({ trending, events, recommended });
+  } catch (err) {
+    console.error("Explore home error:", err);
+    return res.status(500).json({ error: "Failed to load explore feed" });
+  }
+});
+
+app.get("/api/explore/categories", async (req, res) => {
+  try {
+    // Return counts for major topics
+    const categories = ["Computer Science", "Aptitude", "Mathematics", "GATE", "General Knowledge"];
+    const results = await Promise.all(categories.map(async (cat) => {
+      const count = await Quiz.countDocuments({ topic: { $regex: cat, $options: "i" } });
+      return { name: cat, count };
+    }));
+    return res.json({ categories: results });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to load categories" });
+  }
+});
+
 // -------------------------------
 // Host / game session (prototype)
 // -------------------------------

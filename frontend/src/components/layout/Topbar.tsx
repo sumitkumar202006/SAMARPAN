@@ -28,8 +28,16 @@ export const Topbar = () => {
             <Search className="absolute left-3 text-text-soft" size={18} />
             <input 
               type="text" 
-              placeholder="Search quizzes, players..." 
+              placeholder="Search quizzes, topics..." 
               className="w-full bg-bg-soft/50 border border-border-soft rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLInputElement;
+                  if (target.value.trim()) {
+                    router.push(`/explore?q=${encodeURIComponent(target.value.trim())}`);
+                  }
+                }
+              }}
             />
           </div>
         </div>

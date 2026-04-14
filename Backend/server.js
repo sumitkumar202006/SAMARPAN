@@ -30,6 +30,7 @@ const GameSession = require("./models/GameSession");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
+const userRoutes = require("./routes/user");
 
 // Basic middleware
 console.log("Registering global middleware...");
@@ -638,9 +639,10 @@ app.get("/api/host/session/:pin", async (req, res) => {
 });
 
 // -------------------------------
-// AI quiz routes (mounted)
+// AI & User routes (mounted)
 // -------------------------------
 app.use("/api/ai", aiQuizRoutes);
+app.use("/api/user", userRoutes);
 
 // -------------------------------
 // Start server

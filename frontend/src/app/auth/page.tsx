@@ -109,11 +109,11 @@ function AuthContent() {
             <motion.div 
               layout
               className={cn(
-                "w-14 h-14 rounded-3xl bg-gradient-to-tr flex items-center justify-center font-bold text-3xl mx-auto mb-6 shadow-2xl rotate-3 transition-all duration-700",
+                "w-14 h-14 rounded-3xl bg-gradient-to-tr flex items-center justify-center overflow-hidden mx-auto mb-6 shadow-2xl rotate-3 transition-all duration-700",
                 theme.logoGlow
               )}
             >
-              S
+              <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-cover" />
             </motion.div>
             <h1 className="text-2xl sm:text-3xl font-black mb-2 tracking-tight">{theme.title}</h1>
             <p className="text-text-soft text-xs sm:text-sm italic font-medium">{theme.subtitle}</p>

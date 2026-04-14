@@ -39,8 +39,8 @@ export const Sidebar = () => {
     <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-bg-soft/50 backdrop-blur-xl border-r border-border-soft p-4">
       {/* Brand */}
       <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-bold text-lg text-white shadow-[0_0_20px_rgba(99,102,241,0.5)]">
-          S
+        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center overflow-hidden shadow-[0_0_20px_rgba(99,102,241,0.5)]">
+          <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-cover" />
         </div>
         <span className="font-bold text-xl tracking-wider uppercase">Samarpan</span>
       </div>

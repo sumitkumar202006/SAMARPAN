@@ -70,11 +70,13 @@ router.post("/generate-quiz", async (req, res) => {
 
     // Ensure we have a valid DB record for the author
     const authorId = await ensureAuthorId(userId);
+    const user = await User.findById(authorId);
 
     const questions = await generateQuizQuestions(
       topic,
       difficulty,
-      count || 5
+      count || 5,
+      user?.preferredField || 'General'
     );
 
     // PERSISTENCE: Save to Cloud DB 

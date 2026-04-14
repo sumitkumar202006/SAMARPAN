@@ -10,6 +10,12 @@ interface User {
   token: string;
   globalRating?: number;
   xp?: number;
+  preferredField?: string;
+  settings?: {
+    soundEnabled: boolean;
+  };
+  college?: string;
+  course?: string;
 }
 
 interface AuthContextType {

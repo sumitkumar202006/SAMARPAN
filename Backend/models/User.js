@@ -42,6 +42,13 @@ const userSchema = new mongoose.Schema(
     college: { type: String, trim: true },
     course: { type: String, trim: true },
     dob: { type: Date },
+
+    // personalization
+    preferredField: { type: String, default: 'General' },
+    settings: {
+      soundEnabled: { type: Boolean, default: true },
+      hapticsEnabled: { type: Boolean, default: true }
+    }
   },
   { timestamps: true }
 );

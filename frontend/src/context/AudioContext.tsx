@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 interface AudioContextType {
   playAccelerate: () => void;
@@ -19,7 +20,15 @@ interface AudioContextType {
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [isMuted, setIsMuted] = useState(false);
+
+  // Sync with user settings
+  useEffect(() => {
+    if (user?.settings) {
+      setIsMuted(!user.settings.soundEnabled);
+    }
+  }, [user]);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {

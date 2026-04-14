@@ -4,10 +4,14 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-async function generateQuizQuestions(topic, difficulty, count = 5) {
+async function generateQuizQuestions(topic, difficulty, count = 5, userField = 'General') {
   const prompt = `
 Generate EXACTLY ${count} multiple-choice quiz questions on the topic "${topic}".
 Difficulty: ${difficulty}
+
+PERSONALIZATION CONTEXT:
+The user has a background/expertise in: ${userField}. 
+If the topic is broad, try to align the questions with examples or context related to ${userField}.
 
 CRITICAL INSTRUCTIONS:
 1. You MUST generate EXACTLY ${count} questions. Do not stop early. Count them to ensure there are exactly ${count}.

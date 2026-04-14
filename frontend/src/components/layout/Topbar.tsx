@@ -21,8 +21,8 @@ export const Topbar = () => {
         
         {/* Left: Search (Desktop) / Menu (Mobile) */}
         <div className="flex items-center gap-4 flex-1">
-          <div className="lg:hidden w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-bold text-lg text-white">
-            S
+          <div className="lg:hidden w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center overflow-hidden">
+            <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-cover" />
           </div>
           <div className="hidden md:flex items-center max-w-sm w-full relative">
             <Search className="absolute left-3 text-text-soft" size={18} />
@@ -123,14 +123,22 @@ export const Topbar = () => {
                       <p className="text-xs text-text-soft">{user?.email || 'Sign in to sync stats'}</p>
                     </div>
 
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left">
+                    <Link 
+                      href="/profile/stats"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                    >
                       <BarChart size={16} />
                       <span>My Stats</span>
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left">
+                    </Link>
+                    <Link 
+                      href="/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                    >
                       <Settings size={16} />
                       <span>Settings</span>
-                    </button>
+                    </Link>
                     
                     <div className="border-t border-white/5 my-1" />
                     

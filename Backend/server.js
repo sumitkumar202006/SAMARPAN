@@ -928,7 +928,8 @@ io.on("connection", (socket) => {
         countdownHandle: null,
         rated: true,
         battleType: null,
-        teamScores: null
+        teamScores: null,
+        teamNames: { 'Team A': 'Team A', 'Team B': 'Team B' }
       });
       session = liveSessions.get(pin);
     } else {
@@ -981,7 +982,14 @@ io.on("connection", (socket) => {
       idleTimeout: null
     };
     socket.emit("join_success", { pin, name });
-    io.in(pin).emit("player_list_update", { players: session.players });
+    
+    // Check if slot specified
+    if (data.team && data.slotIndex !== undefined) {
+      session.players[socket.id].team = data.team;
+      session.players[socket.id].slotIndex = data.slotIndex;
+    }
+
+    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' } });
     console.log(`${name} joined room ${pin}`);
   });
 
@@ -1160,6 +1168,56 @@ io.on("connection", (socket) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
     io.in(pin).emit("broadcast_message", { message, type: type || 'info' });
+  });
+
+  socket.on("join_team_slot", (data) => {
+    const { pin, team, slotIndex } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.status !== 'waiting') return;
+
+    const player = session.players[socket.id];
+    if (!player || player.isHost) return;
+
+    // Check if slot taken
+    const slotTaken = Object.values(session.players).some(p => p.team === team && p.slotIndex === slotIndex && !p.isHost);
+    if (slotTaken) {
+      socket.emit("error_msg", { message: "This slot is already occupied." });
+      return;
+    }
+
+    player.team = team;
+    player.slotIndex = slotIndex;
+    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+  });
+
+  socket.on("host_move_player", (data) => {
+    const { pin, playerId, newTeam, newSlotIndex } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+
+    const player = session.players[playerId];
+    if (!player) return;
+
+    // Check if new slot taken
+    const slotTaken = Object.values(session.players).some(p => p.team === newTeam && p.slotIndex === newSlotIndex);
+    if (slotTaken) {
+      socket.emit("error_msg", { message: "Target slot is already occupied." });
+      return;
+    }
+
+    player.team = newTeam;
+    player.slotIndex = newSlotIndex;
+    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+  });
+
+  socket.on("host_edit_team_name", (data) => {
+    const { pin, teamKey, newName } = data; // teamKey: 'Team A' or 'Team B'
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+
+    if (!session.teamNames) session.teamNames = { 'Team A': 'Team A', 'Team B': 'Team B' };
+    session.teamNames[teamKey] = newName;
+    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
   });
 
   socket.on("disconnect", () => {

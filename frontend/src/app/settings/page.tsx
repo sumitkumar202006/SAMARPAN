@@ -63,7 +63,6 @@ export default function SettingsPage() {
       });
       
       if (res.status === 200) {
-        // Sync local auth context
         setUser({
           ...user,
           preferredField: formData.preferredField,
@@ -91,7 +90,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 lg:p-10 space-y-10">
+    <div className="max-w-6xl mx-auto p-4 lg:p-10 space-y-10">
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
           <SettingsIcon size={24} />
@@ -102,17 +101,19 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-12 gap-8">
         
-        {/* Left: Navigation / Summaries */}
-        <div className="lg:col-span-1 space-y-4">
+        {/* Left Column: Identity & Institutional (4 cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Profile Identity */}
           <div className="glass rounded-[32px] p-6 border-white/5 space-y-6">
             <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-black text-white">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-black text-white text-xl">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="font-bold text-sm tracking-tight">{user?.name}</p>
+                <p className="font-bold text-lg tracking-tight">{user?.name}</p>
                 <p className="text-[10px] text-text-soft uppercase font-black tracking-widest leading-none mt-1">Status: Online</p>
               </div>
             </div>
@@ -127,10 +128,39 @@ export default function SettingsPage() {
                </div>
             </div>
           </div>
+
+          {/* Institutional Info (Moved here for proximity to Identity) */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass rounded-[32px] p-6 border-white/5 space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <School className="text-emerald-400" size={18} />
+              <h2 className="text-sm font-black uppercase tracking-widest">Institutional Context</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <Input 
+                label="College / Institution"
+                value={formData.college}
+                onChange={(e) => setFormData({...formData, college: e.target.value})}
+                placeholder="Where do you study?"
+                className="bg-background/20"
+              />
+              <Input 
+                label="Course / Stream"
+                value={formData.course}
+                onChange={(e) => setFormData({...formData, course: e.target.value})}
+                placeholder="What is your focus?"
+                className="bg-background/20"
+              />
+            </div>
+          </motion.div>
         </div>
 
-        {/* Right: Actual Form Components */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Right Column: Experience & Audio (8 cols) */}
+        <div className="lg:col-span-8 space-y-6">
           
           {/* AI Personalization */}
           <motion.div 
@@ -144,17 +174,17 @@ export default function SettingsPage() {
             </div>
             
             <div className="space-y-4">
-              <p className="text-sm text-text-soft leading-relaxed">
+              <p className="text-sm text-text-soft leading-relaxed max-w-2xl">
                 Tell the AI about your <span className="text-white font-bold italic">Field of Expertise</span>. This context will be injected into every quiz generation to ensure the questions remain relevant to your career path.
               </p>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {fields.map(f => (
                   <button
                     key={f}
                     onClick={() => setFormData({...formData, preferredField: f})}
                     className={cn(
-                      "p-4 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all text-center",
+                      "p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all text-center h-full flex items-center justify-center",
                       formData.preferredField === f 
                         ? "bg-accent-alt/20 border-accent-alt text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]" 
                         : "bg-white/5 border-white/5 text-text-soft hover:border-white/20"
@@ -167,94 +197,77 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
-          {/* Audio Settings */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass rounded-[32px] p-8 border-white/5 space-y-6"
-          >
-            <div className="flex items-center gap-3">
-              <Volume2 className="text-accent" size={20} />
-              <h2 className="text-lg font-black tracking-tight underline elevation-1 underline-offset-8 decoration-accent/30">Audio Identity</h2>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
-                  formData.soundEnabled ? "bg-accent/20 text-accent" : "bg-white/5 text-text-soft"
-                )}>
-                  {formData.soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
-                </div>
-                <div>
-                  <p className="font-bold text-sm">System SFX</p>
-                  <p className="text-[10px] text-text-soft uppercase tracking-widest">Interface & Feedback</p>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Audio Settings */}
+            <motion.div 
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="glass rounded-[32px] p-6 border-white/5 space-y-6 h-full"
+            >
+              <div className="flex items-center gap-3">
+                <Volume2 className="text-accent" size={20} />
+                <h2 className="text-sm font-black uppercase tracking-widest">Audio Identity</h2>
               </div>
               
-              <button 
-                onClick={() => setFormData({...formData, soundEnabled: !formData.soundEnabled})}
-                className={cn(
-                  "w-14 h-8 rounded-full p-1 transition-all duration-300 relative",
-                  formData.soundEnabled ? "bg-accent" : "bg-white/10"
-                )}
-              >
-                <div className={cn(
-                  "w-6 h-6 rounded-full bg-white shadow-xl transition-all duration-300",
-                  formData.soundEnabled ? "translate-x-6" : "translate-x-0"
-                )} />
-              </button>
-            </div>
-          </motion.div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                    formData.soundEnabled ? "bg-accent/20 text-accent" : "bg-white/5 text-text-soft"
+                  )}>
+                    {formData.soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs">System SFX</p>
+                    <p className="text-[9px] text-text-soft uppercase tracking-widest">Feedback Audio</p>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => setFormData({...formData, soundEnabled: !formData.soundEnabled})}
+                  className={cn(
+                    "w-12 h-7 rounded-full p-1 transition-all duration-300 relative",
+                    formData.soundEnabled ? "bg-accent" : "bg-white/10"
+                  )}
+                >
+                  <div className={cn(
+                    "w-5 h-5 rounded-full bg-white shadow-xl transition-all duration-300",
+                    formData.soundEnabled ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </button>
+              </div>
+            </motion.div>
 
-          {/* Academic Info */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-[32px] p-8 border-white/5 space-y-6"
-          >
-            <div className="flex items-center gap-3">
-              <School className="text-emerald-400" size={20} />
-              <h2 className="text-lg font-black tracking-tight underline elevation-1 underline-offset-8 decoration-emerald-400/30">Institutional Metadata</h2>
-            </div>
-            
-            <div className="space-y-4">
-              <Input 
-                label="College / Institution"
-                value={formData.college}
-                onChange={(e) => setFormData({...formData, college: e.target.value})}
-                placeholder="Enter your college"
-              />
-              <Input 
-                label="Course / Stream"
-                value={formData.course}
-                onChange={(e) => setFormData({...formData, course: e.target.value})}
-                placeholder="Enter your course"
-              />
-            </div>
-          </motion.div>
-
-          {/* Action Area */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Button 
-               className="flex-1 py-4 text-sm font-black"
-               isLoading={isSaving}
-               onClick={handleSave}
+            {/* Action Area */}
+            <motion.div 
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="glass rounded-[32px] p-6 border-white/5 flex flex-col justify-center items-center gap-4 text-center"
             >
-              <Save size={18} />
-              Deploy Configuration
-            </Button>
-            
-            {status && (
-              <p className={cn(
-                "flex items-center justify-center px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest",
-                status.type === 'success' ? "bg-accent-alt/10 text-accent-alt" : "bg-red-500/10 text-red-400"
-              )}>
-                {status.msg}
-              </p>
-            )}
+              <div className="p-3 rounded-full bg-accent/10 text-accent">
+                <Shield size={20} />
+              </div>
+              <p className="text-[10px] text-text-soft uppercase font-black tracking-widest">Ready to sync changes?</p>
+              <Button 
+                 className="w-full py-4 text-xs font-black"
+                 isLoading={isSaving}
+                 onClick={handleSave}
+              >
+                <Save size={16} />
+                Deploy Sync
+              </Button>
+              
+              {status && (
+                <p className={cn(
+                  "text-[10px] font-black uppercase tracking-widest mt-1",
+                  status.type === 'success' ? "text-accent-alt" : "text-red-400"
+                )}>
+                  {status.msg}
+                </p>
+              )}
+            </motion.div>
           </div>
 
         </div>

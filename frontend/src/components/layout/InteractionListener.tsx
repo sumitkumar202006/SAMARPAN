@@ -4,22 +4,22 @@ import React, { useEffect } from 'react';
 import { useAudio } from '@/context/AudioContext';
 
 export const InteractionListener: React.FC = () => {
-  const { playHorn } = useAudio();
+  const { playClick } = useAudio();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      // Check if the click target is a button, link, or part of an interactive component
       const target = e.target as HTMLElement;
+      // Define what counts as an interactive element
       const isClickable = target.closest('button, a, input, select, textarea, [role="button"], .clickable');
       
-      if (!isClickable) {
-        playHorn();
+      if (isClickable) {
+        playClick();
       }
     };
 
-    window.addEventListener('click', handleClick);
-    return () => window.removeEventListener('click', handleClick);
-  }, [playHorn]);
+    window.addEventListener('click', handleClick, { capture: true });
+    return () => window.removeEventListener('click', handleClick, { capture: true });
+  }, [playClick]);
 
   return null; // This component doesn't render anything
 };

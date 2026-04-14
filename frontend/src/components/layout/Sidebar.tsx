@@ -32,6 +32,7 @@ const navItems = [
 export const Sidebar = () => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { playAccelerate } = useAudio();
 
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-bg-soft/50 backdrop-blur-xl border-r border-border-soft p-4">

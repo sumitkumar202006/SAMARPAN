@@ -66,7 +66,7 @@ export const Sidebar = () => {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="hidden lg:flex flex-col w-72 h-screen sticky top-0 bg-black/40 backdrop-blur-3xl border-r border-white/10 z-[50] overflow-hidden"
+      className="hidden lg:flex flex-col w-72 h-screen fixed left-0 top-0 bg-black/40 backdrop-blur-3xl border-r border-white/10 z-[50] overflow-hidden"
     >
       {/* Background HUD Effects */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">

@@ -84,7 +84,7 @@ function HostContent() {
 
   return (
     <AuthGuard>
-      <div className="px-6 lg:px-12 py-10 max-w-[1600px] mx-auto">
+      <div className="px-6 lg:px-12 py-10">
       <div className="flex flex-col gap-1 mb-8">
         <div className="flex items-center gap-3">
           <h2 className={cn("text-3xl font-bold tracking-tight", isFriendly && "text-emerald-400")}>

@@ -34,11 +34,11 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <DynamicBackground />
       <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
-      <div className="flex min-h-screen relative z-10 lg:pl-72">
+      <div className="min-h-screen relative z-10 transition-all duration-300">
         <Suspense fallback={null}>
           <Sidebar />
         </Suspense>
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:pl-72 flex flex-col min-h-screen">
           <Topbar />
           <main className="flex-1 pb-16 lg:pb-0 flex flex-col">
             <div className="flex-1">

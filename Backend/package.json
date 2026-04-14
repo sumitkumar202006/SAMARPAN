@@ -16,6 +16,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.20.0",
+    "prisma": "^6.4.1",
     "socket.io": "^4.8.3"
   },
   "name": "backend",
@@ -25,14 +26,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "prisma": "^6.4.1"
+    "nodemon": "^3.1.11"
   }
 }

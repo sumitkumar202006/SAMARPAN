@@ -43,7 +43,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [correctIdx, setCorrectIdx] = useState<number | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
-  const { playAccelerate } = useAudio();
+  const { playNavigate, playClick, playSuccess, playError } = useAudio();
 
   const currentQuestion = quiz.questions[currentIndex];
 
@@ -59,6 +59,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setCorrectIdx(data.correctIndex);
       setExplanation(data.explanation || null);
       setIsLocked(true);
+      
+      // Play result sound
+      if (selectedIdx === data.correctIndex) {
+        playSuccess();
+      } else {
+        playError();
+      }
     });
 
     socket.on('next_question', (data: { index: number, timeLeft: number }) => {
@@ -104,6 +111,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     setSelectedIdx(idx);
     
     if (isLive) {
+      playClick();
       // Backend expects 'optionIdx' and 'timeTaken'
       const timeTaken = 30 - timeLeft; 
       socket.emit('submit_answer', { pin, optionIdx: idx, timeTaken });
@@ -111,14 +119,19 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     } else {
       setIsLocked(true);
       const isCorrect = idx === currentQuestion.correctAnswer;
-      if (isCorrect) setScore(s => s + 1);
+      if (isCorrect) {
+        setScore(s => s + 1);
+        playSuccess();
+      } else {
+        playError();
+      }
       setCorrectIdx(currentQuestion.correctAnswer!);
       setExplanation(currentQuestion.explanation || null);
     }
   };
 
   const handleNext = () => {
-    playAccelerate();
+    playNavigate();
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setTimeLeft(30);

@@ -33,7 +33,7 @@ const navItems = [
 export const Sidebar = () => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { playAccelerate } = useAudio();
+  const { playNavigate } = useAudio();
 
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-bg-soft/50 backdrop-blur-xl border-r border-border-soft p-4">
@@ -66,6 +66,7 @@ export const Sidebar = () => {
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => playNavigate()}
               className={cn(
                 "group relative flex items-center justify-between p-3 rounded-xl text-sm transition-all overflow-hidden",
                 isActive 

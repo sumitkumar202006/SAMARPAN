@@ -9,11 +9,13 @@ import { Target, Shield, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/Button';
 
 function HostContent() {
   const { user, isLoading: authLoading } = useAuth();
+  const { playEnter } = useAudio();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -47,6 +49,7 @@ function HostContent() {
       return;
     }
     
+    playEnter(); // Impactful Arena Start
     setStatus("Generating room...");
     try {
       const res = await api.post('/api/host/start', {

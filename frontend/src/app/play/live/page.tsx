@@ -11,9 +11,11 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 
 function LivePlayContent() {
   const { user } = useAuth(); // Added for AuthGuard
+  const { playEnter } = useAudio();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pin = searchParams.get('pin');
@@ -45,6 +47,7 @@ function LivePlayContent() {
     fetchSession();
 
     socket.on('game_started', (data: any) => {
+      playEnter();
       setQuiz(data.quiz);
     });
 

@@ -8,6 +8,10 @@ interface AudioContextType {
   playClick: () => void;
   playSuccess: () => void;
   playGlitch: () => void;
+  playInput: () => void;
+  playEnter: () => void;
+  playError: () => void;
+  playNavigate: () => void;
   isMuted: boolean;
   toggleMute: () => void;
 }
@@ -19,7 +23,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    // Initialize Web Audio Context on the first user interaction
     const initAudioContext = () => {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -38,25 +41,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Synthesize a minimalist "Crazy" blip using an Oscillator (Zero external dependencies)
-  const synthClick = (frequency: number = 800, duration: number = 0.05, type: OscillatorType = 'sine') => {
+  const synthSound = (params: {
+    freq: number,
+    duration: number,
+    type?: OscillatorType,
+    rampTo?: number,
+    volume?: number,
+    rampType?: 'exponential' | 'linear'
+  }) => {
     if (isMuted || !audioCtxRef.current) return;
     
-    // Resume context if it's suspended (browsers block it until interaction)
     if (audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
     }
 
+    const { freq, duration, type = 'sine', rampTo = 10, volume = 0.3, rampType = 'exponential' } = params;
     const ctx = audioCtxRef.current;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = type;
-    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
-    // Rapid frequency drop for a "click" feel
-    osc.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + duration);
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (rampType === 'exponential') {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(rampTo, 0.001), ctx.currentTime + duration);
+    } else {
+      osc.frequency.linearRampToValueAtTime(rampTo, ctx.currentTime + duration);
+    }
 
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
     osc.connect(gain);
@@ -66,19 +78,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     osc.stop(ctx.currentTime + duration);
   };
 
-  const playClick = () => synthClick(1200, 0.04, 'sine'); // High crisp blip
-  const playSuccess = () => synthClick(800, 0.15, 'triangle'); // Warm chime
-  const playGlitch = () => synthClick(2000, 0.05, 'square'); // Short digital crunchy pop
+  const playClick = () => synthSound({ freq: 1200, duration: 0.04, type: 'sine', volume: 0.2 });
+  const playInput = () => synthSound({ freq: 2500, duration: 0.02, type: 'sine', volume: 0.1 }); // Ultra-light tick
+  const playSuccess = () => synthSound({ freq: 800, duration: 0.2, type: 'triangle', rampTo: 1200, volume: 0.2 });
+  const playGlitch = () => synthSound({ freq: 2000, duration: 0.05, type: 'square', volume: 0.15 });
   
-  // Fallbacks for existing calls
-  const playAccelerate = () => synthClick(1500, 0.1, 'sine');
-  const playHorn = () => synthClick(100, 0.2, 'sine');
+  const playEnter = () => {
+    // Multi-tone "Arena" startup sound
+    synthSound({ freq: 400, duration: 0.4, type: 'triangle', rampTo: 800, volume: 0.25 });
+    setTimeout(() => synthSound({ freq: 600, duration: 0.3, type: 'sine', rampTo: 1200, volume: 0.2 }), 50);
+  };
+
+  const playError = () => {
+    synthSound({ freq: 150, duration: 0.1, type: 'square', rampTo: 50, volume: 0.3 });
+    setTimeout(() => synthSound({ freq: 120, duration: 0.15, type: 'square', rampTo: 30, volume: 0.3 }), 100);
+  };
+
+  const playNavigate = () => synthSound({ freq: 400, duration: 0.3, type: 'sine', rampTo: 50, volume: 0.15, rampType: 'linear' });
+
+  // Legacy mappings
+  const playAccelerate = () => playNavigate();
+  const playHorn = () => playError();
 
   const toggleMute = () => setIsMuted(!isMuted);
 
   return (
     <AudioContext.Provider value={{ 
-      playAccelerate, playHorn, playClick, playSuccess, playGlitch, 
+      playAccelerate, playHorn, playClick, playSuccess, playGlitch,
+      playInput, playEnter, playError, playNavigate,
       isMuted, toggleMute 
     }}>
       {children}

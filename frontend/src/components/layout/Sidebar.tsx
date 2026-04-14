@@ -102,11 +102,22 @@ export const Sidebar = () => {
         })}
       </nav>
 
+      {/* Admin Entrance (Hidden if not admin) */}
+      {user?.role === 'admin' && (
+        <Link 
+          href="/admin" 
+          className="flex items-center gap-3 p-3 rounded-xl text-sm font-bold text-accent hover:bg-accent/10 transition-all border border-transparent hover:border-accent/20 mb-2"
+        >
+          <ShieldCheck size={18} />
+          <span>Nexus Admin</span>
+        </Link>
+      )}
+
       {/* Logout */}
       {user && (
         <button 
           onClick={logout}
-          className="mt-auto flex items-center gap-3 p-3 rounded-xl text-sm text-text-soft hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
+          className="flex items-center gap-3 p-3 rounded-xl text-sm text-text-soft hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
         >
           <LogOut size={18} />
           <span className="font-medium">Sign Out</span>

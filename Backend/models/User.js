@@ -48,7 +48,11 @@ const userSchema = new mongoose.Schema(
     settings: {
       soundEnabled: { type: Boolean, default: true },
       hapticsEnabled: { type: Boolean, default: true }
-    }
+    },
+
+    // administrative
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    status: { type: String, enum: ['active', 'banned'], default: 'active' }
   },
   { timestamps: true }
 );

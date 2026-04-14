@@ -52,12 +52,21 @@ export default function Dashboard() {
         // 1. Fetch Cloud Quizzes
         let cloudQuizzes = [];
         if (user?.email) {
-          const [profileRes, quizzesRes] = await Promise.all([
-            api.get(`/api/profile/${user.email}`),
-            api.get(`/api/quizzes/user/${user.email}`)
-          ]);
-          setStats(profileRes.data);
-          cloudQuizzes = quizzesRes.data.quizzes || [];
+          // Fetch Profile independently
+          try {
+            const profileRes = await api.get(`/api/profile/${user.email}`);
+            setStats(profileRes.data);
+          } catch (profileErr) {
+            console.warn("Profile fetch failed, using fallbacks", profileErr);
+          }
+
+          // Fetch Quizzes independently
+          try {
+            const quizzesRes = await api.get(`/api/quizzes/user/${user.email}`);
+            cloudQuizzes = quizzesRes.data.quizzes || [];
+          } catch (quizErr) {
+            console.warn("Quiz fetch failed", quizErr);
+          }
         } else {
           const res = await api.get('/api/quizzes/public');
           cloudQuizzes = res.data.quizzes || [];

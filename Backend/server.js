@@ -209,7 +209,10 @@ app.post("/api/quizzes", async (req, res) => {
 app.get("/api/quizzes/user/:email", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      // Return empty list instead of 404 to avoid frontend crash
+      return res.json({ quizzes: [] });
+    }
     const quizzes = await Quiz.find({ author: user._id }).sort({ createdAt: -1 });
     return res.json({ quizzes });
   } catch (err) {
@@ -365,9 +368,18 @@ app.get("/leaderboard", async (_req, res) => {
 app.get("/api/profile/:email", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
-    if (!user) return res.status(404).json({ error: "User not found" });
-    
-    const quizzesCount = await Quiz.countDocuments({ author: user._id });
+    if (!user) {
+      // Return a basic profile instead of 404
+      return res.json({
+        name: "Anonymous Player",
+        email: req.params.email,
+        globalRating: 1200,
+        ratings: { rapid: 1200, blitz: 1200, casual: 1200 },
+        xp: 0,
+        quizzesCount: 0,
+        avatar: null
+      });
+    }
     
     return res.json({
       name: user.name,

@@ -18,6 +18,43 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
+/**
+ * HELPER: Robust User Association
+ * Ensures a user document exists before saving a quiz.
+ */
+async function ensureAuthorId(userId) {
+  if (!userId) return null;
+  
+  try {
+    if (typeof userId === "string" && userId.includes("@")) {
+      const normalizedEmail = userId.toLowerCase().trim();
+      let user = await User.findOne({ email: normalizedEmail });
+      
+      if (!user) {
+        debugLog(`User record missing for ${normalizedEmail}. AUTO-CREATING...`);
+        // Extract a name from email if possible
+        const guessedName = normalizedEmail.split('@')[0].split(/[._+-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        
+        user = await User.create({
+          name: guessedName || "New Player",
+          email: normalizedEmail,
+          provider: "automatic",
+          globalRating: 1200,
+          xp: 0
+        });
+        debugLog(`Auto-created user: ${user.email} (${user._id})`);
+      }
+      return user._id;
+    }
+    
+    // If it's an ID string, verify it's valid
+    return userId; 
+  } catch (err) {
+    debugLog(`Error in ensureAuthorId for ${userId}: ${err.message}`);
+    return null;
+  }
+}
+
 // Generate AI Quiz from Topic
 router.post("/generate-quiz", async (req, res) => {
   debugLog(`POST /api/ai/generate-quiz | Topic: ${req.body.topic} | UserID: ${req.body.userId}`);
@@ -31,22 +68,8 @@ router.post("/generate-quiz", async (req, res) => {
       });
     }
 
-    // Convert Email OR ID to ObjectId (Optional association)
-    let authorId = null;
-    if (userId) {
-      if (typeof userId === "string" && userId.includes("@")) {
-        const normalizedEmail = userId.toLowerCase().trim();
-        const user = await User.findOne({ email: normalizedEmail });
-        if (user) {
-          authorId = user._id;
-          debugLog(`Resolved Author: ${user.email} (${user._id})`);
-        } else {
-          debugLog(`FAILED to resolve author email: ${normalizedEmail}. Quiz will be orphan.`);
-        }
-      } else {
-        authorId = userId;
-      }
-    }
+    // Ensure we have a valid DB record for the author
+    const authorId = await ensureAuthorId(userId);
 
     const questions = await generateQuizQuestions(
       topic,
@@ -109,22 +132,8 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
       return res.status(400).json({ error: "PDF contains too little text to generate a quiz" });
     }
 
-    // Convert Email OR ID to ObjectId (Optional association)
-    let authorId = null;
-    if (userId) {
-      if (typeof userId === "string" && userId.includes("@")) {
-        const normalizedEmail = userId.toLowerCase().trim();
-        const user = await User.findOne({ email: normalizedEmail });
-        if (user) {
-          authorId = user._id;
-          debugLog(`Resolved Author (PDF): ${user.email} (${user._id})`);
-        } else {
-          debugLog(`FAILED to resolve author email (PDF): ${normalizedEmail}. Quiz will be orphan.`);
-        }
-      } else {
-        authorId = userId;
-      }
-    }
+    // Ensure we have a valid DB record for the author
+    const authorId = await ensureAuthorId(userId);
 
     // Generate questions using AI
     debugLog(`Calling AI to generate exactly ${count} quiz questions...`);

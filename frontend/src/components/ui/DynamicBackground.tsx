@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { NeuralBackground } from './NeuralBackground';
 
 export const DynamicBackground = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -74,18 +75,8 @@ export const DynamicBackground = () => {
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* 3. Technical Grid Overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.05]"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '80px 80px',
-          maskImage: 'radial-gradient(circle at center, black, transparent 80%)'
-        }}
-      />
+      {/* 3. Neural Network Particle Layer */}
+      <NeuralBackground />
 
       {/* 4. Moving Highlight Line (Cyber Scan) */}
       <motion.div 

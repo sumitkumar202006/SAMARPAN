@@ -17,11 +17,19 @@ export const AuraCursor = () => {
   const springX = useSpring(rawX, springConfig);
   const springY = useSpring(rawY, springConfig);
 
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Dedicated trail springs (slightly slower for the 'exhaust' effect)
   const trailX = useSpring(rawX, { damping: 25, stiffness: 300 });
   const trailY = useSpring(rawY, { damping: 25, stiffness: 300 });
 
   useEffect(() => {
+    if (!isMounted) return;
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isVisible) setIsVisible(true);
       
@@ -52,9 +60,9 @@ export const AuraCursor = () => {
       document.removeEventListener('mouseleave', handleMouseLeave);
       document.removeEventListener('mouseenter', handleMouseEnter);
     };
-  }, [isVisible, rawX, rawY]);
+  }, [isVisible, rawX, rawY, isMounted]);
 
-  if (!isVisible) return null;
+  if (!isMounted || !isVisible) return null;
 
   const sharedStyles: React.CSSProperties = {
     position: 'fixed',
@@ -62,7 +70,6 @@ export const AuraCursor = () => {
     left: 0,
     pointerEvents: 'none',
     zIndex: 9991,
-    transform: 'translate(-50%, -50%)',
     willChange: 'transform',
   };
 
@@ -74,6 +81,8 @@ export const AuraCursor = () => {
           ...sharedStyles,
           x: trailX,
           y: trailY,
+          translateX: '-50%',
+          translateY: '-50%',
         }}
         className="flex items-center justify-center p-4"
       >
@@ -118,6 +127,8 @@ export const AuraCursor = () => {
           ...sharedStyles,
           x: rawX,
           y: rawY,
+          translateX: '-50%',
+          translateY: '-50%',
           zIndex: 9992, // Core on top
         }}
         className="flex items-center justify-center"

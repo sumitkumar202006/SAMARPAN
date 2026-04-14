@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import api from '@/lib/axios';
 
 interface Player {
   name: string;

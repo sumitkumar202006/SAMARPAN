@@ -20,14 +20,16 @@ function ResultsPageContent() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const res = await api.get(`/api/host/analytics/${pin}`);
         setData(res.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch analytics", err);
+        setError(err.response?.data?.error || "Failed to load match analytics. The session might not exist yet.");
       } finally {
         setLoading(false);
       }
@@ -52,12 +54,15 @@ function ResultsPageContent() {
     </div>
   );
 
-  if (!data) return (
+  if (error || !data) return (
     <div className="min-h-screen bg-[#05060f] flex flex-col items-center justify-center p-8 text-center">
       <AlertCircle className="text-red-500 mb-6" size={64} />
-      <h1 className="text-3xl font-black mb-4">No Session Data Found</h1>
-      <p className="text-text-soft mb-8">This session may have been cancelled or the PIN is incorrect.</p>
-      <Button onClick={() => router.push('/dashboard')}>Return to Dashboard</Button>
+      <h1 className="text-3xl font-black mb-4">{error ? "Analytics Error" : "No Session Data Found"}</h1>
+      <p className="text-text-soft mb-8">{error || "This session may have been cancelled or the PIN is incorrect."}</p>
+      <div className="flex gap-4">
+        <Button variant="outline" onClick={() => window.location.reload()}>Retry Fetch</Button>
+        <Button onClick={() => router.push('/dashboard')}>Return to Dashboard</Button>
+      </div>
     </div>
   );
 

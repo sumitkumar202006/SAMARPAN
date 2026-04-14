@@ -744,14 +744,23 @@ const liveSessions = new Map();
  */
 async function logAnswerToDb(session, player, data) {
   try {
-    const dbSession = await prisma.gameSession.findUnique({ where: { pin: session.pin } });
-    if (!dbSession) return;
+    const pin = session.pin;
+    if (!pin) {
+      console.warn("[Analytics] Cannot log answer: Session PIN is missing from memory object.");
+      return;
+    }
+
+    const dbSession = await prisma.gameSession.findUnique({ where: { pin } });
+    if (!dbSession) {
+      console.warn(`[Analytics] Cannot log answer: No database record found for PIN ${pin}. Ensure 'npx prisma db push' was run.`);
+      return;
+    }
 
     await prisma.answerLog.create({
       data: {
         sessionId: dbSession.id,
         questionIndex: session.currentQ,
-        userId: player.id || null, // If player is logged in
+        userId: player.id || null,
         playerName: player.name,
         selectedIdx: data.optionIdx,
         isCorrect: data.isCorrect,
@@ -759,8 +768,9 @@ async function logAnswerToDb(session, player, data) {
         ipAddress: data.ipAddress || null
       }
     });
+    console.log(`[Analytics] Logged answer for ${player.name} in PIN ${pin} (Correct: ${data.isCorrect})`);
   } catch (err) {
-    console.error("Failed to log answer:", err);
+    console.error(`[Analytics] Critical error logging answer for PIN ${session.pin}:`, err);
   }
 }
 
@@ -780,7 +790,8 @@ async function ensureSessionInMemory(pin) {
     if (dbSession) {
       console.log(`♻️ Rehydrating session ${pin} from database...`);
       liveSessions.set(pin, {
-        hostSocketId: null, // Host will reconnect and claim this
+        pin, // Store the pin internally so helpers can access it
+        hostSocketId: null, 
         password: null,
         players: {},
         bannedNames: new Set(),
@@ -891,6 +902,7 @@ io.on("connection", (socket) => {
     
     if (!session) {
       liveSessions.set(pin, {
+        pin, // Store the pin internally
         hostSocketId: socket.id,
         password: password || null,
         players: {},

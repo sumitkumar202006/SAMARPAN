@@ -364,5 +364,3 @@ export const OrbitalNav = () => {
     </>
   );
 };
-  );
-};

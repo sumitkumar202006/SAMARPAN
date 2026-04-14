@@ -23,13 +23,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+
   useEffect(() => {
     // Redirect to login if not authenticated or not an admin
-    // In a real app, you'd also check the token validity here
     if (pathname !== '/admin/login' && (!user || user.role !== 'admin')) {
       router.push('/admin/login');
     }
   }, [user, router, pathname]);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
 
   if (pathname === '/admin/login') return <>{children}</>;
   
@@ -50,8 +56,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="flex min-h-screen bg-background font-sans">
+    <div className="flex min-h-screen bg-background font-sans relative">
       
+      {/* Logout Confirmation Modal */}
+      <motion.div 
+        animate={{ opacity: showLogoutConfirm ? 1 : 0, pointerEvents: showLogoutConfirm ? 'auto' : 'none' }}
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      >
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={() => setShowLogoutConfirm(false)} />
+        <motion.div 
+          animate={{ scale: showLogoutConfirm ? 1 : 0.9, y: showLogoutConfirm ? 0 : 20 }}
+          className="glass max-w-sm w-full p-8 rounded-[40px] border-white/5 relative z-10 text-center space-y-6 shadow-2xl"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-red-500">
+             <LogOut size={32} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black tracking-tight mb-2">Terminate Session?</h3>
+            <p className="text-sm text-text-soft font-medium leading-relaxed">
+              You are about to disconnect from the Zenith Nexus. All administrative overrides will be suspended.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+             <button 
+               onClick={handleLogout}
+               className="w-full py-4 rounded-2xl bg-red-500 text-white text-sm font-black tracking-widest hover:bg-red-600 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+             >
+                TERMINATE SIMULATION
+             </button>
+             <button 
+               onClick={() => setShowLogoutConfirm(false)}
+               className="w-full py-4 rounded-2xl bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+             >
+                Stay Connected
+             </button>
+          </div>
+        </motion.div>
+      </motion.div>
+
       {/* Admin Sidebar */}
       <aside className="w-72 bg-bg-soft/50 backdrop-blur-3xl border-r border-white/5 sticky top-0 h-screen flex flex-col p-6 z-20">
         <div className="flex items-center gap-4 mb-10 px-2">
@@ -101,7 +143,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <button 
-            onClick={() => { logout(); router.push('/'); }}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center gap-3 p-4 rounded-2xl text-sm font-black text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/10"
           >
             <LogOut size={18} />

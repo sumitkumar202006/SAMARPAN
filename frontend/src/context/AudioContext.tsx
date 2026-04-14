@@ -36,35 +36,39 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 5. Glitch - Special "Crazy" but minimal sound
     glitchRef.current = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-crunchy-digital-input-904.mp3');
     
-    // Set refined volumes
-    accelerateRef.current.volume = 0.25;
-    hornRef.current.volume = 0.2;
-    clickRef.current.volume = 0.15;
-    successRef.current.volume = 0.2;
-    glitchRef.current.volume = 0.15;
+    // Set vibrant volumes
+    accelerateRef.current.volume = 0.5;
+    hornRef.current.volume = 0.4;
+    clickRef.current.volume = 0.4;
+    successRef.current.volume = 0.5;
+    glitchRef.current.volume = 0.4;
 
     // Load audio on mount
     [accelerateRef, hornRef, clickRef, successRef, glitchRef].forEach(ref => ref.current?.load());
-  }, []);
 
-  const unlockAudio = () => {
-    if (!hasInteracted) {
+    // Single global click to unlock all audio
+    const handleGlobalUnlock = () => {
+      if (hasInteracted) return;
       setHasInteracted(true);
-      // Brief silent play to unlock the browser's audio context
-      [accelerateRef, clickRef].forEach(ref => {
-        if (ref.current) {
-          const p = ref.current.play();
-          if (p) p.then(() => ref.current?.pause()).catch(() => {});
-        }
-      });
-    }
-  };
+      window.removeEventListener('click', handleGlobalUnlock);
+    };
+    window.addEventListener('click', handleGlobalUnlock);
+    return () => window.removeEventListener('click', handleGlobalUnlock);
+  }, [hasInteracted]);
 
   const playSound = (ref: React.MutableRefObject<HTMLAudioElement | null>) => {
-    unlockAudio();
     if (isMuted || !ref.current) return;
+    
+    // Ensure we can play even if the browser is strict
+    const promise = ref.current.play();
+    if (promise !== undefined) {
+      promise.catch(error => {
+        // Auto-play was prevented - try again on next user interaction
+        console.warn("Audio playback delayed until user interaction.", error);
+      });
+    }
+    
     ref.current.currentTime = 0;
-    ref.current.play().catch(e => console.log("Audio play blocked", e));
   };
 
   const playAccelerate = () => playSound(accelerateRef);

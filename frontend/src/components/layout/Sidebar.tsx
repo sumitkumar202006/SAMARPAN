@@ -54,12 +54,12 @@ export const Sidebar = () => {
         delayChildren: 0.2
       } 
     }
-  };
+  } as const;
 
   const itemVariants = {
     hidden: { x: -20, opacity: 0 },
     visible: { x: 0, opacity: 1 }
-  };
+  } as const;
 
   return (
     <motion.aside 

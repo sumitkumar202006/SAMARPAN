@@ -74,28 +74,22 @@ export default function CreatePage() {
     }
     
     try {
-      // If Admin is logged in, they can still push to Cloud DB
-      if (user?.email === 'admin@samarpan.com') {
-        await api.post('/api/quizzes', {
-          title: manualTitle,
-          topic: manualTopic,
-          authorId: user?.email,
-          questions,
-          aiGenerated: false
-        });
-        alert('Arena Content Pushed to Cloud (Admin)');
-        const res = await api.post('/api/quizzes', {
-          title: manualTitle,
-          topic: manualTopic,
-          authorId: user?.email,
-          questions,
-          aiGenerated: false
-        });
+      setAiStatus('Saving your arena content to Cloud...');
+      const res = await api.post('/api/quizzes', {
+        title: manualTitle,
+        topic: manualTopic,
+        authorId: user?.email,
+        questions,
+        aiGenerated: false
+      });
+      
+      if (res.data.quiz) {
         setCreatedQuiz(res.data.quiz);
       }
+      setAiStatus('Quiz saved to Cloud successfully!');
     } catch (err) {
       console.error("Save error:", err);
-      alert('Failed to save quiz.');
+      alert('Failed to save quiz. Please ensure you are logged in.');
     }
   };
 

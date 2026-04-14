@@ -34,8 +34,8 @@ router.post("/generate-quiz", async (req, res) => {
     // Convert Email OR ID to ObjectId (Optional association)
     let authorId = null;
     if (userId) {
-      if (userId.includes("@")) {
-        const user = await User.findOne({ email: userId });
+      if (typeof userId === "string" && userId.includes("@")) {
+        const user = await User.findOne({ email: userId.toLowerCase().trim() });
         if (user) authorId = user._id;
       } else {
         authorId = userId;
@@ -106,8 +106,8 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
     // Convert Email OR ID to ObjectId (Optional association)
     let authorId = null;
     if (userId) {
-      if (userId.includes("@")) {
-        const user = await User.findOne({ email: userId });
+      if (typeof userId === "string" && userId.includes("@")) {
+        const user = await User.findOne({ email: userId.toLowerCase().trim() });
         if (user) authorId = user._id;
       } else {
         authorId = userId;

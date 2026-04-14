@@ -135,7 +135,7 @@ function HostContent() {
                 <option value="true">Yes, update ratings</option>
                 <option value="false">No, casual only</option>
               </Select>
-              {quizzes.length === 0 && (
+              {!loading && quizzes.length === 0 && (
                 <div className="mt-2 text-xs text-text-soft flex items-center gap-2">
                   <span>No quizzes found.</span>
                   <Link href="/create" className="text-accent underline font-bold">Create one now</Link>

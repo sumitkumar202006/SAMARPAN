@@ -208,7 +208,7 @@ app.post("/api/quizzes", async (req, res) => {
 // Get all quizzes for a user by email
 app.get("/api/quizzes/user/:email", async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email });
+    const user = await User.findOne({ email: req.params.email.toLowerCase().trim() });
     if (!user) return res.status(404).json({ error: "User not found" });
     const quizzes = await Quiz.find({ author: user._id }).sort({ createdAt: -1 });
     return res.json({ quizzes });
@@ -261,10 +261,10 @@ app.post("/api/host/start", async (req, res) => {
     }
 
     console.log("Looking for host user:", hostEmail);
-    const user = await User.findOne({ email: hostEmail });
+    const user = await User.findOne({ email: hostEmail.toLowerCase().trim() });
     if (!user) {
       console.warn("Host user not found:", hostEmail);
-      return res.status(400).json({ error: "Host user not found" });
+      return res.status(400).json({ error: "Host user not found. Please ensure you are logged in correctly." });
     }
 
     console.log("Looking for quiz:", quizId);

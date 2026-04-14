@@ -8,9 +8,10 @@ export const AuraCursor = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
   
-  // Spring physics for buttery smooth following
-  const mouseX = useSpring(0, { damping: 30, stiffness: 250 });
-  const mouseY = useSpring(0, { damping: 30, stiffness: 250 });
+  // High-frequency spring physics for near-instant response
+  const springConfig = { damping: 50, stiffness: 1000, restDelta: 0.001, mass: 0.1 };
+  const mouseX = useSpring(0, springConfig);
+  const mouseY = useSpring(0, springConfig);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -63,11 +64,11 @@ export const AuraCursor = () => {
         {/* Outer Pulsing Aura */}
         <motion.div
           animate={{
-            scale: isHovering ? [1, 1.2, 1] : [1, 1.1, 1],
-            opacity: isHovering ? 0.8 : 0.4,
+            scale: isHovering ? [1, 1.4, 1] : [1, 1.2, 1],
+            opacity: isHovering ? 0.6 : 0.3,
           }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute w-12 h-12 rounded-full bg-accent/20 blur-xl"
+          transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute w-12 h-12 rounded-full bg-accent/30 blur-xl"
         />
 
         {/* Outer Segmented Ring (Rotating Clockwise) */}
@@ -75,8 +76,8 @@ export const AuraCursor = () => {
           width="40"
           height="40"
           viewBox="0 0 40 40"
-          animate={{ rotate: isHovering ? 360 : 180 }}
-          transition={{ duration: isHovering ? 1 : 4, repeat: Infinity, ease: "linear" }}
+          animate={{ rotate: isHovering ? 720 : 360 }}
+          transition={{ duration: isHovering ? 0.8 : 3, repeat: Infinity, ease: "linear" }}
           className="absolute text-accent"
         >
           <circle 
@@ -84,7 +85,7 @@ export const AuraCursor = () => {
             stroke="currentColor" strokeWidth="1" 
             strokeDasharray="20 40" 
             fill="none" 
-            opacity={isHovering ? 1 : 0.6}
+            opacity={isHovering ? 1 : 0.5}
           />
         </motion.svg>
 
@@ -93,8 +94,8 @@ export const AuraCursor = () => {
           width="28"
           height="28"
           viewBox="0 0 28 28"
-          animate={{ rotate: isHovering ? -360 : -180 }}
-          transition={{ duration: isHovering ? 0.8 : 3, repeat: Infinity, ease: "linear" }}
+          animate={{ rotate: isHovering ? -720 : -360 }}
+          transition={{ duration: isHovering ? 0.6 : 2, repeat: Infinity, ease: "linear" }}
           className="absolute text-accent-alt"
         >
           <circle 
@@ -102,33 +103,34 @@ export const AuraCursor = () => {
             stroke="currentColor" strokeWidth="2" 
             strokeDasharray="10 20" 
             fill="none" 
-            opacity={isHovering ? 1 : 0.6}
+            opacity={isHovering ? 1 : 0.5}
           />
         </motion.svg>
 
         {/* The Central Core */}
         <motion.div
-          animate={{
-            scale: isClicking ? 0.6 : (isHovering ? 1.4 : 1),
-            boxShadow: isHovering 
-              ? "0 0 20px rgba(99, 102, 241, 0.8)" 
-              : "0 0 10px rgba(99, 102, 241, 0.4)",
-          }}
-          className="relative w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_10px_white] z-10"
-        />
+  animate={{
+    scale: isClicking ? 0.5 : (isHovering ? 1.8 : 1),
+    boxShadow: isHovering 
+      ? "0 0 30px rgba(99, 102, 241, 1)" 
+      : "0 0 15px rgba(99, 102, 241, 0.5)",
+  }}
+  transition={{ type: "spring", stiffness: 400, damping: 20 }}
+  className="relative w-2 h-2 rounded-full bg-white shadow-[0_0_15px_white] z-10"
+/>
 
-        {/* Click/Action Burst */}
-        <AnimatePresence>
-          {isClicking && (
-            <motion.div
-              initial={{ scale: 0, opacity: 1 }}
-              animate={{ scale: 4, opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-              className="absolute w-2 h-2 rounded-full border border-white"
-            />
-          )}
-        </AnimatePresence>
+{/* Click/Action Burst */}
+<AnimatePresence>
+  {isClicking && (
+    <motion.div
+      initial={{ scale: 0, opacity: 1 }}
+      animate={{ scale: 6, opacity: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="absolute w-2 h-2 rounded-full border-2 border-white"
+    />
+  )}
+</AnimatePresence>
       </div>
     </motion.div>
   );

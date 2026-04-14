@@ -49,6 +49,8 @@ function HostContent() {
       setMode('battle');
       setIsRated(false);
       setBattleType('1v1'); // Default to 1v1 for friendly battles
+    } else {
+      setIsRated(true);
     }
   }, [user, authLoading, searchParams, isFriendly]);
 

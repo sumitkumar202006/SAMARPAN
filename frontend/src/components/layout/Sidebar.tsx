@@ -83,7 +83,9 @@ export const Sidebar = () => {
               className={cn(
                 "group relative flex items-center justify-between p-3 rounded-xl text-sm transition-all overflow-hidden",
                 isActive 
-                  ? "bg-gradient-to-r from-emerald-400 to-accent-alt text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]" 
+                  ? (item.href.includes('friendly=true')
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                      : "bg-gradient-to-r from-accent to-accent-alt text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]")
                   : "text-text-soft hover:bg-background hover:text-white"
               )}
             >

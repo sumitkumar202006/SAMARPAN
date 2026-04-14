@@ -16,6 +16,8 @@ interface User {
   };
   college?: string;
   course?: string;
+  role?: string;
+  status?: string;
 }
 
 interface AuthContextType {

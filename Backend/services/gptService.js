@@ -14,12 +14,18 @@ CRITICAL INSTRUCTIONS:
 2. The difficulty level MUST be strictly: ${difficulty}. Adjust the depth and complexity of the questions accordingly.
 3. Return ONLY a raw JSON array. Do not include markdown formatting like \`\`\`json. Do not include any conversational text before or after the JSON.
 
+ACCURACY & CONSISTENCY RULES:
+- For every question, you MUST perform any necessary mathematical or logical calculations step-by-step in your internal reasoning.
+- The "correctIndex" MUST point to the actual correct answer within the "options" array.
+- You MUST double-check that the "correctIndex" matches the specific solution described in your "explanation". 
+- Mathematical errors or misaligned indices are UNACCEPTABLE.
+
 [
   {
     "question": "Question text",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correctIndex": 0,
-    "explanation": "Short explanation",
+    "explanation": "Detailed step-by-step explanation verifying the logic",
     "difficulty": "${difficulty}"
   }
 ]
@@ -41,12 +47,18 @@ CRITICAL INSTRUCTIONS:
 2. The difficulty level MUST be strictly: ${difficulty}. Adjust the depth and complexity of the questions accordingly.
 3. Return ONLY a raw JSON array. Do not include markdown formatting like \`\`\`json. Do not include any conversational text before or after the JSON.
 
+ACCURACY & CONSISTENCY RULES:
+- Every question must be directly verifiable from the provided text.
+- The "correctIndex" MUST point to the actual correct answer within the "options" array.
+- You MUST double-check that the "correctIndex" matches the specific solution described in your "explanation". 
+- Misaligned indices are UNACCEPTABLE.
+
 [
   {
     "question": "Question text",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correctIndex": 0,
-    "explanation": "Short explanation",
+    "explanation": "Detailed explanation showing which part of the text confirms this answer",
     "difficulty": "${difficulty}"
   }
 ]
@@ -65,16 +77,13 @@ async function callGroq(prompt) {
       const response = await groq.chat.completions.create({
         model,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
+        temperature: 0.5, // Reduced for higher accuracy and consistency
       });
 
       let rawText = response.choices[0].message.content.trim();
       
-      // Sanitizer 2.0: Aggressively clean JSON
-      // Handle markdown code blocks
       rawText = rawText.replace(/```json|```/gi, "");
       
-      // Extract array between first [ and last ]
       const startIdx = rawText.indexOf("[");
       const endIdx = rawText.lastIndexOf("]");
       
@@ -82,20 +91,17 @@ async function callGroq(prompt) {
         rawText = rawText.substring(startIdx, endIdx + 1);
       }
 
-      // Final cleanup of common parsing blockers
       rawText = rawText
-        .replace(/,\s*\]/g, "]") // remove trailing comma before array end
-        .replace(/,\s*\}/g, "}"); // remove trailing comma before object end
+        .replace(/,\s*\]/g, "]") 
+        .replace(/,\s*\}/g, "}"); 
 
       return JSON.parse(rawText);
     } catch (err) {
       console.warn(`[AI-FORGE] Model ${model} failed. Error: ${err.message}`);
       lastError = err;
-      // Continue to next model
     }
   }
 
-  // If all models fail
   console.error("AI FORGE - TOTAL ENGINE FAILURE:", lastError);
   throw new Error(`AI System exhausted: ${lastError?.message}`);
 }

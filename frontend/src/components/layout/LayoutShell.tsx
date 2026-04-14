@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
@@ -35,7 +35,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
       <div className="flex min-h-screen relative z-10">
-        <Sidebar />
+        <Suspense fallback={null}>
+          <Sidebar />
+        </Suspense>
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar />
           <main className="flex-1 pb-16 lg:pb-0 flex flex-col">

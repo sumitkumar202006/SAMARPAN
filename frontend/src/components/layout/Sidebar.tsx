@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { 
   LayoutDashboard, 
   PlusSquare, 
@@ -35,6 +35,8 @@ const navItems = [
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isFriendly = searchParams.get('friendly') === 'true';
   const { user, logout } = useAuth();
   const { playNavigate } = useAudio();
 
@@ -64,7 +66,15 @@ export const Sidebar = () => {
       {/* Navigation */}
       <nav className="flex-1 flex flex-col gap-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          let isActive = pathname === item.href;
+          
+          // Custom detection for Friendly vs Standard Host
+          if (item.href === '/host?friendly=true') {
+            isActive = pathname === '/host' && isFriendly;
+          } else if (item.href === '/host') {
+            isActive = pathname === '/host' && !isFriendly;
+          }
+
           return (
             <Link
               key={item.name}
@@ -73,7 +83,7 @@ export const Sidebar = () => {
               className={cn(
                 "group relative flex items-center justify-between p-3 rounded-xl text-sm transition-all overflow-hidden",
                 isActive 
-                  ? "bg-gradient-to-r from-accent to-accent-alt text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]" 
+                  ? "bg-gradient-to-r from-emerald-400 to-accent-alt text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]" 
                   : "text-text-soft hover:bg-background hover:text-white"
               )}
             >

@@ -22,6 +22,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { cn } from '@/lib/utils';
 
+// Radial calculation constants
+const RADIUS = 320;
+const CENTER_X = -220; // Move center off-screen to the left
+const START_ANGLE = -60; // Degrees
+const END_ANGLE = 60;    // Degrees
+
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
@@ -42,6 +48,20 @@ export const OrbitalNav = () => {
   const { playNavigate, playHover } = useAudio();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
+  const TOTAL_ITEMS = navItems.length;
+  const ANGLE_STEP = (END_ANGLE - START_ANGLE) / (TOTAL_ITEMS - 1);
+
+  const getItemPosition = (index: number) => {
+    const angleInDegrees = START_ANGLE + (index * ANGLE_STEP);
+    const angleInRadians = (angleInDegrees * Math.PI) / 180;
+    
+    // x = r * cos(theta), y = r * sin(theta)
+    const x = CENTER_X + Math.cos(angleInRadians) * RADIUS;
+    const y = Math.sin(angleInRadians) * RADIUS;
+    
+    return { x, y, angle: angleInDegrees };
+  };
+
   // Entrance stagger animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -52,7 +72,7 @@ export const OrbitalNav = () => {
         delayChildren: 0.3,
       }
     }
-  };
+  } as const;
 
   const itemVariants = {
     hidden: { opacity: 0, scale: 0, x: -50 },
@@ -60,7 +80,7 @@ export const OrbitalNav = () => {
       opacity: 1, 
       scale: 1, 
       x: 0,
-      transition: { type: "spring", stiffness: 200, damping: 20 }
+      transition: { type: "spring" as const, stiffness: 200, damping: 20 }
     }
   };
 
@@ -93,7 +113,7 @@ export const OrbitalNav = () => {
            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
         />
 
-        {/* Holographic Grid/Scanline Overlay */}
+        {/* Holographic Grid Overlay */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
       </motion.div>
 
@@ -137,7 +157,7 @@ export const OrbitalNav = () => {
                 onClick={() => playNavigate?.()}
                 className="group relative flex items-center"
               >
-                {/* Active Indicator Arc (Glow) */}
+                {/* Active Indicator Arc */}
                 <AnimatePresence>
                   {(isActive || isHovered) && (
                     <motion.div
@@ -183,21 +203,12 @@ export const OrbitalNav = () => {
                     )}
                   />
                   
-                  {/* Internal Pulse */}
                   {isActive && (
                     <motion.div 
                       className="absolute inset-0 bg-accent/20"
                       animate={{ opacity: [0.2, 0.5, 0.2] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
                     />
-                  )}
-
-                  {/* Lens Flare effect on active */}
-                  {isActive && (
-                    <>
-                      <div className="absolute top-0 right-0 w-8 h-8 bg-white blur-2xl opacity-40 rounded-full animate-pulse" />
-                      <div className="absolute bottom-[-10px] left-[-10px] w-12 h-12 bg-accent blur-3xl opacity-30 rounded-full animate-pulse" />
-                    </>
                   )}
                 </motion.div>
 
@@ -226,16 +237,10 @@ export const OrbitalNav = () => {
                           {item.name}
                         </span>
                         
-                        {(item.href.includes('friendly=true')) && (
+                        {item.href.includes('friendly=true') && (
                           <div className="mt-1.5 text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 opacity-80">
                             <Disc size={10} className="animate-spin" />
                             <span>Neural Practice</span>
-                          </div>
-                        )}
-                        {(item.href === '/host' && !isFriendly) && (
-                          <div className="mt-1.5 text-[9px] font-black text-accent-alt uppercase tracking-widest flex items-center gap-1.5 opacity-80">
-                            <Zap size={10} className="animate-pulse" />
-                            <span>Apex Predator</span>
                           </div>
                         )}
                       </div>
@@ -248,7 +253,7 @@ export const OrbitalNav = () => {
         })}
       </motion.nav>
 
-      {/* Admin & Logout at bottom corner */}
+      {/* Admin & Logout */}
       <div className="absolute bottom-12 left-8 pointer-events-auto flex flex-col gap-4">
         {user?.role === 'admin' && (
           <Link href="/admin" onClick={() => playNavigate?.()}>
@@ -277,7 +282,7 @@ export const OrbitalNav = () => {
         )}
       </div>
 
-      {/* Brand / Logo Orb at the center pivot */}
+      {/* Brand / Logo Orb */}
       <div className="absolute left-[-45px] top-1/2 -translate-y-1/2 pointer-events-auto group">
         <motion.div 
           className="w-24 h-24 rounded-full bg-gradient-to-br from-accent via-accent-alt to-indigo-900 flex items-center justify-center p-1.5 shadow-[0_0_50px_rgba(99,102,241,0.7)] cursor-pointer overflow-hidden border-2 border-white/30 relative"
@@ -287,16 +292,12 @@ export const OrbitalNav = () => {
           whileHover={{ scale: 1.1, rotate: 15 }}
           onMouseEnter={() => playHover?.()}
         >
-          {/* Inner Glow Pulse */}
           <div className="absolute inset-0 bg-white/10 animate-pulse" />
-          
           <img 
             src="/favicon.ico" 
             alt="Logo" 
             className="w-14 h-14 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.7)] z-10 transition-transform group-hover:scale-110" 
           />
-          
-          {/* Orbital Particle Effect (Decorative) */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-50">
              {[...Array(3)].map((_, i) => (
                 <motion.div
@@ -313,12 +314,6 @@ export const OrbitalNav = () => {
           </div>
         </motion.div>
       </div>
-    </aside>
-  );
-};
-    </aside>
-  );
-};
     </aside>
   );
 };

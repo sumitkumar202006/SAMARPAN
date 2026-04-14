@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require("../services/db");
+const { mapId } = require("../services/compatibility");
 
 // 1. Dashboard Aggregate Stats
 router.get('/stats', async (req, res) => {
@@ -38,8 +39,8 @@ router.get('/stats', async (req, res) => {
         avgScore: 68
       },
       recentActivity: {
-        users: recentUsers,
-        quizzes: recentQuizzes
+        users: mapId(recentUsers),
+        quizzes: mapId(recentQuizzes)
       }
     });
   } catch (err) {
@@ -69,7 +70,7 @@ router.get('/users', async (req, res) => {
       orderBy: { createdAt: "desc" },
       take: 100
     });
-    res.json({ users });
+    res.json({ users: mapId(users) });
   } catch (err) {
     console.error("Admin users list error:", err);
     res.status(500).json({ error: err.message });
@@ -83,7 +84,7 @@ router.put('/users/:id/status', async (req, res) => {
       where: { id: req.params.id },
       data: { status }
     });
-    res.json({ message: `User status updated to ${status}`, user });
+    res.json({ message: `User status updated to ${status}`, user: mapId(user) });
   } catch (err) {
     console.error("Admin user status update error:", err);
     res.status(500).json({ error: err.message });
@@ -102,7 +103,7 @@ router.get('/quizzes', async (req, res) => {
       orderBy: { createdAt: "desc" },
       take: 100
     });
-    res.json({ quizzes });
+    res.json({ quizzes: mapId(quizzes) });
   } catch (err) {
     console.error("Admin quizzes list error:", err);
     res.status(500).json({ error: err.message });

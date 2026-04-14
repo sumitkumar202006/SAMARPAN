@@ -4,6 +4,7 @@ const path = require("path");
 const router = express.Router();
 const multer = require("multer");
 const prisma = require("../services/db");
+const { mapId } = require("../services/compatibility");
 const debugLog = (msg) => {
   const logMsg = `[${new Date().toISOString()}] ${msg}\n`;
   fs.appendFileSync(path.join(__dirname, "../debug.log"), logMsg);
@@ -95,7 +96,7 @@ router.post("/generate-quiz", async (req, res) => {
 
     res.json({
       message: "AI Questions Generated & Saved Successfully",
-      quiz: newQuiz,
+      quiz: mapId(newQuiz),
     });
   } catch (err) {
     debugLog(`TOPIC AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);
@@ -164,7 +165,7 @@ router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
 
     res.json({
       message: "AI PDF Questions Generated & Saved Successfully",
-      quiz: newQuiz,
+      quiz: mapId(newQuiz),
     });
   } catch (err) {
     debugLog(`PDF AI GEN CRITICAL ERROR: ${err.message}\nStack: ${err.stack}`);

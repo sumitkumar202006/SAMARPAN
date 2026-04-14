@@ -23,6 +23,7 @@ const FacebookStrategy = require("passport-facebook").Strategy;
 
 // Prisma Client Singleton
 const prisma = require("./services/db");
+const { mapId } = require("./services/compatibility");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
@@ -141,12 +142,7 @@ app.post("/api/login", async (req, res) => {
 
     return res.json({
       message: "Login successful",
-      userId: user.id,
-      name: user.name,
-      email: user.email,
-      globalRating: user.globalRating,
-      ratings: user.ratings,
-      xp: user.xp,
+      user: mapId(user),
       token,
     });
   } catch (err) {
@@ -192,7 +188,7 @@ app.post("/api/quizzes", async (req, res) => {
       }
     });
 
-    return res.json({ message: "Quiz created", quizId: quiz.id, quiz });
+    return res.json({ message: "Quiz created", quizId: quiz.id, quiz: mapId(quiz) });
   } catch (err) {
     console.error("Create quiz error:", err);
     return res.status(500).json({ error: "Failed to create quiz" });
@@ -214,7 +210,7 @@ app.get("/api/quizzes/user/:email", async (req, res) => {
       where: { authorId: user.id },
       orderBy: { createdAt: "desc" }
     });
-    return res.json({ quizzes });
+    return res.json({ quizzes: mapId(quizzes) });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch user quizzes" });
   }
@@ -227,7 +223,7 @@ app.get("/api/quizzes/public", async (req, res) => {
       take: 20,
       orderBy: { createdAt: "desc" }
     });
-    return res.json({ quizzes });
+    return res.json({ quizzes: mapId(quizzes) });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch public quizzes" });
   }
@@ -238,7 +234,7 @@ app.get("/api/quizzes/:id", async (req, res) => {
   try {
     const quiz = await prisma.quiz.findUnique({ where: { id: req.params.id } });
     if (!quiz) return res.status(404).json({ error: "Quiz not found" });
-    return res.json(quiz);
+    return res.json(mapId(quiz));
   } catch (err) {
     console.error("Fetch quiz by ID error:", err);
     return res.status(500).json({ error: "Failed to fetch quiz" });
@@ -265,7 +261,7 @@ app.get("/api/quizzes/search", async (req, res) => {
       orderBy: { playCount: "desc" }
     });
 
-    return res.json({ quizzes });
+    return res.json({ quizzes: mapId(quizzes) });
   } catch (err) {
     console.error("Search error:", err);
     return res.status(500).json({ error: "Search failed" });
@@ -296,7 +292,11 @@ app.get("/api/explore/home", async (req, res) => {
       take: 3
     });
 
-    return res.json({ trending, events, recommended });
+    return res.json({ 
+      trending: mapId(trending), 
+      events: mapId(events), 
+      recommended: mapId(recommended) 
+    });
   } catch (err) {
     console.error("Explore home error:", err);
     return res.status(500).json({ error: "Failed to load explore feed" });
@@ -462,7 +462,8 @@ app.get("/api/profile/:email", async (req, res) => {
       ratings: user.ratings,
       xp: user.xp,
       quizzesCount: user._count.quizzes,
-      avatar: user.avatar
+      avatar: user.avatar,
+      _id: user.id
     });
   } catch (err) {
     console.error("Profile fetch error:", err);
@@ -643,7 +644,7 @@ app.get("/api/host/session/:pin", async (req, res) => {
       include: { quiz: true }
     });
     if (!session) return res.status(404).json({ error: "Session not found" });
-    return res.json(session);
+    return res.json(mapId(session));
   } catch (err) {
     console.error("Session fetch error:", err);
     return res.status(500).json({ error: "Failed to fetch session" });
@@ -834,6 +835,7 @@ io.on("connection", (socket) => {
       io.in(pin).emit("game_started", {
         quiz: { 
           id: session.quiz.id, 
+          _id: session.quiz.id,
           title: session.quiz.title, 
           topic: session.quiz.topic, 
           questions: questionsForAll, 

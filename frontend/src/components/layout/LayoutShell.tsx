@@ -18,13 +18,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   if (isAdminPath) {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
+        <Topbar />
         <DynamicBackground />
         <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-        <main className="min-h-screen relative z-10 font-sans">
+        <main className="flex-1 relative z-10 font-sans">
           {children}
         </main>
-      </>
+      </div>
     );
   }
 

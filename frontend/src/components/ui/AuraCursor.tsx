@@ -62,8 +62,7 @@ export const AuraCursor = () => {
     left: 0,
     pointerEvents: 'none',
     zIndex: 9991,
-    translateX: '-50%',
-    translateY: '-50%',
+    transform: 'translate(-50%, -50%)',
     willChange: 'transform',
   };
 

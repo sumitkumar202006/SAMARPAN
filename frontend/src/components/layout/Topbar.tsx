@@ -16,8 +16,8 @@ export const Topbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-[100] w-full bg-background/80 backdrop-blur-xl border-b border-border-soft">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-[100] w-full bg-background/80 backdrop-blur-3xl border-b border-white/5">
+      <div className="px-6 lg:px-12 h-16 flex items-center justify-between gap-4">
         
         {/* Left: Search (Desktop) / Menu (Mobile) */}
         <div className="flex items-center gap-4 flex-1">

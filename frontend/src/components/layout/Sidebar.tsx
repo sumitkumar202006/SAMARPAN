@@ -79,20 +79,19 @@ export const Sidebar = () => {
       </div>
 
       {/* Brand / Logo Section */}
-      <div className="relative p-8 flex items-center gap-4 group">
+      <div className="p-6 pb-2 flex items-center gap-4">
         <motion.div 
           whileHover={{ rotate: 15, scale: 1.1 }}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1 shadow-[0_0_30px_rgba(99,102,241,0.5)] border border-white/20 relative"
+          className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative"
         >
-          <div className="absolute inset-0 bg-white/10 animate-pulse rounded-full" />
-          <img src="/favicon.ico" alt="Logo" className="w-8 h-8 object-contain filter drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]" />
+          <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
         </motion.div>
-        <div className="flex flex-col">
-          <span className="text-xl font-black uppercase tracking-[0.2em] italic text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+        <div className="flex flex-col justify-center">
+          <span className="text-lg font-black uppercase tracking-[0.05em] italic text-white leading-tight">
             Samarpan
           </span>
-          <span className="text-[9px] font-bold text-accent tracking-[0.4em] uppercase opacity-70">
-            Nexus Protocol v4
+          <span className="text-[7.5px] font-bold text-accent tracking-[0.35em] uppercase opacity-60 mt-1">
+            Nexus Protocol V4
           </span>
         </div>
       </div>
@@ -168,7 +167,7 @@ export const Sidebar = () => {
                 </div>
 
                 <span className={cn(
-                  "font-black text-[11px] uppercase tracking-[0.25em] transition-all",
+                  "font-black text-[10px] uppercase tracking-[0.2em] transition-all",
                   isActive ? "text-white" : "text-text-soft group-hover:translate-x-1"
                 )}>
                   {item.name}
@@ -178,12 +177,12 @@ export const Sidebar = () => {
                 <AnimatePresence>
                   {isActive && (
                     <motion.div 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
                       className="ml-auto"
                     >
                       <div className={cn(
-                        "text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest",
+                        "text-[7px] font-black px-1.5 py-0.5 rounded-md border uppercase tracking-wider",
                         item.href.includes('friendly') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-accent/10 border-accent/30 text-accent"
                       )}>
                         {item.href.includes('friendly') ? "Casual" : "Ranked"}
@@ -214,9 +213,11 @@ export const Sidebar = () => {
               playNavigate?.();
               logout();
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all font-black text-[10px] uppercase tracking-widest"
+            className="group flex items-center gap-4 px-4 py-3 rounded-lg bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[10px] uppercase tracking-[0.2em]"
           >
-            <LogOut size={16} />
+            <div className="p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors">
+              <LogOut size={18} />
+            </div>
             <span>Terminate Session</span>
           </button>
         )}

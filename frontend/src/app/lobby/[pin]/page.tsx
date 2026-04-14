@@ -13,6 +13,7 @@ import api from '@/lib/axios';
 interface Player {
   name: string;
   isHost: boolean;
+  team?: string;
 }
 
 function LobbyContent() {

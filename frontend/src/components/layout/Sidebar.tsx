@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
   PlusSquare, 
@@ -14,12 +15,12 @@ import {
   MessageSquare, 
   Info,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Disc
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
-import { cn } from '@/lib/utils'; // I'll need to create this helper
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
@@ -38,37 +39,97 @@ export const Sidebar = () => {
   const searchParams = useSearchParams();
   const isFriendly = searchParams.get('friendly') === 'true';
   const { user, logout } = useAuth();
-  const { playNavigate } = useAudio();
+  const { playNavigate, playHover } = useAudio();
+
+  const containerVariants = {
+    hidden: { x: -300, opacity: 0 },
+    visible: { 
+      x: 0, 
+      opacity: 1, 
+      transition: { 
+        type: "spring", 
+        stiffness: 100, 
+        damping: 20,
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      } 
+    }
+  };
+
+  const itemVariants = {
+    hidden: { x: -20, opacity: 0 },
+    visible: { x: 0, opacity: 1 }
+  };
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-bg-soft/50 backdrop-blur-xl border-r border-border-soft p-4">
-      {/* Brand */}
-      <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center overflow-hidden shadow-[0_0_20px_rgba(99,102,241,0.5)]">
-          <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-cover" />
-        </div>
-        <span className="font-bold text-xl tracking-wider uppercase">Samarpan</span>
+    <motion.aside 
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="hidden lg:flex flex-col w-72 h-screen sticky top-0 bg-black/40 backdrop-blur-3xl border-r border-white/10 z-[50] overflow-hidden"
+    >
+      {/* Background HUD Effects */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+        <motion.div 
+          className="absolute top-0 left-0 w-full h-[2px] bg-accent/30 shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+          animate={{ top: ['0%', '100%'] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] opacity-[0.05]" />
       </div>
 
-      {/* User Info */}
-      {user && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/80 mb-6 group transition-all hover:bg-background">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent-alt to-accent flex items-center justify-center font-semibold text-lg overflow-hidden">
-            {user.avatar ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" /> : user.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex flex-col overflow-hidden">
-            <span className="font-medium text-sm truncate">{user.name}</span>
-            <span className="text-xs text-text-soft truncate">Global Rating: {user.globalRating || 1200}</span>
-          </div>
+      {/* Brand / Logo Section */}
+      <div className="relative p-8 flex items-center gap-4 group">
+        <motion.div 
+          whileHover={{ rotate: 15, scale: 1.1 }}
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1 shadow-[0_0_30px_rgba(99,102,241,0.5)] border border-white/20 relative"
+        >
+          <div className="absolute inset-0 bg-white/10 animate-pulse rounded-full" />
+          <img src="/favicon.ico" alt="Logo" className="w-8 h-8 object-contain filter drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]" />
+        </motion.div>
+        <div className="flex flex-col">
+          <span className="text-xl font-black uppercase tracking-[0.2em] italic text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+            Samarpan
+          </span>
+          <span className="text-[9px] font-bold text-accent tracking-[0.4em] uppercase opacity-70">
+            Nexus Protocol v4
+          </span>
         </div>
+      </div>
+
+      {/* User Status Card */}
+      {user && (
+        <motion.div 
+          variants={itemVariants}
+          className="mx-6 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 transition-all duration-500"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative">
+               <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
+               {user.avatar ? (
+                 <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+               ) : (
+                 <div className="w-full h-full rounded-full bg-accent/20 flex items-center justify-center text-accent font-black">
+                   {user.name.charAt(0).toUpperCase()}
+                 </div>
+               )}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+               <span className="font-black text-xs uppercase tracking-widest text-white truncate">{user.name}</span>
+               <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
+                 <Disc size={10} className="animate-pulse" />
+                 Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
+               </span>
+            </div>
+          </div>
+        </motion.div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-1">
+      {/* Navigation Matrix */}
+      <nav className="flex-1 px-4 space-y-1">
         {navItems.map((item) => {
           let isActive = pathname === item.href;
-          
-          // Custom detection for Friendly vs Standard Host
           if (item.href === '/host?friendly=true') {
             isActive = pathname === '/host' && isFriendly;
           } else if (item.href === '/host') {
@@ -77,79 +138,94 @@ export const Sidebar = () => {
 
           return (
             <Link
-              key={item.name}
+              key={item.href}
               href={item.href}
-              onClick={() => playNavigate()}
-              className={cn(
-                "group relative flex items-center justify-between p-3 rounded-xl text-sm transition-all overflow-hidden",
-                isActive 
-                  ? (item.href.includes('friendly=true')
-                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-                      : "bg-gradient-to-r from-accent to-accent-alt text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]")
-                  : "text-text-soft hover:bg-background hover:text-white"
-              )}
+              onClick={() => playNavigate?.()}
+              onMouseEnter={() => playHover?.()}
             >
-              <div className="flex items-center gap-3 relative z-10">
-                <item.icon 
-                  size={18} 
-                  className={cn(
-                    isActive ? "text-white animate-pulse" : "text-text-soft group-hover:text-accent transition-colors"
-                  )} 
-                />
-                <span className="font-bold tracking-tight">{item.name}</span>
-              </div>
+              <motion.div
+                variants={itemVariants}
+                className={cn(
+                  "group relative flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300",
+                  isActive 
+                    ? "bg-accent/20 border border-accent/30 text-white shadow-[0_0_20px_rgba(99,102,241,0.2)]" 
+                    : "text-text-soft hover:bg-white/5 hover:text-white"
+                )}
+              >
+                {/* Active Indicator Neon Bar */}
+                {isActive && (
+                  <motion.div 
+                    layoutId="sidebar-active-glow"
+                    className="absolute left-[-1px] top-[20%] bottom-[20%] w-[3px] bg-accent rounded-full shadow-[0_0_15px_rgba(99,102,241,1)]"
+                  />
+                )}
 
-              {item.href.includes('friendly=true') && (
-                <span className="text-[8px] font-black bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 relative z-10 ml-2">
-                  CASUAL
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  isActive ? "bg-accent/40 text-white" : "bg-white/5 text-text-soft group-hover:text-accent group-hover:bg-accent/10"
+                )}>
+                  <item.icon size={18} />
+                </div>
+
+                <span className={cn(
+                  "font-black text-[11px] uppercase tracking-[0.25em] transition-all",
+                  isActive ? "text-white" : "text-text-soft group-hover:translate-x-1"
+                )}>
+                  {item.name}
                 </span>
-              )}
 
-              {item.href === '/host' && (
-                <span className="text-[8px] font-black bg-accent/20 text-accent-alt px-1.5 py-0.5 rounded-full border border-accent/30 relative z-10 ml-2">
-                  RATED
-                </span>
-              )}
-              
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 bg-white/10 z-0"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                />
-              )}
-
-              {/* Neon pulse effect on hover */}
-              {!isActive && (
-                <div className="absolute inset-0 border border-accent/0 group-hover:border-accent/40 rounded-xl transition-all pointer-events-none group-hover:shadow-[0_0_15px_rgba(99,102,241,0.3)]" />
-              )}
+                {/* Holographic Detail Tags */}
+                <AnimatePresence>
+                  {isActive && (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="ml-auto"
+                    >
+                      <div className={cn(
+                        "text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-widest",
+                        item.href.includes('friendly') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-accent/10 border-accent/30 text-accent"
+                      )}>
+                        {item.href.includes('friendly') ? "Casual" : "Ranked"}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             </Link>
           );
         })}
       </nav>
 
-      {/* Admin Entrance (Hidden if not admin) */}
-      {user?.role === 'admin' && (
-        <Link 
-          href="/admin" 
-          className="flex items-center gap-3 p-3 rounded-xl text-sm font-bold text-accent hover:bg-accent/10 transition-all border border-transparent hover:border-accent/20 mb-2"
-        >
-          <ShieldCheck size={18} />
-          <span>Nexus Admin</span>
-        </Link>
-      )}
+      {/* System Controls */}
+      <div className="p-6 space-y-3">
+        {user?.role === 'admin' && (
+          <Link href="/admin" onClick={() => playNavigate?.()}>
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[10px] uppercase tracking-widest">
+              <ShieldCheck size={16} />
+              <span>Security Nexus</span>
+            </div>
+          </Link>
+        )}
+        
+        {user && (
+          <button
+            onClick={() => {
+              playNavigate?.();
+              logout();
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all font-black text-[10px] uppercase tracking-widest"
+          >
+            <LogOut size={16} />
+            <span>Terminate Session</span>
+          </button>
+        )}
+      </div>
 
-      {/* Logout */}
-      {user && (
-        <button 
-          onClick={logout}
-          className="flex items-center gap-3 p-3 rounded-xl text-sm text-text-soft hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
-        >
-          <LogOut size={18} />
-          <span className="font-medium">Sign Out</span>
-        </button>
-      )}
-    </aside>
+      {/* Footer Meta */}
+      <div className="px-8 pb-6 text-[8px] font-bold text-text-soft/40 uppercase tracking-[0.3em]">
+        Signal Strength: Optimized
+      </div>
+    </motion.aside>
   );
 };

@@ -87,10 +87,16 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
       </div>
 
       {/* Brand / Logo Section */}
-      <div className="p-6 pb-2 flex items-center gap-4 shrink-0">
+      <div className={cn(
+        "p-6 pb-2 flex items-center gap-4 shrink-0 transition-all duration-500",
+        isCollapsed && "px-0 justify-center pb-4"
+      )}>
         <motion.div 
           whileHover={{ rotate: 15, scale: 1.1 }}
-          className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative"
+          className={cn(
+            "w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative shrink-0",
+            isCollapsed && "w-10 h-10 shadow-[0_0_25px_rgba(99,102,241,0.6)]"
+          )}
         >
           <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
         </motion.div>
@@ -123,8 +129,18 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         >
           <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0">
+            <div className={cn(
+               "w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0",
+               isCollapsed && "scale-110" // Make avatar stand out in collapsed
+            )}>
                <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
+               {isCollapsed && (
+                 <motion.div 
+                   className="absolute inset-0 rounded-full border-t-2 border-accent z-20"
+                   animate={{ rotate: 360 }}
+                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                 />
+               )}
                {user.avatar ? (
                  <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
                ) : (
@@ -195,13 +211,37 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                 )}
 
                 <div className={cn(
-                  "p-2 rounded-lg transition-all duration-300",
+                  "relative p-2 rounded-lg transition-all duration-500",
                   isActive 
-                    ? "bg-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110" 
-                    : "bg-white/5 text-text-soft group-hover:text-accent group-hover:bg-accent/10"
+                    ? "bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110" 
+                    : "bg-white/5 text-text-soft group-hover:text-accent group-hover:bg-accent/15",
+                  isCollapsed && "p-3" // Larger hit area in collapsed mode
                 )}>
-                  <item.icon size={18} />
+                  {/* Holographic Rotating Ring (Collapsed Active only) */}
+                  {isActive && isCollapsed && (
+                    <motion.div 
+                      className="absolute inset-0 -m-1 border border-accent/40 rounded-lg blur-[1px]"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+                  {isActive && isCollapsed && (
+                    <motion.div 
+                      className="absolute inset-0 -m-2 border border-accent/20 rounded-lg opacity-50"
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+                  <item.icon size={isCollapsed ? 20 : 18} />
                 </div>
+
+                {/* Cyber-Tooltip (Collapsed mode only) */}
+                {isCollapsed && (
+                  <div className="absolute left-[64px] px-3 py-1.5 rounded-md bg-[#020617]/95 backdrop-blur-2xl border border-accent/30 text-[10px] font-black uppercase tracking-widest text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[120] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                    <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[4px] border-r-accent/30" />
+                    {item.name}
+                  </div>
+                )}
 
                 <AnimatePresence>
                   {!isCollapsed && (
@@ -246,8 +286,11 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
       <div className="p-6 space-y-3 shrink-0">
         {user?.role === 'admin' && (
           <Link href="/admin" onClick={() => playNavigate?.()}>
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm">
-              <ShieldCheck size={16} />
+            <div className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm group",
+              isCollapsed && "px-0 justify-center w-12 h-12 mx-auto"
+            )}>
+              <ShieldCheck size={isCollapsed ? 20 : 16} className={cn(isCollapsed && "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]")} />
               {!isCollapsed && <span>Security Nexus</span>}
             </div>
           </Link>
@@ -259,10 +302,16 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
               playNavigate?.();
               logout();
             }}
-            className="group flex items-center gap-4 px-4 py-3 rounded-xl bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[11.5px] uppercase tracking-[0.2em] shadow-sm"
+            className={cn(
+              "group flex items-center gap-4 px-4 py-3 rounded-xl bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[11.5px] uppercase tracking-[0.2em] shadow-sm",
+              isCollapsed && "px-0 justify-center w-12 h-12 mx-auto"
+            )}
           >
-            <div className="p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors">
-              <LogOut size={18} />
+            <div className={cn(
+              "p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors",
+              isCollapsed && "p-0 bg-transparent"
+            )}>
+              <LogOut size={isCollapsed ? 20 : 18} />
             </div>
             {!isCollapsed && <span>Terminate Session</span>}
           </button>

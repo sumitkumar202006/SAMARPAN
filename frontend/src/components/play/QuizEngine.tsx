@@ -26,6 +26,7 @@ interface QuizEngineProps {
   onFinish: (score: number, total: number, leaderboard?: any) => void;
   socket?: any;
   pin?: string;
+  initialTimerMode?: 'per-question' | 'total';
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({ 
@@ -44,6 +45,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
+  const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
   
   // HUD Messaging State
   const [hudMessage, setHudMessage] = useState<{ text: string; type: string } | null>(null);
@@ -59,8 +62,16 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   useEffect(() => {
     if (!isLive || !socket) return;
 
-    socket.on('timer_tick', (data: { timeLeft: number }) => {
-      setTimeLeft(data.timeLeft);
+    socket.on('timer_tick', (data: { timeLeft: number | null, mode?: string }) => {
+      if (data.mode === 'total' || data.timeLeft === null) {
+        setTimeLeft(0);
+      } else {
+        setTimeLeft(data.timeLeft);
+      }
+    });
+
+    socket.on('global_timer_tick', (data: { timeLeft: number }) => {
+      setSessionTimeLeft(data.timeLeft);
     });
 
     socket.on('game_paused', () => {
@@ -85,9 +96,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       else playError();
     });
 
-    socket.on('next_question', (data: { index: number, timerSeconds: number }) => {
+    socket.on('next_question', (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
       setCurrentIndex(data.index);
       setTimeLeft(data.timerSeconds);
+      if (data.timerMode) setTimerMode(data.timerMode);
       setSelectedIdx(null);
       setIsLocked(false);
       setCorrectIdx(null);
@@ -95,7 +107,23 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setIsPaused(false);
     });
 
-    socket.on('quiz_finished', (data: { leaderboard: any }) => {
+    socket.on('next_set_started', (data: any) => {
+      // RESET ENGINE FOR NEXT ROUND
+      setCurrentIndex(0);
+      setTimeLeft(30);
+      setSelectedIdx(null);
+      setIsLocked(false);
+      setCorrectIdx(null);
+      setExplanation(null);
+      setIsPaused(false);
+      // We'd need to update the quiz prop too, but if it's passed from parent, 
+      // the parent should re-render QuizEngine with the new quiz data.
+    });
+
+    socket.on('quiz_finished', (data: { leaderboard: any, reason?: string }) => {
+      if (data.reason === 'SESSION_TIME_EXPIRED') {
+        setHudMessage({ text: "TIME EXPIRED! SESSION TERMINATED", type: 'error' });
+      }
       setIsFinished(true);
       onFinish(score, quiz.questions.length, data.leaderboard);
     });
@@ -260,11 +288,25 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
         <div className={cn(
           "flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all",
-          isPaused ? "bg-accent/10 border-accent/30 text-accent" : (timeLeft < 10 && "bg-red-500/10 border-red-500/30 text-red-500"),
-          !isPaused && timeLeft < 10 && "shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+          isPaused ? "bg-accent/10 border-accent/30 text-accent" : (
+            (timerMode === 'per-question' && timeLeft < 10) || 
+            (timerMode === 'total' && sessionTimeLeft !== null && sessionTimeLeft < 60)
+          ) ? "bg-red-500/10 border-red-500/30 text-red-500" : "text-white"
         )}>
-          {isPaused ? <Pause size={20} className="animate-pulse" /> : <Clock size={20} className={timeLeft < 10 ? "animate-pulse" : ""} />}
-          <span className="text-2xl font-black tabular-nums">{isPaused ? 'HALTED' : timeLeft}</span>
+          {isPaused ? <Pause size={20} className="animate-pulse" /> : <Clock size={20} className={
+            ((timerMode === 'per-question' && timeLeft < 10) || 
+            (timerMode === 'total' && sessionTimeLeft !== null && sessionTimeLeft < 60)) ? "animate-pulse" : ""
+          } />}
+          
+          <span className="text-2xl font-black tabular-nums">
+            {isPaused ? 'HALTED' : (
+              timerMode === 'per-question' 
+                ? `${timeLeft}s` 
+                : (sessionTimeLeft !== null 
+                    ? `${Math.floor(sessionTimeLeft / 60)}:${(sessionTimeLeft % 60).toString().padStart(2, '0')}` 
+                    : '--:--')
+            )}
+          </span>
         </div>
       </div>
 
@@ -310,7 +352,6 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
                     isSelected && !isLocked && "bg-accent/10 border-accent shadow-lg",
                     isLocked && isCorrect && "bg-accent-alt/10 border-accent-alt shadow-[0_0_20px_rgba(34,197,94,0.3)]",
                     isLocked && isWrong && "bg-red-500/10 border-red-500",
-                    isLocked && !isCorrect && !isWrong && "opacity-40 border-border-soft"
                   )}
                 >
                   <div className="flex items-center gap-4">

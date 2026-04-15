@@ -7,10 +7,16 @@ const cors = require("cors");
 console.log("Setting up Express and Socket.io...");
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = [
+  "https://samarpan-quiz.vercel.app",
+  "http://localhost:3000"
+];
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 console.log("Middleware setup start...");
@@ -25,6 +31,7 @@ const FacebookStrategy = require("passport-facebook").Strategy;
 const prisma = require("./services/db");
 const { mapId } = require("./services/compatibility");
 const RatingEngine = require("./services/RatingEngine");
+const { generateQuizQuestions } = require("./services/gptService");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
@@ -34,7 +41,13 @@ const adminRoutes = require("./routes/admin");
 // Basic middleware
 console.log("Registering global middleware...");
 app.use(cors({ 
-  origin: "*", 
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true 
 }));
 
@@ -296,19 +309,41 @@ app.get("/api/explore/home", async (req, res) => {
   }
 });
 
-app.get("/api/explore/categories", async (req, res) => {
+app.get("/api/quizzes/search", async (req, res) => {
   try {
-    const categories = ["Computer Science", "Aptitude", "Mathematics", "GATE", "General Knowledge"];
-    const results = await Promise.all(categories.map(async (cat) => {
-      const count = await prisma.quiz.count({
-        where: { topic: { contains: cat, mode: "insensitive" } }
-      });
-      return { name: cat, count };
-    }));
-    return res.json({ categories: results });
+    const { q } = req.query;
+    const quizzes = await prisma.quiz.findMany({
+      where: {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { topic: { contains: q, mode: 'insensitive' } }
+        ],
+        isPublished: true
+      },
+      include: { author: { select: { name: true } } },
+      take: 10
+    });
+    return res.json({ quizzes: mapId(quizzes) });
   } catch (err) {
-    console.error("Categories error:", err);
-    return res.status(500).json({ error: "Failed to load categories" });
+    console.error("Search error:", err);
+    return res.status(500).json({ error: "Search failed" });
+  }
+});
+
+app.get("/api/quizzes/user/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user) return res.json({ quizzes: [] });
+    
+    const quizzes = await prisma.quiz.findMany({
+      where: { authorId: user.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json({ quizzes: mapId(quizzes) });
+  } catch (err) {
+    console.error("User quizzes fetch error:", err);
+    return res.status(500).json({ error: "Failed to fetch quizzes" });
   }
 });
 
@@ -318,47 +353,69 @@ app.get("/api/explore/categories", async (req, res) => {
 app.post("/api/host/start", async (req, res) => {
   console.log("POST /api/host/start - Request received", req.body);
   try {
-    const { quizId, hostEmail, mode, timerSeconds, rated, battleType } = req.body;
+    const { 
+      quizId, 
+      topic, 
+      difficulty, 
+      numQuestions, 
+      hostEmail, 
+      mode, 
+      timerSeconds, 
+      timerMode,
+      totalSessionTime,
+      rated, 
+      battleType 
+    } = req.body;
 
-    if (!quizId || !hostEmail) {
-      return res.status(400).json({ error: "quizId and hostEmail required" });
+    if (!hostEmail) {
+      return res.status(400).json({ error: "hostEmail required" });
     }
 
-    // For UUID/ID validation, we'll let Prisma handle it or just check if it's a string
-    // In Postgres, IDs can be arbitrary strings (we used UUID as default)
-    console.log("Looking for host user:", hostEmail);
     const user = await prisma.user.findUnique({ where: { email: hostEmail.toLowerCase().trim() } });
     if (!user) {
-      console.warn("Host user not found:", hostEmail);
-      return res.status(400).json({ error: "Host user not found. Please ensure you are logged in correctly." });
+      return res.status(400).json({ error: "Host user not found." });
     }
 
-    console.log("Looking for quiz:", quizId);
-    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
-    if (!quiz) {
-      console.warn("Quiz not found:", quizId);
-      return res.status(404).json({ error: "Quiz not found" });
+    let finalQuizId = quizId;
+
+    // PATH A: AI Synthesis (On-the-spot)
+    if (!quizId && topic) {
+      console.log(`[AI-Forge] Synthesizing rapid quiz for: ${topic}`);
+      try {
+        const questions = await generateQuizQuestions(topic, difficulty || 'medium', numQuestions || 10, user.preferredField || 'General');
+        const synthQuiz = await prisma.quiz.create({
+          data: {
+            title: `Rapid Arena: ${topic}`,
+            topic,
+            authorId: user.id,
+            questions,
+            aiGenerated: true,
+            difficulty: difficulty || 'medium'
+          }
+        });
+        finalQuizId = synthQuiz.id;
+      } catch (aiErr) {
+        console.error("AI Generation failed during host setup:", aiErr);
+        return res.status(500).json({ error: "Tactical Synthesis Failed. Please try an existing quiz or check your topic." });
+      }
     }
+
+    if (!finalQuizId) {
+      return res.status(400).json({ error: "Please select a quiz or enter a topic for synthesis." });
+    }
+
+    const quiz = await prisma.quiz.findUnique({ where: { id: finalQuizId } });
+    if (!quiz) return res.status(404).json({ error: "Quiz not found" });
 
     let pin;
     let attempts = 0;
-    let pinFound = false;
-    console.log("Generating unique PIN...");
     while (attempts < 10) {
       pin = String(Math.floor(100000 + Math.random() * 900000));
       const exists = await prisma.gameSession.findUnique({ where: { pin } });
-      if (!exists) {
-        pinFound = true;
-        break;
-      }
+      if (!exists) break;
       attempts++;
     }
 
-    if (!pinFound) {
-      throw new Error("Unable to generate a unique room PIN. The arena is currently at full capacity.");
-    }
-
-    console.log("Creating GameSession with PIN:", pin);
     const game = await prisma.gameSession.create({
       data: {
         quizId: quiz.id,
@@ -369,7 +426,17 @@ app.post("/api/host/start", async (req, res) => {
         battleType: battleType || null,
         teamScores: battleType && battleType !== '1v1' ? { 'Team A': 0, 'Team B': 0 } : null,
         pin,
+        metadata: {
+          timerMode: timerMode || 'per-question',
+          totalSessionTime: totalSessionTime || 10
+        }
       }
+    });
+
+    return res.json({
+      message: "Arena ready",
+      gameId: game.id,
+      pin: game.pin,
     });
 
     console.log("Game Session created successfully:", game.id);
@@ -846,6 +913,13 @@ function startCountdown(pin) {
   if (!session) return;
   if (session.timerHandle) clearTimeout(session.timerHandle);
   if (session.countdownHandle) clearInterval(session.countdownHandle);
+  
+  // If in TOTAL timer mode, we don't use per-question timeouts
+  if (session.timerMode === 'total') {
+    io.in(pin).emit("timer_tick", { timeLeft: null, mode: 'total' });
+    return;
+  }
+
   session.timeLeft = session.timerSeconds;
   session.countdownHandle = setInterval(() => {
     if (!liveSessions.has(pin)) { clearInterval(session.countdownHandle); return; }
@@ -853,10 +927,29 @@ function startCountdown(pin) {
     io.in(pin).emit("timer_tick", { timeLeft: session.timeLeft });
     if (session.timeLeft <= 0) clearInterval(session.countdownHandle);
   }, 1000);
+
   session.timerHandle = setTimeout(() => {
     clearInterval(session.countdownHandle);
     advanceQuestion(pin);
   }, (session.timerSeconds + 1) * 1000);
+}
+
+function endSessionImmediately(pin, reason) {
+  const session = liveSessions.get(pin);
+  if (!session) return;
+  
+  if (session.timerHandle) clearTimeout(session.timerHandle);
+  if (session.countdownHandle) clearInterval(session.countdownHandle);
+  if (session.globalTimerHandle) clearInterval(session.globalTimerHandle);
+
+  session.status = 'finished';
+  io.in(pin).emit("quiz_finished", { 
+    leaderboard: getLeaderboard(session),
+    reason: reason || "TIME_EXPIRED",
+    teamScores: session.teamScores || null
+  });
+  
+  setTimeout(() => liveSessions.delete(pin), 5 * 60 * 1000);
 }
 
 function advanceQuestion(pin) {
@@ -874,18 +967,27 @@ function advanceQuestion(pin) {
     });
   }
 
+  // Auto-advance delay
   setTimeout(() => {
     session.currentQ++;
     session.optionStats = [0, 0, 0, 0];
     Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
 
     if (session.currentQ >= session.quiz.questions.length) {
-      session.status = 'finished';
+      const hasMoreSets = session.quizQueue && session.quizQueue.length > 0;
       
-      // Determine Rated status and Battle configuration
-      const isRated = session.rated !== false; // Default to rated
-      RatingEngine.processGameResults(pin, session.players, isRated);
+      if (hasMoreSets) {
+        session.status = 'set_finished'; // Waiting for host to bridge to next set
+        io.in(pin).emit("set_finished", { 
+          leaderboard: getLeaderboard(session),
+          currentSetIndex: (session.currentSet || 0) + 1,
+          setsRemaining: session.quizQueue.length
+        });
+        return;
+      }
 
+      session.status = 'finished';
+      RatingEngine.processGameResults(pin, session.players, session.rated !== false);
       io.in(pin).emit("quiz_finished", { 
         leaderboard: getLeaderboard(session),
         teamScores: session.teamScores || null
@@ -897,9 +999,14 @@ function advanceQuestion(pin) {
     io.in(pin).emit("next_question", {
       index: session.currentQ,
       timerSeconds: session.timerSeconds,
-      total: session.quiz.questions.length
+      total: session.quiz.questions.length,
+      timerMode: session.timerMode
     });
-    startCountdown(pin);
+    
+    // Only auto-start countdown if in per-question mode
+    if (session.timerMode === 'per-question') {
+      startCountdown(pin);
+    }
   }, 2500);
 }
 
@@ -1002,44 +1109,76 @@ io.on("connection", (socket) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
     if (session.status !== 'waiting') { socket.emit("error_msg", { message: "Game already started." }); return; }
-    const playerCount = Object.values(session.players).filter(p => !p.isHost).length;
-    if (playerCount === 0) { socket.emit("error_msg", { message: "Need at least 1 player to start." }); return; }
+    
+    // Friendly Participation: Count host as player if Friendly session
+    const playersAsParticipants = Object.values(session.players);
+    const playerCount = playersAsParticipants.filter(p => !p.isHost).length;
+    
+    if (playerCount === 0 && !session.players[socket.id].isHost) { 
+      socket.emit("error_msg", { message: "Need at least 1 player to start." }); 
+      return; 
+    }
+
     try {
       const dbSession = await prisma.gameSession.findUnique({
         where: { pin },
         include: { quiz: true }
       });
+
       if (!dbSession || !dbSession.quiz) { 
         socket.emit("error_msg", { message: "Quiz not found in database." }); 
         return; 
       }
+
       session.quiz = dbSession.quiz;
       session.timerSeconds = dbSession.timerSeconds || 30;
       session.rated = dbSession.rated;
       session.battleType = dbSession.battleType;
-      session.teamScores = dbSession.teamScores;
+      
+      // Load Advanced Metadata
+      const meta = dbSession.metadata || {};
+      session.timerMode = meta.timerMode || 'per-question';
+      session.totalSessionTime = meta.totalSessionTime || 10;
+      session.sessionTimeLeft = session.totalSessionTime * 60;
+
       session.status = 'running';
       session.currentQ = 0;
+      
       const questionsForAll = (session.quiz.questions || []).map(q => ({
         question: q.question,
         options: q.options
       }));
+
       io.in(pin).emit("game_started", {
         quiz: { 
           id: session.quiz.id, 
-          _id: session.quiz.id,
           title: session.quiz.title, 
-          topic: session.quiz.topic, 
           questions: questionsForAll, 
           totalQuestions: (session.quiz.questions || []).length 
         },
-        timerSeconds: session.timerSeconds
+        timerSeconds: session.timerSeconds,
+        timerMode: session.timerMode,
+        totalSessionTime: session.totalSessionTime
       });
+
+      // Global Session Timer (Fixed termination)
+      if (session.timerMode === 'total') {
+        session.globalTimerHandle = setInterval(() => {
+          if (!liveSessions.has(pin)) { clearInterval(session.globalTimerHandle); return; }
+          session.sessionTimeLeft--;
+          io.in(pin).emit("global_timer_tick", { timeLeft: session.sessionTimeLeft });
+          
+          if (session.sessionTimeLeft <= 0) {
+            clearInterval(session.globalTimerHandle);
+            endSessionImmediately(pin, "SESSION_TIME_EXPIRED");
+          }
+        }, 1000);
+      }
+
       startCountdown(pin);
-      console.log(`Game started in room ${pin} with ${playerCount} players`);
     } catch (err) {
       console.error("start_game error:", err);
-      socket.emit("error_msg", { message: "Failed to start game." });
+      socket.emit("error_msg", { message: "Failed to initialize arena." });
     }
   });
 
@@ -1169,6 +1308,44 @@ io.on("connection", (socket) => {
     io.in(pin).emit("game_resumed");
   });
 
+  socket.on("host_start_next_set", async (pin) => {
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (session.status !== 'set_finished') return;
+    if (!session.quizQueue || session.quizQueue.length === 0) return;
+
+    try {
+      const nextQuizId = session.quizQueue.shift();
+      const nextQuiz = await prisma.quiz.findUnique({ where: { id: nextQuizId } });
+      if (!nextQuiz) throw new Error("Next quiz in queue is missing.");
+
+      session.quiz = nextQuiz;
+      session.currentQ = 0;
+      session.status = 'running';
+      session.currentSet = (session.currentSet || 0) + 1;
+
+      const questionsForAll = (session.quiz.questions || []).map(q => ({
+        question: q.question,
+        options: q.options
+      }));
+
+      io.in(pin).emit("next_set_started", {
+        quiz: { 
+          id: session.quiz.id, 
+          title: session.quiz.title, 
+          questions: questionsForAll, 
+          totalQuestions: (session.quiz.questions || []).length 
+        },
+        currentSet: session.currentSet
+      });
+
+      startCountdown(pin);
+    } catch (err) {
+      console.error("Set transition error:", err);
+      socket.emit("error_msg", { message: "Failed to bridge to the next arena." });
+    }
+  });
+
   socket.on("host_broadcast", (data) => {
     const { pin, message, type } = data;
     const session = liveSessions.get(pin);
@@ -1182,10 +1359,17 @@ io.on("connection", (socket) => {
     if (!session || session.status !== 'waiting') return;
 
     const player = session.players[socket.id];
-    if (!player || player.isHost) return;
+    if (!player) return;
 
-    // Check if slot taken
-    const slotTaken = Object.values(session.players).some(p => p.team === team && p.slotIndex === slotIndex && !p.isHost);
+    // Enforce Battle Constraints
+    const maxSlots = { '1v1': 1, '2v2': 2, '3v3': 3, '4v4': 4 }[session.battleType || 'Standard'] || 99;
+    if (slotIndex >= maxSlots) {
+      socket.emit("error_msg", { message: `This arena only supports ${session.battleType} formatting.` });
+      return;
+    }
+
+    // Check if slot taken (check all players including host)
+    const slotTaken = Object.values(session.players).some(p => p.team === team && p.slotIndex === slotIndex);
     if (slotTaken) {
       socket.emit("error_msg", { message: "This slot is already occupied." });
       return;

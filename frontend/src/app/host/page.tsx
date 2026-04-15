@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Input, Select } from '@/components/ui/Input';
-import { Target, Shield, Clock, TrendingUp } from 'lucide-react';
+import { Target, Shield, Clock, TrendingUp, X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
@@ -24,8 +24,25 @@ function HostContent() {
   const [mode, setMode] = useState('battle');
   const [battleType, setBattleType] = useState('2v2');
   const [timer, setTimer] = useState(30);
+  const [totalTime, setTotalTime] = useState(10); // Default 10 mins
+  const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
   const [isRated, setIsRated] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  
+  // Rapid Gen State
+  const [topic, setTopic] = useState('');
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [difficulty, setDifficulty] = useState('medium');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Search/Community
+  const [searchQuery, setSearchQuery] = useState('');
+  const [communityQuizzes, setCommunityQuizzes] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [repoTab, setRepoTab] = useState<'personal' | 'community'>('personal');
+
+  // Tournament Queue
+  const [quizQueue, setQuizQueue] = useState<any[]>([]);
 
   const isFriendly = searchParams.get('friendly') === 'true';
 
@@ -44,6 +61,21 @@ function HostContent() {
     };
     if (!authLoading) fetchQuizzes();
 
+    // Community Search Debounce? For now just an effect
+    const searchCommunity = async () => {
+      if (!searchQuery.trim() || repoTab !== 'community') return;
+      setSearchLoading(true);
+      try {
+        const res = await api.get(`/api/quizzes/search?q=${searchQuery}`);
+        setCommunityQuizzes(res.data.quizzes || []);
+      } catch (err) {
+        console.error("Community search failed", err);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+    const timer = setTimeout(searchCommunity, 500);
+
     // Handle Friendly Preset
     if (isFriendly) {
       setMode('battle');
@@ -52,32 +84,41 @@ function HostContent() {
     } else {
       setIsRated(true);
     }
-  }, [user, authLoading, searchParams, isFriendly]);
+    return () => clearTimeout(timer);
+  }, [user, authLoading, searchParams, isFriendly, searchQuery, repoTab]);
 
   const handleHost = async () => {
-    if (!selectedQuiz) {
-      alert("Please select a quiz first!");
+    // Validation: Require either a selected quiz OR a topic OR a queue
+    if (!selectedQuiz && !topic && quizQueue.length === 0) {
+      alert("Please select a quiz, enter a topic, or add quizzes to your tournament queue!");
       return;
     }
     
-    playEnter(); // Impactful Arena Start
-    setStatus("Generating room...");
+    playEnter(); 
+    setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Arena..." : "Synthesizing Arena via AI...");
     try {
       const res = await api.post('/api/host/start', {
-        quizId: selectedQuiz,
+        quizId: quizQueue.length > 0 ? quizQueue[0]._id : (selectedQuiz || null),
+        quizQueue: quizQueue.length > 1 ? quizQueue.slice(1).map(q => q._id) : [],
+        // New Rapid Gen Params
+        topic: (selectedQuiz || quizQueue.length > 0) ? null : topic, 
+        numQuestions: selectedQuiz ? null : numQuestions,
+        difficulty: selectedQuiz ? null : difficulty,
+
         hostEmail: user?.email,
         mode,
         battleType,
         timerSeconds: timer,
+        timerMode,
+        totalSessionTime: totalTime,
         rated: isRated
       });
       
-      setStatus('Room created! Redirecting to lobby...');
-      // Pass role=host so the lobby knows to emit host_join
+      setStatus('Success! Opening Lobby...');
       router.push(`/lobby/${res.data.pin}?role=host`);
     } catch (err: any) {
       console.error("Failed to host quiz", err);
-      setStatus(err.response?.data?.error || "Failed to create session. Try again.");
+      setStatus(err.response?.data?.error || "Error initializing session.");
     }
   };
 
@@ -114,30 +155,128 @@ function HostContent() {
           )}
         >
           <div className="space-y-4">
-            <Select 
-              label="Select Quiz" 
-              value={selectedQuiz} 
-              onChange={(e) => setSelectedQuiz(e.target.value)}
-            >
-              <option value="">-- Choose a quiz --</option>
-              {quizzes.map((q) => (
-                <option key={q._id} value={q._id}>{q.title} ({q.questions.length}Q)</option>
-              ))}
-              {loading && <option disabled>Loading your quizzes...</option>}
-            </Select>
+            {/* Repo Selection */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-text-soft">Primary Source</label>
+              <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl border border-white/5">
+                <button 
+                  onClick={() => setRepoTab('personal')}
+                  className={cn("py-2 text-[10px] font-bold rounded-xl transition-all", repoTab === 'personal' ? "bg-accent text-white shadow-lg" : "hover:bg-white/5 text-text-soft")}
+                >
+                  PERSONAL VAULT
+                </button>
+                <button 
+                  onClick={() => setRepoTab('community')}
+                  className={cn("py-2 text-[10px] font-bold rounded-xl transition-all", repoTab === 'community' ? "bg-accent text-white shadow-lg" : "hover:bg-white/5 text-text-soft")}
+                >
+                  COMMUNITY ARENA
+                </button>
+              </div>
+              
+              <div className="relative mt-2">
+                <Input 
+                  label=""
+                  placeholder={repoTab === 'community' ? "Search community quizzes..." : "Filter your quizzes..."}
+                  value={searchQuery}
+                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  className="bg-background/50 border-white/5 pr-10"
+                />
+                {searchLoading && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-accent border-t-transparent animate-spin" />}
+              </div>
 
-            <Select 
-              label="Mode" 
-              value={mode} 
-              onChange={(e) => setMode(e.target.value)}
-            >
-              <option value="rapid">Quiz (Rapid)</option>
-              <option value="blitz">Tournament (Blitz)</option>
-              <option value="battle">Squad Battle</option>
-              <option value="casual">Practice (Casual – unrated)</option>
-            </Select>
+              <Select 
+                label="Available Arena Content"
+                value={selectedQuiz} 
+                onChange={(e: any) => { 
+                  const val = e.target.value;
+                  setSelectedQuiz(val); 
+                  if(val) {
+                    setTopic('');
+                  }
+                }}
+                className="mt-2"
+              >
+                <option value="">-- {topic ? "Using Rapid Topic" : "Choose from results"} --</option>
+                {repoTab === 'personal' ? (
+                  quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((q) => (
+                    <option key={q._id || q.id} value={q._id || q.id}>{q.title} ({q.questions.length}Q)</option>
+                  ))
+                ) : (
+                  communityQuizzes.map((q) => (
+                    <option key={q._id || q.id} value={q._id || q.id}>{q.title} - by {q.author?.name || 'Vault'}</option>
+                  ))
+                )}
+              </Select>
 
-            {mode === 'battle' && (
+              {selectedQuiz && mode === 'blitz' && (
+                <button 
+                  onClick={() => {
+                    const qObj = repoTab === 'personal' 
+                      ? quizzes.find(q => (q._id || q.id) === selectedQuiz)
+                      : communityQuizzes.find(q => (q._id || q.id) === selectedQuiz);
+                    if (qObj && !quizQueue.find(q => q._id === (qObj._id || qObj.id))) {
+                      setQuizQueue([...quizQueue, { ...qObj, _id: qObj._id || qObj.id }]);
+                      setSelectedQuiz(''); // Reset for next selection
+                    }
+                  }}
+                  className="w-full mt-2 py-2 bg-accent/20 text-accent font-black text-[9px] rounded-xl border border-accent/30 hover:bg-accent/30 transition-all uppercase tracking-widest"
+                >
+                  Add to Tournament Queue
+                </button>
+              )}
+
+              {quizQueue.length > 0 && (
+                <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                  <p className="text-[9px] font-black uppercase text-accent tracking-[0.2em]">Active Playlist ({quizQueue.length} Sets)</p>
+                  <div className="space-y-2">
+                    {quizQueue.map((q, i) => (
+                      <div key={i} className="flex items-center justify-between bg-black/20 p-2 rounded-lg border border-white/5">
+                        <span className="text-[10px] font-bold truncate pr-4">{i+1}. {q.title}</span>
+                        <button onClick={() => setQuizQueue(quizQueue.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 rounded-[24px] bg-accent/5 border border-accent/10 space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-accent">Synthesis Override (Rapid Gen)</p>
+              <Input 
+                label="Topic / Subject" 
+                placeholder="Ex: Quantum Mechanics, React Hooks, Hindi Poetry..."
+                value={topic}
+                onChange={(e) => { setTopic(e.target.value); if(e.target.value) setSelectedQuiz(''); }}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <Select label="Difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                   <option value="easy">Easy (Recruit)</option>
+                   <option value="medium">Medium (Veteran)</option>
+                   <option value="hard">Hard (Elite)</option>
+                </Select>
+                <Select label="Q-Count" value={numQuestions} onChange={(e) => setNumQuestions(parseInt(e.target.value))}>
+                   <option value={5}>5 Questions</option>
+                   <option value={10}>10 Questions</option>
+                   <option value={15}>15 Questions</option>
+                   <option value={20}>20 Questions</option>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Select 
+                label="Session Mode" 
+                value={mode} 
+                onChange={(e) => setMode(e.target.value)}
+              >
+                <option value="rapid">Standard Quiz</option>
+                <option value="blitz">Tournament (Multi-Sets)</option>
+                <option value="battle">Squad Battle (Teams)</option>
+              </Select>
+
+              {mode === 'battle' && (
               <Select 
                 label="Battle Format" 
                 value={battleType} 
@@ -151,21 +290,49 @@ function HostContent() {
             )}
 
             <div className="grid sm:grid-cols-2 gap-4">
-              <Input 
-                label="Timer per question" 
-                type="number" 
-                value={timer} 
-                onChange={(e) => setTimer(parseInt(e.target.value))} 
-              />
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-text-soft">Timer Configuration</label>
+                 <div className="grid grid-cols-2 gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <button 
+                      onClick={() => setTimerMode('per-question')}
+                      className={cn("py-1.5 text-[9px] font-black rounded-lg transition-all", timerMode === 'per-question' ? "bg-accent/20 text-accent" : "text-text-soft")}
+                    >
+                      PER Q
+                    </button>
+                    <button 
+                      onClick={() => setTimerMode('total')}
+                      className={cn("py-1.5 text-[9px] font-black rounded-lg transition-all", timerMode === 'total' ? "bg-accent/20 text-accent" : "text-text-soft")}
+                    >
+                      TOTAL
+                    </button>
+                 </div>
+               </div>
+
+              {timerMode === 'per-question' ? (
+                <Input 
+                  label="Secs per Question" 
+                  type="number" 
+                  value={timer} 
+                  onChange={(e: any) => setTimer(parseInt(e.target.value))} 
+                />
+              ) : (
+                <Input 
+                  label="Total Session Mins" 
+                  type="number" 
+                  value={totalTime} 
+                  onChange={(e: any) => setTotalTime(parseInt(e.target.value))} 
+                />
+              )}
+              
               <Select 
-                label="Rated Session"
+                label="Rated Match"
                 value={isRated ? "true" : "false"}
-                onChange={(e) => setIsRated(e.target.value === "true")}
+                onChange={(e: any) => setIsRated(e.target.value === "true")}
                 disabled={isFriendly}
                 className={cn(isFriendly && "opacity-50 cursor-not-allowed")}
               >
-                <option value="true">Yes, update ratings</option>
-                <option value="false">No, casual only</option>
+                <option value="true">Yes, Competitive</option>
+                <option value="false">No, Social/Practice</option>
               </Select>
               {!loading && quizzes.length === 0 && (
                 <div className="mt-2 text-xs text-text-soft flex items-center gap-2">
@@ -175,8 +342,9 @@ function HostContent() {
               )}
             </div>
 
-            <Input label="Room password (optional)" placeholder="Leave blank for open room" />
+            <Input label="Room password (optional)" placeholder="Leave blank for open room" value="" onChange={() => {}} />
           </div>
+        </div>
 
           <button 
             onClick={handleHost}

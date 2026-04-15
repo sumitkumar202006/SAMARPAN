@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /host/
+
+Sitemap: https://samarpan-quiz.vercel.app/sitemap.xml

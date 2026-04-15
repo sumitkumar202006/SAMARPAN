@@ -21,8 +21,11 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [stats, setStats] = useState<number[]>([0, 0, 0, 0]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [status, setStatus] = useState<'waiting' | 'running' | 'finished'>('waiting');
+  const [status, setStatus] = useState<'waiting' | 'running' | 'set_finished' | 'finished'>('waiting');
   const [timeLeft, setTimeLeft] = useState(30);
+  const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
+  const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
+  const [tournamentInfo, setTournamentInfo] = useState<{ currentSetIndex: number, setsRemaining: number } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [localQuestions, setLocalQuestions] = useState(quiz.questions);
   const [isMounted, setIsMounted] = useState(false);
@@ -51,13 +54,31 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
     socket.on('game_paused', () => setIsPaused(true));
     socket.on('game_resumed', () => setIsPaused(false));
 
-    socket.on('game_started', () => {
+    socket.on('game_started', (data: any) => {
       setStatus('running');
+      if (data.timerMode) setTimerMode(data.timerMode);
+    });
+
+    socket.on('global_timer_tick', (data: { timeLeft: number }) => {
+      setSessionTimeLeft(data.timeLeft);
+    });
+
+    socket.on('set_finished', (data: any) => {
+      setStatus('set_finished');
+      setTournamentInfo({ currentSetIndex: data.currentSetIndex, setsRemaining: data.setsRemaining });
+    });
+
+    socket.on('next_set_started', (data: any) => {
+      setStatus('running');
+      setLocalQuestions(data.quiz.questions);
+      setCurrentQIndex(0);
+      setTournamentInfo(prev => prev ? { ...prev, setsRemaining: prev.setsRemaining - 1 } : null);
     });
 
     socket.on('next_question', (data: any) => {
       setCurrentQIndex(data.index);
       setTimeLeft(data.timerSeconds);
+      if (data.timerMode) setTimerMode(data.timerMode);
     });
     
     // Oversight: Live choice tracking
@@ -175,17 +196,25 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                   "flex-1 glass px-6 py-3 rounded-2xl flex items-center justify-between min-w-[120px]",
                   isPaused && "border-accent/40"
                 )}>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-soft">{isPaused ? 'Halted' : 'Active'}</span>
-                  <span className={cn("text-xl font-black tabular-nums", timeLeft < 10 && !isPaused ? "text-red-500 animate-pulse" : "text-white")}>
-                    {isPaused ? '||' : `${timeLeft}s`}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-soft">
+                    {isPaused ? 'Halted' : (timerMode === 'per-question' ? 'Q-Timer' : 'Global')}
+                  </span>
+                  <span className={cn("text-xl font-black tabular-nums", (timeLeft < 10 || (sessionTimeLeft && sessionTimeLeft < 60)) && !isPaused ? "text-red-500 animate-pulse" : "text-white")}>
+                    {isPaused ? '||' : (timerMode === 'per-question' ? `${timeLeft}s` : (sessionTimeLeft !== null ? `${Math.floor(sessionTimeLeft / 60)}:${(sessionTimeLeft % 60).toString().padStart(2, '0')}` : '--'))}
                   </span>
                 </div>
                 <Button onClick={handlePause} variant="outline" className="px-4 h-[48px] rounded-2xl border-white/10">
                   {isPaused ? <Play size={18} /> : <Pause size={18} />}
                 </Button>
-                <Button onClick={handleNext} variant="outline" className="px-6 h-[48px] rounded-2xl border-accent/30 gap-2">
-                  Next <ChevronRight size={18} />
-                </Button>
+                {status === 'set_finished' ? (
+                  <Button onClick={() => socket.emit('host_start_next_set', pin)} className="flex-1 py-3 px-6 gap-2 bg-accent-alt shadow-lg rounded-2xl animate-pulse">
+                    <Play size={18} /> Start Next Set ({tournamentInfo?.setsRemaining} Left)
+                  </Button>
+                ) : (
+                  <Button onClick={handleNext} variant="outline" className="px-6 h-[48px] rounded-2xl border-accent/30 gap-2">
+                    Next <ChevronRight size={18} />
+                  </Button>
+                )}
               </div>
             )}
           </div>

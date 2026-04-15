@@ -118,7 +118,6 @@ function LobbyContent() {
   }, [isConnected, pin, socket, user, router, searchParams]);
 
   const handleJoinSlot = (team: 'Team A' | 'Team B', index: number) => {
-    if (isHost) return;
     setPendingSlot({ team, index });
   };
 
@@ -167,7 +166,7 @@ function LobbyContent() {
   const playerCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
-    const occupantId = Object.keys(players).find(id => players[id].team === team && players[id].slotIndex === index);
+    const occupantId = Object.keys(players).find(id => players[id].team === team && players[id].slotIndex == index);
     const occupant = occupantId ? players[occupantId] : null;
 
     return (

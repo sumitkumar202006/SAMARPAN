@@ -176,8 +176,12 @@ export default function Dashboard() {
               
               <p className="text-[10px] font-bold uppercase tracking-widest text-text-soft mb-8">Host Profile</p>
               
-              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-accent-alt to-accent flex items-center justify-center font-bold text-4xl mb-8 shadow-2xl relative z-10 mx-auto">
-                {user?.name?.charAt(0) || 'A'}
+              <div className="w-24 h-24 rounded-full bg-background border-2 border-accent/20 flex items-center justify-center mb-8 shadow-2xl relative z-10 mx-auto overflow-hidden group/avatar hover:border-accent transition-all">
+                <img 
+                  src={user?.avatar || '/favicon.ico'} 
+                  alt="Host" 
+                  className="w-full h-full object-cover" 
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-8 relative z-10">

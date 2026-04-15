@@ -940,7 +940,9 @@ io.on("connection", (socket) => {
 
     socket.join(pin);
       session.players[socket.id] = { 
-        name: "Host", 
+        name: data.name || "Host", // Use host's real name if provided
+        userId: data.userId || null,
+        avatar: data.avatar || null, // Persist host avatar
         score: 0, 
         answeredThisQ: true, 
         optionIdx: -1, 
@@ -972,6 +974,7 @@ io.on("connection", (socket) => {
       name, 
       userId: data.userId || null,
       email: data.email || null,
+      avatar: data.avatar || null, // Persist player avatar
       team: data.team || null, // Team A or Team B
       score: 0, 
       answeredThisQ: false, 
@@ -1045,7 +1048,9 @@ io.on("connection", (socket) => {
     const session = liveSessions.get(pin);
     if (!session || session.status !== 'running') return;
     const player = session.players[socket.id];
-    if (!player || player.isHost) return;
+    if (!player) return;
+    // Lift guard: Allow host to play in Friendly Battles
+    // if (player.isHost) return; 
     const q = session.quiz.questions[session.currentQ];
     if (!q) return;
     if (player.answeredThisQ && player.optionIdx >= 0 && player.optionIdx < session.optionStats.length) {

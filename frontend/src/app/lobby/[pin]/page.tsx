@@ -13,6 +13,7 @@ import api from '@/lib/axios';
 interface Player {
   name: string;
   isHost: boolean;
+  avatar?: string | null;
   team?: string;
   slotIndex?: number;
 }
@@ -59,14 +60,21 @@ function LobbyContent() {
 
     if (role === 'host') {
       setIsHost(true);
-      socket.emit('host_join', { pin, password });
+      socket.emit('host_join', { 
+        pin, 
+        password,
+        name: user?.name,
+        avatar: user?.avatar,
+        userId: user?.userId
+      });
     } else {
       socket.emit('join_room', { 
         pin, 
         name, 
         password, 
         userId: user?.userId || user?.email, 
-        email: user?.email
+        email: user?.email,
+        avatar: user?.avatar
       });
     }
 
@@ -175,12 +183,16 @@ function LobbyContent() {
       >
         {occupant ? (
           <div className="flex flex-col items-center gap-1 animate-in zoom-in duration-300">
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-lg",
-              team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
-            )}>
-              {occupant.name.charAt(0).toUpperCase()}
-            </div>
+            {occupant.avatar ? (
+              <img src={occupant.avatar} alt={occupant.name} className="w-10 h-10 rounded-full border-2 border-white/10 object-cover shadow-lg" />
+            ) : (
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-lg",
+                team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
+              )}>
+                {occupant.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="text-[10px] font-bold truncate max-w-[80px]">{occupant.name}</span>
             
             {isHost && (
@@ -305,7 +317,11 @@ function LobbyContent() {
                     if (p.isHost) return null;
                     return (
                       <div key={id} className="glass p-4 rounded-2xl flex flex-col items-center gap-2 relative group uppercase italic">
-                        <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center font-bold text-lg">{p.name.charAt(0)}</div>
+                        {p.avatar ? (
+                          <img src={p.avatar} alt={p.name} className="w-12 h-12 rounded-full border-2 border-white/10 object-cover shadow-lg" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center font-bold text-lg">{p.name.charAt(0)}</div>
+                        )}
                         <span className="text-[10px] font-bold truncate w-full text-center">{p.name}</span>
                         {isHost && (
                            <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-500 hover:scale-110 transition-all">
@@ -336,9 +352,13 @@ function LobbyContent() {
                         animate={{ opacity: 1, x: 0 }}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5"
                       >
-                        <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center text-[8px] font-bold">
-                          {p.name.charAt(0).toUpperCase()}
-                        </div>
+                        {p.avatar ? (
+                          <img src={p.avatar} alt={p.name} className="w-5 h-5 rounded-full border border-white/10 object-cover" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center text-[8px] font-bold">
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <span className="text-[10px] font-bold">{p.name}</span>
                         {isHost && (
                            <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="text-red-500 hover:text-red-400">

@@ -16,18 +16,10 @@ interface HostNexusProps {
 
 export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [players, setPlayers] = useState<any>({});
-  const [stats, setStats] = useState<number[]>([0, 0, 0, 0]);
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [status, setStatus] = useState<'waiting' | 'running' | 'finished'>('waiting');
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [isEditing, setIsEditing] = useState(false);
-  const [localQuestions, setLocalQuestions] = useState(quiz.questions);
+  const [isPaused, setIsPaused] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState('');
 
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const { playNavigate, playClick } = useAudio();
 
   useEffect(() => {
     if (!socket || !isMounted) return;
@@ -44,6 +36,9 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       setTimeLeft(data.timeLeft);
     });
 
+    socket.on('game_paused', () => setIsPaused(true));
+    socket.on('game_resumed', () => setIsPaused(false));
+
     socket.on('game_started', () => {
       setStatus('running');
     });
@@ -56,7 +51,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
     // Oversight: Live choice tracking
     socket.on('player_choice', (data: any) => {
       setPlayers((prev: any) => {
-        if (!prev[data.playerId]) return prev; // Safety: Prevent crash if player record doesn't exist yet
+        if (!prev[data.playerId]) return prev;
         return {
           ...prev,
           [data.playerId]: {
@@ -72,6 +67,8 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       socket.off('player_list_update');
       socket.off('stats_update');
       socket.off('timer_tick');
+      socket.off('game_paused');
+      socket.off('game_resumed');
       socket.off('game_started');
       socket.off('next_question');
       socket.off('player_choice');
@@ -86,6 +83,16 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
 
   const handleNext = () => {
     socket.emit('host_next', pin);
+  };
+
+  const handlePause = () => {
+    socket.emit(isPaused ? 'host_resume' : 'host_pause', pin);
+  };
+
+  const handleBroadcast = () => {
+    if (!broadcastMsg.trim()) return;
+    socket.emit('host_broadcast', { pin, message: broadcastMsg, type: 'info' });
+    setBroadcastMsg('');
   };
 
   const handleKick = (playerId: string) => {
@@ -113,43 +120,63 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   return (
     <div className="flex flex-col gap-8 min-h-[80vh]">
       {/* Top Banner: Status & Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass p-8 rounded-[32px] border-accent/20">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6 glass p-8 rounded-[32px] border-accent/20">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
             <Shield size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">Host Nexus</h1>
-            <p className="text-text-soft text-sm font-medium">Session Room: <span className="text-white font-bold tracking-widest">{pin}</span></p>
+            <h1 className="text-2xl font-black uppercase tracking-tight">Nexus Terminal</h1>
+            <p className="text-text-soft text-sm font-medium">Uplink Active • <span className="text-white font-bold tracking-widest">{pin}</span></p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          {status === 'waiting' && (
-            <Button variant="outline" onClick={() => setIsEditing(true)} className="flex-1 md:flex-none py-4 px-6 gap-2 border-white/10">
-              <Edit3 size={18} />
-              Edit Content
-            </Button>
-          )}
-
-          {status === 'waiting' ? (
-            <Button onClick={handleStart} className="flex-1 md:flex-none py-4 px-10 gap-2 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
-              <Play size={18} />
-              Deploy Arena
-            </Button>
-          ) : (
-            <div className="flex items-center gap-4 w-full">
-              <div className="flex-1 glass px-6 py-3 rounded-2xl flex items-center justify-between min-w-[150px]">
-                <span className="text-[10px] font-black uppercase tracking-widest text-text-soft">Timer</span>
-                <span className={cn("text-2xl font-black tabular-nums", timeLeft < 10 ? "text-red-500 animate-pulse" : "text-white")}>
-                  {timeLeft}s
-                </span>
-              </div>
-              <Button onClick={handleNext} variant="outline" className="flex-1 md:flex-none py-4 px-8 gap-2 border-accent/30">
-                Next <ChevronRight size={18} />
+        <div className="flex flex-col md:flex-row items-center gap-4 flex-1 lg:max-w-2xl">
+          {status === 'running' && (
+            <div className="flex items-center gap-2 w-full md:flex-1">
+              <input 
+                value={broadcastMsg}
+                onChange={(e) => setBroadcastMsg(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBroadcast()}
+                placeholder="Send tactical broadcast..."
+                className="flex-1 bg-background/50 border border-white/10 rounded-2xl px-6 py-3 text-sm focus:border-accent outline-none"
+              />
+              <Button onClick={handleBroadcast} className="px-6 h-[46px] rounded-2xl">
+                <MessageSquare size={18} />
               </Button>
             </div>
           )}
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {status === 'waiting' ? (
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(true)} className="flex-1 py-3 px-6 gap-2 border-white/10 rounded-2xl">
+                  <Edit3 size={18} /> Edit
+                </Button>
+                <Button onClick={handleStart} className="flex-1 py-3 px-10 gap-2 shadow-lg rounded-2xl">
+                  <Play size={18} /> Deploy
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 w-full">
+                <div className={cn(
+                  "flex-1 glass px-6 py-3 rounded-2xl flex items-center justify-between min-w-[120px]",
+                  isPaused && "border-accent/40"
+                )}>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-soft">{isPaused ? 'Halted' : 'Active'}</span>
+                  <span className={cn("text-xl font-black tabular-nums", timeLeft < 10 && !isPaused ? "text-red-500 animate-pulse" : "text-white")}>
+                    {isPaused ? '||' : `${timeLeft}s`}
+                  </span>
+                </div>
+                <Button onClick={handlePause} variant="outline" className="px-4 h-[48px] rounded-2xl border-white/10">
+                  {isPaused ? <Play size={18} /> : <Pause size={18} />}
+                </Button>
+                <Button onClick={handleNext} variant="outline" className="px-6 h-[48px] rounded-2xl border-accent/30 gap-2">
+                  Next <ChevronRight size={18} />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

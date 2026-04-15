@@ -97,7 +97,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 lg:py-10">
+    <div className="py-6 lg:py-10">
       <UpdatesStrip />
 
       <div className="flex flex-col gap-1 mb-8">
@@ -109,7 +109,7 @@ export default function Dashboard() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="space-y-10"
+        className="space-y-12"
       >
         {/* Hero Section */}
         <motion.section variants={item} className="grid xl:grid-cols-[1fr_350px] gap-10">
@@ -126,18 +126,18 @@ export default function Dashboard() {
               host live battles and watch players climb the leaderboard.
             </p>
 
-            <div className="flex flex-wrap gap-4 mb-8">
-              <Link href="/battles" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-tr from-accent to-accent-alt text-white font-bold shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-105 transition-all">
+            <div className="flex flex-wrap gap-4 mb-10">
+              <Link href="/battles" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black shadow-[0_0_25px_rgba(99,102,241,0.4)] hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-widest">
                 <Zap size={20} fill="currentColor" />
                 Start a battle
               </Link>
-              <Link href="/host?friendly=true" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-accent-alt text-white font-bold shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-105 transition-all">
+              <Link href="/host?friendly=true" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-accent-alt text-white font-black shadow-[0_0_25px_rgba(34,197,94,0.4)] hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-widest">
                 <Users size={20} />
                 Friendly Battle
               </Link>
-              <Link href="/create" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-bg-soft/50 border border-border-soft text-white font-bold hover:bg-bg-soft transition-all">
+              <Link href="/create" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 hover:border-accent/30 transition-all text-sm uppercase tracking-widest">
                 <Plus size={20} />
-                Create new quiz
+                Create
               </Link>
             </div>
 
@@ -203,6 +203,9 @@ export default function Dashboard() {
             </div>
           </div>
         </motion.section>
+
+        {/* Tactical Divider */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
         {/* Dashboard Grid */}
         <motion.section variants={item} className="grid lg:grid-cols-[400px_1fr] gap-8">

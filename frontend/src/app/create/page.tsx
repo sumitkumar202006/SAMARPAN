@@ -122,7 +122,7 @@ export default function CreatePage() {
 
   return (
     <AuthGuard>
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+      <div className="py-10">
       <div className="flex flex-col gap-1 mb-12 text-center lg:text-left">
         <h2 className="text-3xl font-bold tracking-tight">Create Quiz</h2>
         <p className="text-text-soft">Choose how you want to build your next arena experience.</p>

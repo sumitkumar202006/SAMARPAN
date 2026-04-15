@@ -54,8 +54,11 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
         )}>
           <Topbar />
-          <main className="flex-1 pb-16 lg:pb-0 flex flex-col">
-            <div className="flex-1">
+          <main className={cn(
+            "flex-1 flex flex-col pt-4 relative",
+            !isSidebarCollapsed && "lg:pt-6"
+          )}>
+            <div className="flex-1 px-4 lg:px-8 max-w-7xl mx-auto w-full">
               {children}
             </div>
 
@@ -91,7 +94,11 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <div className="hidden lg:block fixed top-16 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent to-transparent opacity-30 pointer-events-none" />
+      <div className="hidden lg:block fixed top-16 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent/30 to-transparent opacity-20 pointer-events-none z-[100]" />
+      <div className="hidden lg:block fixed bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent/20 to-transparent opacity-10 pointer-events-none z-[100]" />
+      
+      {/* Tactical Center Line (Background) */}
+      <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
     </>
   );
 }

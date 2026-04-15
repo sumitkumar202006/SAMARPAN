@@ -45,7 +45,7 @@ export default function ProfilePage() {
   }, [user]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+    <div className="py-10">
       <div className="flex flex-col gap-1 mb-12">
         <h2 className="text-3xl font-bold tracking-tight text-foreground">My Profile</h2>
         <p className="text-text-soft">Your rating, progress and recent performance across modes.</p>
@@ -57,7 +57,7 @@ export default function ProfilePage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass p-10 rounded-[32px] relative overflow-hidden group"
+            className="glass p-8 lg:p-12 rounded-[32px] relative overflow-hidden group shadow-2xl"
           >
             {/* Background Glow */}
             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-accent/20 blur-[120px] rounded-full group-hover:bg-accent/30 transition-all pointer-events-none" />
@@ -173,6 +173,9 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Tactical Divider (Mobile Only) */}
+        <div className="xl:hidden h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent my-10" />
 
         {/* Sidebar Achievements */}
         <div className="space-y-8">

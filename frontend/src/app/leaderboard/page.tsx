@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+    <div className="py-10">
       <div className="flex flex-col gap-1 mb-12">
         <h2 className="text-3xl font-bold tracking-tight">Leaderboard & Ratings</h2>
         <p className="text-text-soft">See who’s dominating your quizzes and how ratings are evolving.</p>
@@ -86,7 +86,7 @@ export default function LeaderboardPage() {
                         key={i} 
                         className="hover:bg-white/[0.02] transition-colors group"
                       >
-                        <td className="px-6 py-5 font-black text-text-soft">
+                        <td className="px-6 py-5 font-black text-text-soft text-center w-16">
                           {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}
                         </td>
                         <td className="px-6 py-5 font-bold group-hover:text-accent transition-colors">
@@ -108,6 +108,9 @@ export default function LeaderboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Tactical Divider (Mobile Only) */}
+        <div className="lg:hidden h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent my-10" />
 
         {/* Info Cards */}
         <div className="space-y-6">

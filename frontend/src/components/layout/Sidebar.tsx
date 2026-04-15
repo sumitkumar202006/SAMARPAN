@@ -144,31 +144,39 @@ export const Sidebar = () => {
             >
               <motion.div
                 variants={itemVariants}
+                animate={{ 
+                  scale: isActive ? 1.02 : 1,
+                  x: isActive ? 4 : 0
+                }}
+                whileHover={{ x: isActive ? 4 : 8 }}
+                whileTap={{ scale: 0.98 }}
                 className={cn(
-                  "group relative flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300",
+                  "group relative flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300",
                   isActive 
-                    ? "bg-accent/20 border border-accent/30 text-white shadow-[0_0_20px_rgba(99,102,241,0.2)]" 
-                    : "text-text-soft hover:bg-white/5 hover:text-white"
+                    ? "bg-accent/15 border border-accent/30 text-white shadow-[0_0_25px_rgba(99,102,241,0.2)] ring-1 ring-white/5" 
+                    : "text-text-soft hover:bg-white/5 hover:text-white border border-transparent"
                 )}
               >
                 {/* Active Indicator Neon Bar */}
                 {isActive && (
                   <motion.div 
                     layoutId="sidebar-active-glow"
-                    className="absolute left-[-1px] top-[20%] bottom-[20%] w-[3px] bg-accent rounded-full shadow-[0_0_15px_rgba(99,102,241,1)]"
+                    className="absolute left-[-2px] top-[20%] bottom-[20%] w-[4px] bg-accent rounded-full shadow-[0_0_20px_rgba(99,102,241,1)]"
                   />
                 )}
 
                 <div className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  isActive ? "bg-accent/40 text-white" : "bg-white/5 text-text-soft group-hover:text-accent group-hover:bg-accent/10"
+                  "p-2 rounded-lg transition-all duration-300",
+                  isActive 
+                    ? "bg-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-110" 
+                    : "bg-white/5 text-text-soft group-hover:text-accent group-hover:bg-accent/10"
                 )}>
                   <item.icon size={18} />
                 </div>
 
                 <span className={cn(
-                  "font-black text-[10px] uppercase tracking-[0.2em] transition-all",
-                  isActive ? "text-white" : "text-text-soft group-hover:translate-x-1"
+                  "font-black text-[11.5px] uppercase tracking-[0.2em] transition-all duration-300 flex-1",
+                  isActive ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-text-soft group-hover:text-white"
                 )}>
                   {item.name}
                 </span>
@@ -177,12 +185,12 @@ export const Sidebar = () => {
                 <AnimatePresence>
                   {isActive && (
                     <motion.div 
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
                       className="ml-auto"
                     >
                       <div className={cn(
-                        "text-[7px] font-black px-1.5 py-0.5 rounded-md border uppercase tracking-wider",
+                        "text-[8px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider shadow-sm",
                         item.href.includes('friendly') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-accent/10 border-accent/30 text-accent"
                       )}>
                         {item.href.includes('friendly') ? "Casual" : "Ranked"}
@@ -200,7 +208,7 @@ export const Sidebar = () => {
       <div className="p-6 space-y-3 shrink-0">
         {user?.role === 'admin' && (
           <Link href="/admin" onClick={() => playNavigate?.()}>
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[10px] uppercase tracking-widest">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm">
               <ShieldCheck size={16} />
               <span>Security Nexus</span>
             </div>
@@ -213,7 +221,7 @@ export const Sidebar = () => {
               playNavigate?.();
               logout();
             }}
-            className="group flex items-center gap-4 px-4 py-3 rounded-lg bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[10px] uppercase tracking-[0.2em]"
+            className="group flex items-center gap-4 px-4 py-3 rounded-xl bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[11.5px] uppercase tracking-[0.2em] shadow-sm"
           >
             <div className="p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors">
               <LogOut size={18} />

@@ -143,7 +143,10 @@ export default function CreatePage() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-bold text-lg">Manual Editor</span>
-              <span className="text-[10px] uppercase font-black tracking-widest text-text-soft">Start from scratch</span>
+              <span className={cn(
+                "text-[11.5px] uppercase font-black tracking-widest transition-colors duration-300",
+                activeTab === 'manual' ? "text-accent" : "text-text-soft group-hover:text-white"
+              )}>Start from scratch</span>
             </div>
           </button>
 
@@ -159,7 +162,10 @@ export default function CreatePage() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-bold text-lg">AI Generator</span>
-              <span className="text-[10px] uppercase font-black tracking-widest text-text-soft">Magic automation</span>
+              <span className={cn(
+                "text-[11.5px] uppercase font-black tracking-widest transition-colors duration-300",
+                activeTab === 'ai' ? "text-accent-alt" : "text-text-soft group-hover:text-white"
+              )}>Magic automation</span>
             </div>
           </button>
           

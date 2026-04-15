@@ -184,9 +184,9 @@ export default function SettingsPage() {
                     key={f}
                     onClick={() => setFormData({...formData, preferredField: f})}
                     className={cn(
-                      "p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all text-center h-full flex items-center justify-center",
+                      "p-4 rounded-2xl border text-[11.5px] font-black uppercase tracking-widest transition-all text-center h-full flex items-center justify-center",
                       formData.preferredField === f 
-                        ? "bg-accent-alt/20 border-accent-alt text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]" 
+                        ? "bg-accent-alt/15 border-accent-alt text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] ring-1 ring-white/5 scale-105" 
                         : "bg-white/5 border-white/5 text-text-soft hover:border-white/20"
                     )}
                   >

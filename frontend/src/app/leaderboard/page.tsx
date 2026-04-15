@@ -45,7 +45,12 @@ export default function LeaderboardPage() {
             {['This week', 'This month', 'All-time'].map((filter, i) => (
               <button 
                 key={i}
-                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${i === 0 ? 'bg-accent text-white' : 'glass text-text-soft hover:text-white'}`}
+                className={cn(
+                  "px-6 py-2 rounded-full text-[11.5px] font-black uppercase tracking-widest transition-all",
+                  i === 0 
+                    ? "bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] ring-1 ring-white/10 scale-105" 
+                    : "glass text-text-soft hover:text-white"
+                )}
               >
                 {filter}
               </button>

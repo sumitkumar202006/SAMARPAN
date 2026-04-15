@@ -309,44 +309,6 @@ app.get("/api/explore/home", async (req, res) => {
   }
 });
 
-app.get("/api/quizzes/search", async (req, res) => {
-  try {
-    const { q } = req.query;
-    const quizzes = await prisma.quiz.findMany({
-      where: {
-        OR: [
-          { title: { contains: q, mode: 'insensitive' } },
-          { topic: { contains: q, mode: 'insensitive' } }
-        ],
-        isPublished: true
-      },
-      include: { author: { select: { name: true } } },
-      take: 10
-    });
-    return res.json({ quizzes: mapId(quizzes) });
-  } catch (err) {
-    console.error("Search error:", err);
-    return res.status(500).json({ error: "Search failed" });
-  }
-});
-
-app.get("/api/quizzes/user/:email", async (req, res) => {
-  try {
-    const { email } = req.params;
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user) return res.json({ quizzes: [] });
-    
-    const quizzes = await prisma.quiz.findMany({
-      where: { authorId: user.id },
-      orderBy: { createdAt: 'desc' }
-    });
-    return res.json({ quizzes: mapId(quizzes) });
-  } catch (err) {
-    console.error("User quizzes fetch error:", err);
-    return res.status(500).json({ error: "Failed to fetch quizzes" });
-  }
-});
-
 // -------------------------------
 // Host / game session (prototype)
 // -------------------------------
@@ -438,21 +400,8 @@ app.post("/api/host/start", async (req, res) => {
       gameId: game.id,
       pin: game.pin,
     });
-
-    console.log("Game Session created successfully:", game.id);
-    return res.json({
-      message: "Game session created",
-      gameId: game.id,
-      pin: game.pin,
-    });
   } catch (err) {
     console.error("CRITICAL Host start error:", err);
-    if (err.name === "ValidationError") {
-      console.error("Validation Errors:", Object.keys(err.errors).map(key => ({
-        field: key,
-        message: err.errors[key].message
-      })));
-    }
     return res.status(500).json({ error: "Could not start game", details: err.message });
   }
 });
@@ -1375,10 +1324,10 @@ io.on("connection", (socket) => {
     const player = session.players[socket.id];
     if (!player) return;
 
-    // Enforce Battle Constraints
-    const maxSlots = { '1v1': 1, '2v2': 2, '3v3': 3, '4v4': 4 }[session.battleType || 'Standard'] || 99;
+    // Enforce massive 200-player matrix or team-based constraints
+    const maxSlots = { '1v1': 1, '2v2': 2, '3v3': 3, '4v4': 4, 'Standard': 200 }[session.battleType || 'Standard'] || 200;
     if (slotIndex >= maxSlots) {
-      socket.emit("error_msg", { message: `This arena only supports ${session.battleType} formatting.` });
+      socket.emit("error_msg", { message: `This arena only supports ${session.battleType || 'Standard'} formatting (${maxSlots} slots).` });
       return;
     }
 
@@ -1443,7 +1392,7 @@ io.on("connection", (socket) => {
     console.log("Socket disconnected:", socket.id);
   });
 });
-// ---------- Start server ----------
+
 // ---------- Start server ----------
 async function startServer() {
   const MAX_RETRIES = 5;

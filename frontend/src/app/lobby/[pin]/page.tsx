@@ -164,15 +164,72 @@ function LobbyContent() {
     if (type === '2v2') return 2;
     if (type === '3v3') return 3;
     if (type === '4v4') return 4;
-    return 0; // Standard view
+    return 200; // Standard / Massive view
   };
 
   const slotCount = getSlotCount(battleType);
   const playerCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
+    const isMassive = !battleType || battleType === 'Standard';
     const occupantId = Object.keys(players).find(id => players[id].team === team && players[id].slotIndex == index);
     const occupant = occupantId ? players[occupantId] : null;
+
+    if (isMassive) {
+      return (
+        <div 
+          key={`${team}-${index}`}
+          className={cn(
+            "relative group flex flex-col items-center gap-1.5",
+            !occupant && "cursor-pointer"
+          )}
+          onClick={() => !occupant && handleJoinSlot(team, index)}
+        >
+          <div className={cn(
+            "w-10 h-10 rounded-full border-2 transition-all duration-300 flex items-center justify-center overflow-hidden",
+            occupant 
+              ? (occupant.isHost ? "border-amber-400 bg-amber-400/10" : "border-accent/40 bg-accent/5 shadow-[0_0_15px_rgba(99,102,241,0.15)]")
+              : "border-dashed border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
+          )}>
+            {occupant ? (
+              <>
+                {occupant.avatar ? (
+                  <img src={occupant.avatar} alt={occupant.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-black uppercase text-accent-alt">
+                    {occupant.name.charAt(0)}
+                  </span>
+                )}
+                {occupant.isHost && (
+                  <div className="absolute -top-0.5 -right-0.5 bg-amber-400 text-black rounded-full p-0.5 border border-black/20 shadow-lg">
+                    <Crown size={8} fill="currentColor" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className="text-[8px] font-black text-white/10 group-hover:text-white/30 tracking-tighter">
+                {index + 1}
+              </span>
+            )}
+          </div>
+          <span className={cn(
+            "text-[8px] font-bold truncate w-10 text-center uppercase tracking-tighter h-3",
+            occupant ? (occupant.isHost ? "text-amber-400" : "text-text-soft") : "text-white/5"
+          )}>
+            {occupant ? occupant.name : ""}
+          </span>
+          
+          {occupant && isHost && !occupant.isHost && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); socket.emit('host_kick', { pin, playerId: occupantId }); }}
+              className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-all scale-75"
+            >
+              <X size={8} />
+            </button>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div 
@@ -237,11 +294,11 @@ function LobbyContent() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 lg:py-16">
+    <div className="max-w-7xl mx-auto px-4 py-10 lg:py-16">
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-4 mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-widest animate-pulse">
-           Live Arena • {battleType || 'Standard'}
+           Live Arena • {battleType || 'Standard Mode'}
         </div>
         
         <div className="flex flex-col items-center gap-2">
@@ -252,13 +309,94 @@ function LobbyContent() {
         </div>
       </div>
 
-      {error ? (
-        <div className="glass p-8 rounded-3xl text-center border-red-500/50 bg-red-500/10">
-          <p className="text-red-400 font-bold mb-4">❌ {error}</p>
-          <p className="text-sm text-text-soft">Redirecting you back...</p>
+      {!battleType || battleType === 'Standard' ? (
+        /* MASSIVE POOL GRID (200 SLOTS) */
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_350px] gap-10">
+          <div className="space-y-10">
+            <div className="glass p-8 rounded-[40px] border-white/5 bg-bg-soft/10">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black italic uppercase tracking-tight text-white/90">Participant Matrix</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
+                      <Users size={12} className="text-accent" />
+                      <span className="text-[10px] font-black tracking-widest uppercase text-accent-alt">{playerCount} Active</span>
+                    </div>
+                    <span className="text-[10px] font-black tracking-widest uppercase text-white/20 italic">200 Slots Capacity</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-x-3 gap-y-6 justify-center max-h-[600px] overflow-y-auto scrollbar-hide pr-2">
+                {Array.from({ length: 200 }).map((_, i) => renderSlot('Team A', i))}
+              </div>
+            </div>
+          </div>
+
+          {/* Massive Action Sidebar */}
+          <div className="space-y-6">
+            <div className="glass p-8 rounded-[32px] bg-bg-soft/20 space-y-8 sticky top-24">
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase font-black text-text-soft tracking-widest">Global Status</p>
+                <div className={cn(
+                  "flex items-center gap-3 p-4 rounded-2xl border transition-all",
+                  isConnected ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
+                )}>
+                  <div className={cn("w-3 h-3 rounded-full", isConnected ? "bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-red-500")} />
+                  <span className={cn("text-xs font-black uppercase tracking-widest", isConnected ? "text-emerald-400" : "text-red-400")}>
+                    {isConnected ? 'Sync Established' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                    <p className="text-[9px] font-black uppercase text-white/40 mb-1">Players</p>
+                    <p className="text-xl font-black text-accent">{playerCount}</p>
+                 </div>
+                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                    <p className="text-[9px] font-black uppercase text-white/40 mb-1">Slots Left</p>
+                    <p className="text-xl font-black text-accent-alt">{200 - playerCount}</p>
+                 </div>
+              </div>
+
+              <div className="space-y-3">
+                {isHost && (
+                  <Button 
+                    onClick={handleStartGame}
+                    disabled={playerCount === 0}
+                    className="w-full h-14 bg-gradient-to-tr from-accent to-accent-alt text-lg font-black italic shadow-2xl hover:scale-[1.02] transition-transform"
+                  >
+                    <Play size={20} fill="currentColor" className="mr-1" />
+                    INITIATE ARENA
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  className="w-full h-14 border-white/10 hover:bg-white/5 text-xs font-black uppercase tracking-[0.2em]"
+                >
+                  {isHost ? 'Cancel Session' : 'Abort Arena'}
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                 <hr className="border-white/5" />
+                 <div className="flex items-center gap-3 text-white/30">
+                    <Shield size={16} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Anti-Cheat Matrix Active</span>
+                 </div>
+                 <div className="flex items-center gap-3 text-white/30">
+                    <Zap size={16} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Hyper-Sync Enabled</span>
+                 </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-[1fr_320px] gap-10">
+        /* BATTLE MODE (Team A vs Team B) */
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
           {/* Main Stage */}
           <div className="space-y-10">
             {slotCount > 0 ? (
@@ -323,7 +461,7 @@ function LobbyContent() {
                 </div>
               </div>
             ) : (
-              // Standard View (Non-Team)
+              // Legacy Standard View (Non-Team) fallback
               <div className="glass p-8 rounded-[32px] min-h-[400px]">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="flex items-center gap-3 font-bold text-lg">
@@ -356,11 +494,11 @@ function LobbyContent() {
             )}
 
             {/* Waiting / Unassigned Section */}
-            {slotCount > 0 && (
+            {slotCount > 0 && !battleType && (
               <div className="glass p-6 rounded-3xl bg-white/[0.02]">
                 <div className="flex items-center gap-2 mb-4 text-[10px] font-black uppercase tracking-widest text-text-soft">
                   <Users size={12} />
-                  Waiting to join a slot ({Object.values(players).filter(p => !p.isHost && !p.team).length})
+                  Waiting to join ({Object.values(players).filter(p => !p.isHost && !p.team).length})
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {Object.entries(players).map(([id, p]) => {

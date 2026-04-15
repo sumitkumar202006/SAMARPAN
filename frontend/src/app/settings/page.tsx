@@ -12,7 +12,12 @@ import {
   Save, 
   Sparkles,
   School,
-  BookOpen
+  BookOpen,
+  Camera,
+  Upload,
+  Edit3,
+  Check,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
@@ -22,12 +27,22 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
 
+// Avatar Presets Matrix (DiceBear Collections)
+const AVATAR_STUFF = [
+  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=nexus-${i}`),
+  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=gamer-${i}`),
+  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=hero-${i}`),
+  ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=human-${i}`),
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const { user, setUser } = useAuth();
   const { isMuted, toggleMute, playSuccess } = useAudio();
   
   const [formData, setFormData] = useState({
+    name: user?.name || '',
+    avatar: user?.avatar || '',
     preferredField: user?.preferredField || 'General',
     college: user?.college || '',
     course: user?.course || '',
@@ -35,6 +50,7 @@ export default function SettingsPage() {
   });
   
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   useEffect(() => {
@@ -43,12 +59,33 @@ export default function SettingsPage() {
       return;
     }
     setFormData({
+      name: user.name || '',
+      avatar: user.avatar || '',
       preferredField: user.preferredField || 'General',
       college: user.college || '',
       course: user.course || '',
       soundEnabled: user.settings?.soundEnabled ?? true
     });
   }, [user, router]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const postData = new FormData();
+    postData.append('avatar', file);
+
+    setIsUploading(true);
+    try {
+      const res = await api.post('/api/user/upload-avatar', postData);
+      setFormData(prev => ({ ...prev, avatar: res.data.url }));
+    } catch (err) {
+      console.error("Upload failed", err);
+      setStatus({ type: 'error', msg: 'Identity upload compromised. Check network.' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -58,6 +95,8 @@ export default function SettingsPage() {
     try {
       const res = await api.put('/api/user/settings', {
         email: user.email,
+        name: formData.name,
+        avatar: formData.avatar,
         preferredField: formData.preferredField,
         college: formData.college,
         course: formData.course,
@@ -69,6 +108,8 @@ export default function SettingsPage() {
       if (res.status === 200) {
         setUser({
           ...user,
+          name: formData.name,
+          avatar: formData.avatar,
           preferredField: formData.preferredField,
           college: formData.college,
           course: formData.course,
@@ -133,10 +174,69 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Institutional Info (Moved here for proximity to Identity) */}
+          {/* Identity Matrix (New) */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="glass rounded-[32px] p-6 border-white/5 space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <Camera className="text-accent" size={18} />
+              <h2 className="text-sm font-black uppercase tracking-widest">Identity Forge</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative group/avatar w-24 h-24 mx-auto mb-4">
+                <div className="w-full h-full rounded-2xl bg-gradient-to-tr from-accent to-accent-alt p-1">
+                  <div className="w-full h-full rounded-[14px] bg-background flex items-center justify-center overflow-hidden">
+                    {formData.avatar ? (
+                      <img src={formData.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={32} className="text-text-soft" />
+                    )}
+                  </div>
+                </div>
+                <label className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-accent text-white cursor-pointer hover:scale-110 active:scale-95 transition-all shadow-xl">
+                  <Upload size={14} />
+                  <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
+                </label>
+              </div>
+
+              <Input 
+                label="Gamer Identifier"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter your handle..."
+                className="bg-background/20"
+              />
+
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-soft flex items-center gap-2">
+                  <Activity size={10} /> Preset Matrix
+                </p>
+                <div className="grid grid-cols-5 gap-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
+                   {AVATAR_STUFF.map((url, i) => (
+                     <button
+                        key={i}
+                        onClick={() => setFormData({...formData, avatar: url})}
+                        className={cn(
+                          "aspect-square rounded-lg border-2 transition-all p-0.5 bg-white/5",
+                          formData.avatar === url ? "border-accent" : "border-transparent opacity-60 hover:opacity-100"
+                        )}
+                     >
+                       <img src={url} alt={`preset-${i}`} className="w-full h-full object-cover rounded-md" />
+                     </button>
+                   ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Institutional Info */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
             className="glass rounded-[32px] p-6 border-white/5 space-y-6"
           >
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">

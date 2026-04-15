@@ -75,14 +75,16 @@ router.post('/upload-avatar', upload.single('avatar'), async (req, res) => {
 // Update User Settings (Already exists, but keeping for compatibility)
 router.put('/settings', async (req, res) => {
   try {
-    const { email, preferredField, settings, college, course } = req.body;
+    const { email, preferredField, settings, college, course, name, avatar } = req.body;
     const user = await prisma.user.update({
       where: { email: email.toLowerCase().trim() },
       data: { 
         preferredField, 
         settings,
         college,
-        course
+        course,
+        name,
+        avatar
       }
     });
     if (!user) return res.status(404).json({ error: 'User not found' });

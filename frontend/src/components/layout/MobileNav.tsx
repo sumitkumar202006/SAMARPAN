@@ -1,17 +1,15 @@
 'use client';
 
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, PlusSquare, User, UserCircle, Zap } from 'lucide-react';
+import { LayoutDashboard, PlusSquare, ShieldCheck, UserCircle, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { name: 'Host', icon: User, href: '/host' },
+  { name: 'Host', icon: ShieldCheck, href: '/host' },
   { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
   { name: 'Profile', icon: UserCircle, href: '/profile' },

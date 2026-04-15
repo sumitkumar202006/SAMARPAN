@@ -26,8 +26,8 @@ import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
-  { name: 'Host', icon: User, href: '/host' },
-  { name: 'Friendly Match', icon: Users, href: '/host?friendly=true' },
+  { name: 'Host Hub', icon: ShieldCheck, href: '/host' },
+  { name: 'Casual Play', icon: Users, href: '/host?friendly=true' },
   { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Leaderboard', icon: Trophy, href: '/leaderboard' },
   { name: 'Explore', icon: Compass, href: '/explore' },
@@ -184,19 +184,22 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
       {/* Navigation Matrix */}
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
-          let isActive = pathname === item.href;
-          if (item.href === '/host?friendly=true') {
-            isActive = pathname === '/host' && isFriendly;
-          } else if (item.href === '/host') {
-            isActive = pathname === '/host' && !isFriendly;
-          }
+          const isFriendlyLink = item.href.includes('friendly=true');
+          let isActive = pathname === '/host' 
+            ? (isFriendlyLink ? isFriendly : (!isFriendly && item.href === '/host'))
+            : (pathname === item.href);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => playNavigate?.()}
-              onMouseEnter={() => playHover?.()}
+              onClick={() => {
+                if (playNavigate) playNavigate();
+              }}
+              onMouseEnter={() => {
+                if (playHover) playHover();
+              }}
+              className="block outline-none"
             >
               <motion.div
                 variants={itemVariants}

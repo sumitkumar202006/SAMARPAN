@@ -14,6 +14,7 @@ import {
   BarChart2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { 
   X, 
@@ -49,7 +50,8 @@ const getRankInfo = (rating: number) => {
 };
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, setUser } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,11 +61,11 @@ export default function ProfilePage() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
+    if (!user?.email) {
+      router.push('/auth?redirect=/profile&message=Access+Denied');
+      return;
+    }
     const fetchProfile = async () => {
-      if (!user?.email) {
-        setLoading(false);
-        return;
-      }
       try {
         const [profileRes, historyRes] = await Promise.all([
           api.get(`/api/profile/${user.email}`),
@@ -80,7 +82,7 @@ export default function ProfilePage() {
       }
     };
     fetchProfile();
-  }, [user]);
+  }, [user, router]);
 
   const handleUpdateProfile = async () => {
     setSyncing(true);
@@ -92,6 +94,16 @@ export default function ProfilePage() {
       });
       // Refresh local stats
       setStats({ ...stats, name: editName, avatar: tempAvatar });
+      
+      // Update global context to propagate changes to Sidebar/Topbar
+      if (user) {
+        setUser({
+          ...user,
+          name: editName,
+          avatar: tempAvatar
+        });
+      }
+      
       setIsEditing(false);
     } catch (err) {
       console.error("Update failed", err);

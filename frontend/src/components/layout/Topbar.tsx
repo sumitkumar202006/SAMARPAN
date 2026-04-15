@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX } from 'lucide-react';
+import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -141,20 +141,26 @@ export const Topbar = () => {
                   </div>
 
                   <Link 
-                    href="/profile"
+                    href={user?.email ? "/profile" : "/auth?redirect=/profile&message=Identity+Sync+Required"}
                     onClick={() => setIsDropdownOpen(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left group/item"
                   >
-                    <BarChart size={16} />
-                    <span>My Stats</span>
+                    <div className="flex items-center gap-3">
+                      <BarChart size={16} />
+                      <span>My Stats</span>
+                    </div>
+                    {!user?.email && <Shield size={10} className="text-text-soft group-hover/item:text-accent" />}
                   </Link>
                   <Link 
-                    href="/settings"
+                    href={user?.email ? "/settings" : "/auth?redirect=/settings&message=Access+Denied"}
                     onClick={() => setIsDropdownOpen(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left group/item"
                   >
-                    <Settings size={16} />
-                    <span>Settings</span>
+                    <div className="flex items-center gap-3">
+                      <Settings size={16} />
+                      <span>Settings</span>
+                    </div>
+                    {!user?.email && <Shield size={10} className="text-text-soft group-hover/item:text-accent" />}
                   </Link>
                   
                   <div className="border-t border-white/5 my-1" />

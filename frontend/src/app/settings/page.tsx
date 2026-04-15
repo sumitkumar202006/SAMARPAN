@@ -18,10 +18,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { user, setUser } = useAuth();
   const { isMuted, toggleMute, playSuccess } = useAudio();
   
@@ -36,15 +38,17 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        preferredField: user.preferredField || 'General',
-        college: user.college || '',
-        course: user.course || '',
-        soundEnabled: user.settings?.soundEnabled ?? true
-      });
+    if (!user?.email) {
+      router.push('/auth?redirect=/settings&message=Access+Denied');
+      return;
     }
-  }, [user]);
+    setFormData({
+      preferredField: user.preferredField || 'General',
+      college: user.college || '',
+      course: user.course || '',
+      soundEnabled: user.settings?.soundEnabled ?? true
+    });
+  }, [user, router]);
 
   const handleSave = async () => {
     if (!user) return;

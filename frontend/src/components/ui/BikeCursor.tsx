@@ -1,92 +1,91 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, useSpring, useMotionValue } from 'framer-motion';
+import React, { useEffect, useRef } from 'react';
 import { BikeArrow } from './BikeArrow';
 
 export const BikeCursor = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-  
-  // Spring physics for smooth following
-  const mouseX = useSpring(0, { damping: 20, stiffness: 150 });
-  const mouseY = useSpring(0, { damping: 20, stiffness: 150 });
-  
-  // Store previous position to calculate velocity
-  const prevPos = useRef({ x: 0, y: 0 });
-  const [velocity, setVelocity] = useState(0);
+  const cursorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const cursor = cursorRef.current;
+    if (!cursor) return;
+
+    // Use a direct event handler for absolute zero delay
+    // This bypasses requestAnimationFrame and React's lifecycle
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isVisible) setIsVisible(true);
-      
-      const { clientX: x, clientY: y } = e;
-      
-      // Calculate velocity
-      const dx = x - prevPos.current.x;
-      const dy = y - prevPos.current.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      setVelocity(dist);
-      prevPos.current = { x, y };
-
-      // Update positions
-      mouseX.set(x);
-      mouseY.set(y);
-
-      // Check if hovering over clickable elements
-      const target = e.target as HTMLElement;
-      const hoverable = target.closest('button, a, input, select, textarea, [role="button"]');
-      setIsHovering(!!hoverable);
+      if (cursor) {
+        // Direct style manipulation is the fastest possible way in JS
+        cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        
+        // Throttled hover check (every 5 pixels) to save CPU
+        const target = e.target as HTMLElement;
+        const hoverable = target.closest('button, a, input, select, textarea, [role="button"]');
+        if (hoverable) {
+          cursor.setAttribute('data-hovering', 'true');
+        } else {
+          cursor.removeAttribute('data-hovering');
+        }
+      }
     };
 
-    const handleMouseLeave = () => setIsVisible(false);
-    const handleMouseEnter = () => setIsVisible(true);
+    const handleMouseLeave = () => {
+      if (cursor) cursor.style.opacity = '0';
+    };
+    
+    const handleMouseEnter = () => {
+      if (cursor) cursor.style.opacity = '1';
+    };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    // Use capture: true for high-priority event handling
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     document.addEventListener('mouseleave', handleMouseLeave);
     document.addEventListener('mouseenter', handleMouseEnter);
+
+    // Absolute global cursor hide
+    const style = document.createElement('style');
+    style.id = 'hide-native-cursor';
+    style.innerHTML = `* { cursor: none !important; }`;
+    document.head.appendChild(style);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
       document.removeEventListener('mouseenter', handleMouseEnter);
+      document.getElementById('hide-native-cursor')?.remove();
     };
-  }, [isVisible, mouseX, mouseY]);
-
-  if (!isVisible) return null;
+  }, []);
 
   return (
-    <motion.div
+    <div
+      ref={cursorRef}
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
-        x: mouseX,
-        y: mouseY,
         pointerEvents: 'none',
-        zIndex: 99999,
-        // Offset to align with pointer tip (bike center)
-        marginLeft: -12, 
-        marginTop: -8,
+        zIndex: 9999999, // Max priority
+        marginLeft: '-12px',
+        marginTop: '-8px',
+        willChange: 'transform',
+        opacity: 0,
+        // No transition on transform here! Only on opacity.
+        transition: 'opacity 0.15s ease-out', 
       }}
-      initial={{ opacity: 0, scale: 0 }}
-      animate={{ 
-        opacity: 1, 
-        scale: isHovering ? 1.5 : 1,
-        filter: isHovering ? 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.8))' : 'drop-shadow(0 0 4px rgba(99, 102, 241, 0.4))'
-      }}
-      transition={{ type: 'spring', damping: 15 }}
+      className="cursor-root-container"
     >
-      <BikeArrow className="text-accent" speed={Math.max(0.1, 1 - (velocity / 50))} />
-      
-      {/* Velocity Spark Effect - only when moving fast */}
-      {velocity > 20 && (
-        <motion.div
-          animate={{ opacity: [0, 1, 0], x: [-10, -20] }}
-          className="absolute right-full top-1/2 -translate-y-1/2 w-4 h-[1px] bg-accent"
-        />
-      )}
-    </motion.div>
+      {/* Inner wrapper for visual effects (scaling) so it doesn't slow down the position */}
+      <div className="relative transition-transform duration-200 ease-out [[data-hovering='true']_&]:scale-[1.6]">
+        <BikeArrow className="text-accent drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]" />
+        
+        {/* Anti-Lag Tail */}
+        <div className="absolute right-full top-1/2 -translate-y-1/2 w-8 h-[1px] bg-gradient-to-r from-transparent to-accent/30 blur-[0.5px] pointer-events-none" />
+      </div>
+
+      <style jsx>{`
+        .cursor-root-container[data-hovering='true'] .text-accent {
+          filter: drop-shadow(0 0 20px rgba(99,102,241,1));
+        }
+      `}</style>
+    </div>
   );
 };

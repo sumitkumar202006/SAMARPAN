@@ -122,56 +122,58 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         </div>
       </div>
 
-      {/* User Status Card */}
+      {/* User Status Card / Profile Link */}
       {user && (
-        <motion.div 
-          variants={itemVariants}
-          className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 transition-all duration-500 shrink-0"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className={cn(
-            "flex items-center gap-3 relative z-10 transition-all duration-500",
-            isCollapsed && "justify-center gap-0"
-          )}>
+        <Link href="/profile" onClick={() => playNavigate?.()}>
+          <motion.div 
+            variants={itemVariants}
+            className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 hover:bg-white/10 transition-all duration-500 shrink-0 cursor-pointer"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className={cn(
-               "w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0",
-               isCollapsed && "scale-110" // Make avatar stand out in collapsed
+              "flex items-center gap-3 relative z-10 transition-all duration-500",
+              isCollapsed && "justify-center gap-0"
             )}>
-               <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
-               {isCollapsed && (
-                 <motion.div 
-                   className="absolute inset-0 rounded-full border-t-2 border-accent z-20"
-                   animate={{ rotate: 360 }}
-                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                 />
-               )}
-               {user.avatar ? (
-                 <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
-               ) : (
-                 <div className="w-full h-full rounded-full bg-accent/20 flex items-center justify-center text-accent font-black">
-                   {user.name.charAt(0).toUpperCase()}
-                 </div>
-               )}
+              <div className={cn(
+                 "w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0",
+                 isCollapsed && "scale-110" // Make avatar stand out in collapsed
+              )}>
+                 <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
+                 {isCollapsed && (
+                   <motion.div 
+                     className="absolute inset-0 rounded-full border-t-2 border-accent z-20"
+                     animate={{ rotate: 360 }}
+                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                   />
+                 )}
+                 {user.avatar ? (
+                   <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full rounded-full bg-accent/20 flex items-center justify-center text-accent font-black">
+                     {user.name.charAt(0).toUpperCase()}
+                   </div>
+                 )}
+              </div>
+              
+              <AnimatePresence mode="wait">
+                {!isCollapsed && (
+                  <motion.div 
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    className="flex flex-col overflow-hidden whitespace-nowrap"
+                  >
+                     <span className="font-black text-xs uppercase tracking-widest text-white truncate group-hover:text-accent transition-colors">{user.name}</span>
+                     <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
+                       <Disc size={10} className="animate-pulse" />
+                       Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
+                     </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            
-            <AnimatePresence mode="wait">
-              {!isCollapsed && (
-                <motion.div 
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  className="flex flex-col overflow-hidden whitespace-nowrap"
-                >
-                   <span className="font-black text-xs uppercase tracking-widest text-white truncate">{user.name}</span>
-                   <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
-                     <Disc size={10} className="animate-pulse" />
-                     Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
-                   </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
+          </motion.div>
+        </Link>
       )}
 
       {/* Navigation Matrix */}

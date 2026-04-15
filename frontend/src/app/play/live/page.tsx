@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { QuizEngine } from '@/components/play/QuizEngine';
 import { useSocket } from '@/context/SocketContext';
-import { Trophy, ArrowLeft, BarChart3, Medal } from 'lucide-react';
+import { Trophy, ArrowLeft, BarChart3, Medal, Target, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
@@ -160,9 +160,33 @@ function LivePlayContent() {
                   </span>
                   <span className={cn("font-bold text-lg", i === 0 && "text-accent")}>{player.name}</span>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className="font-black text-xl text-white">{player.score}</span>
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-text-soft">{player.streak} streak</span>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-3">
+                    <span className="font-black text-xl text-white">{player.score}</span>
+                    <div className="h-4 w-[1px] bg-white/10" />
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] uppercase font-black tracking-tighter text-accent-alt">
+                        {player.attemptedCount > 0 ? Math.round((player.correctCount / player.attemptedCount) * 100) : 0}% ACCURACY
+                      </span>
+                      <span className="text-[8px] uppercase font-bold tracking-widest text-text-soft">{player.streak} STREAK</span>
+                    </div>
+                  </div>
+                  
+                  {/* Detailed Stats Row */}
+                  <div className="flex items-center gap-3 px-3 py-1 bg-white/5 rounded-full border border-white/5 mt-1 scale-90 origin-right">
+                    <div className="flex items-center gap-1.5" title="Correct Answers">
+                      <CheckCircle2 size={10} className="text-emerald-400" />
+                      <span className="text-[10px] font-bold text-white">{player.correctCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5" title="Incorrect Answers">
+                      <XCircle size={10} className="text-rose-400" />
+                      <span className="text-[10px] font-bold text-white">{player.incorrectCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5" title="Total Attempted">
+                      <Target size={10} className="text-accent" />
+                      <span className="text-[10px] font-bold text-white">{player.attemptedCount}</span>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )) : (

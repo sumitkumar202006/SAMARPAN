@@ -888,7 +888,15 @@ function getLeaderboard(session) {
   return Object.values(session.players)
     .filter(p => session.rated === false || !p.isHost)
     .sort((a, b) => b.score - a.score)
-    .map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, streak: p.streak || 0 }));
+    .map((p, i) => ({ 
+      rank: i + 1, 
+      name: p.name, 
+      score: p.score, 
+      streak: p.streak || 0,
+      correctCount: p.correctCount || 0,
+      incorrectCount: p.incorrectCount || 0,
+      attemptedCount: (p.correctCount || 0) + (p.incorrectCount || 0)
+    }));
 }
 
 function broadcastStats(pin, session) {
@@ -1055,6 +1063,8 @@ io.on("connection", (socket) => {
         optionIdx: -1, 
         isHost: true, 
         streak: 0,
+        correctCount: 0,
+        incorrectCount: 0,
         latency: 0 
       };
     socket.emit("host_ready", { pin });
@@ -1088,6 +1098,8 @@ io.on("connection", (socket) => {
       optionIdx: -1, 
       isHost: false, 
       streak: 0,
+      correctCount: 0,
+      incorrectCount: 0,
       ip: socket.handshake.address,
       isSuspicious: false,
       idleTimeout: null
@@ -1216,11 +1228,12 @@ io.on("connection", (socket) => {
 
       // Update Team Score if in a team battle
       if (player.team && session.teamScores) {
-        if (!session.teamScores[player.team]) session.teamScores[player.team] = 0;
         session.teamScores[player.team] += points;
       }
+      player.correctCount = (player.correctCount || 0) + 1;
     } else {
       player.streak = 0;
+      player.incorrectCount = (player.incorrectCount || 0) + 1;
     }
 
     logAnswerToDb(session, player, { optionIdx, isCorrect, timeTaken, ipAddress: socket.handshake.address });

@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3 } from 'lucide-react';
+import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { HostQuestionEditor } from './HostQuestionEditor';
+import { useAudio } from '@/context/AudioContext';
 
 interface HostNexusProps {
   quiz: any;
@@ -18,6 +19,17 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [players, setPlayers] = useState<any>({});
   const [isPaused, setIsPaused] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [stats, setStats] = useState<number[]>([0, 0, 0, 0]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [status, setStatus] = useState<'waiting' | 'running' | 'finished'>('waiting');
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isEditing, setIsEditing] = useState(false);
+  const [localQuestions, setLocalQuestions] = useState(quiz.questions);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const { playNavigate, playClick } = useAudio();
 

@@ -171,7 +171,7 @@ function LobbyContent() {
   const playerCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
-    const isMassive = !battleType || battleType === 'Standard';
+    const isMassive = !battleType || battleType === 'Standard' || battleType === 'rapid';
     const occupantId = Object.keys(players).find(id => players[id].team === team && players[id].slotIndex == index);
     const occupant = occupantId ? players[occupantId] : null;
 
@@ -298,7 +298,7 @@ function LobbyContent() {
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-4 mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-widest animate-pulse">
-           Live Arena • {battleType || 'Standard Mode'}
+           Live Arena • {battleType || 'Grand Arena'}
         </div>
         
         <div className="flex flex-col items-center gap-2">
@@ -309,14 +309,14 @@ function LobbyContent() {
         </div>
       </div>
 
-      {!battleType || battleType === 'Standard' ? (
+      {!battleType || battleType === 'Standard' || battleType === 'rapid' ? (
         /* MASSIVE POOL GRID (200 SLOTS) */
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_350px] gap-10">
           <div className="space-y-10">
             <div className="glass p-8 rounded-[40px] border-white/5 bg-bg-soft/10">
               <div className="flex items-center justify-between mb-8">
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tight text-white/90">Participant Matrix</h3>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tight text-white/90">Grand Arena Sync</h3>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
                       <Users size={12} className="text-accent" />

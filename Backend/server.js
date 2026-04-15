@@ -378,14 +378,6 @@ app.post("/api/host/start", async (req, res) => {
       attempts++;
     }
 
-    const game = await prisma.gameSession.create({
-      data: {
-        quizId: quiz.id,
-        hostId: user.id,
-        mode: mode || "rapid",
-        timerSeconds: timerSeconds || 30,
-        rated: rated !== false,
-        battleType: battleType || null,
         teamScores: battleType && battleType !== '1v1' ? { 'Team A': 0, 'Team B': 0 } : null,
         pin,
         metadata: {

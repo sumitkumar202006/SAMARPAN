@@ -21,7 +21,7 @@ function HostContent() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState(searchParams.get('quiz') || '');
-  const [mode, setMode] = useState('battle');
+  const [mode, setMode] = useState('rapid');
   const [battleType, setBattleType] = useState('2v2');
   const [timer, setTimer] = useState(30);
   const [totalTime, setTotalTime] = useState(10); // Default 10 mins
@@ -107,7 +107,7 @@ function HostContent() {
 
         hostEmail: user?.email,
         mode,
-        battleType,
+        battleType: mode === 'battle' ? battleType : null,
         timerSeconds: timer,
         timerMode,
         totalSessionTime: totalTime,
@@ -271,7 +271,7 @@ function HostContent() {
                 value={mode} 
                 onChange={(e) => setMode(e.target.value)}
               >
-                <option value="rapid">Standard Quiz</option>
+                <option value="rapid">Grand Arena (Standard)</option>
                 <option value="blitz">Tournament (Multi-Sets)</option>
                 <option value="battle">Squad Battle (Teams)</option>
               </Select>
@@ -348,7 +348,7 @@ function HostContent() {
 
           <button 
             onClick={handleHost}
-            disabled={!selectedQuiz || !!status}
+            disabled={(!selectedQuiz && !topic && quizQueue.length === 0) || !!status}
             className={cn(
               "w-full py-4 rounded-2xl text-white font-bold text-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
               isFriendly 

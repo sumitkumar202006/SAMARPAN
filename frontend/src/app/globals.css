@@ -140,3 +140,11 @@ body::after {
   background: #4b5563;
   border-radius: 999px;
 }
+
+@utility scrollbar-hide {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

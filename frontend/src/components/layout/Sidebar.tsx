@@ -79,7 +79,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Brand / Logo Section */}
-      <div className="p-6 pb-2 flex items-center gap-4">
+      <div className="p-6 pb-2 flex items-center gap-4 shrink-0">
         <motion.div 
           whileHover={{ rotate: 15, scale: 1.1 }}
           className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative"
@@ -100,7 +100,7 @@ export const Sidebar = () => {
       {user && (
         <motion.div 
           variants={itemVariants}
-          className="mx-6 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 transition-all duration-500"
+          className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 transition-all duration-500 shrink-0"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-3 relative z-10">
@@ -126,7 +126,7 @@ export const Sidebar = () => {
       )}
 
       {/* Navigation Matrix */}
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
           let isActive = pathname === item.href;
           if (item.href === '/host?friendly=true') {
@@ -197,7 +197,7 @@ export const Sidebar = () => {
       </nav>
 
       {/* System Controls */}
-      <div className="p-6 space-y-3">
+      <div className="p-6 space-y-3 shrink-0">
         {user?.role === 'admin' && (
           <Link href="/admin" onClick={() => playNavigate?.()}>
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[10px] uppercase tracking-widest">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +14,25 @@ export const Topbar = () => {
   const { user, logout } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   return (
     <header className="sticky top-0 z-[100] w-full bg-background/80 backdrop-blur-3xl border-b border-white/5">
@@ -66,7 +85,7 @@ export const Topbar = () => {
             <Bell size={20} />
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             {user ? (
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -104,53 +123,50 @@ export const Topbar = () => {
 
             <AnimatePresence>
               {isDropdownOpen && (
-                <>
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="fixed inset-0 z-[-1]"
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-56 glass rounded-2xl p-2 shadow-2xl overflow-hidden"
-                  >
-                    <div className="px-3 py-3 border-b border-white/5 mb-1">
-                      <p className="font-bold text-sm">{user?.name || 'Guest User'}</p>
-                      <p className="text-xs text-text-soft">{user?.email || 'Sign in to sync stats'}</p>
-                    </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-2 w-56 glass rounded-2xl p-2 shadow-2xl overflow-hidden z-50"
+                >
+                  <div className="px-3 py-3 border-b border-white/5 mb-1 group/header">
+                    <p className="font-bold text-sm text-white group-hover/header:text-accent transition-colors">{user?.name || 'Guest User'}</p>
+                    <Link 
+                      href="/auth" 
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="text-xs text-text-soft hover:text-accent transition-colors block"
+                    >
+                      {user?.email || 'Sign in to sync stats →'}
+                    </Link>
+                  </div>
 
-                    <Link 
-                      href="/profile/stats"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
-                    >
-                      <BarChart size={16} />
-                      <span>My Stats</span>
-                    </Link>
-                    <Link 
-                      href="/settings"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
-                    >
-                      <Settings size={16} />
-                      <span>Settings</span>
-                    </Link>
-                    
-                    <div className="border-t border-white/5 my-1" />
-                    
-                    <button 
-                      onClick={logout}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-red-500/10 text-red-400 transition-all text-left"
-                    >
-                      <LogOut size={16} />
-                      <span>Logout</span>
-                    </button>
-                  </motion.div>
-                </>
+                  <Link 
+                    href="/profile"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                  >
+                    <BarChart size={16} />
+                    <span>My Stats</span>
+                  </Link>
+                  <Link 
+                    href="/settings"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left"
+                  >
+                    <Settings size={16} />
+                    <span>Settings</span>
+                  </Link>
+                  
+                  <div className="border-t border-white/5 my-1" />
+                  
+                  <button 
+                    onClick={logout}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-red-500/10 text-red-400 transition-all text-left"
+                  >
+                    <LogOut size={16} />
+                    <span>Logout</span>
+                  </button>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>

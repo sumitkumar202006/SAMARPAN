@@ -14,16 +14,20 @@ import { cn } from '@/lib/utils';
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showFooter, setShowFooter] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar_collapsed') === 'true';
-    }
-    return false;
-  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('sidebar_collapsed', isSidebarCollapsed.toString());
-  }, [isSidebarCollapsed]);
+    const saved = localStorage.getItem('sidebar_collapsed') === 'true';
+    setIsSidebarCollapsed(saved);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('sidebar_collapsed', isSidebarCollapsed.toString());
+    }
+  }, [isSidebarCollapsed, mounted]);
 
   const isAdminPath = pathname?.startsWith('/admin');
 
@@ -51,12 +55,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         </Suspense>
         <div className={cn(
           "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
+          mounted && (isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72")
         )}>
           <Topbar />
           <main className={cn(
             "flex-1 flex flex-col pt-4 relative",
-            !isSidebarCollapsed && "lg:pt-6"
+            mounted && !isSidebarCollapsed && "lg:pt-6"
           )}>
             <div className="flex-1 px-4 lg:px-8 max-w-7xl mx-auto w-full">
               {children}

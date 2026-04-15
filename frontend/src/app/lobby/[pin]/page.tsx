@@ -592,38 +592,48 @@ function LobbyContent() {
 
       {/* Confirmation Modal */}
       <AnimatePresence>
-        {pendingSlot && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setPendingSlot(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm glass p-8 rounded-[32px] text-center border-accent/20"
-            >
-              <div className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-3",
-                pendingSlot.team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
-              )}>
-                <MoveRight size={32} />
-              </div>
-              <h3 className="text-2xl font-black mb-2 uppercase italic">Join {teamNames[pendingSlot.team]}?</h3>
-              <p className="text-text-soft text-sm mb-8 leading-relaxed">
-                You will be assigned to slot {pendingSlot.index + 1}. Are you ready to represent this squad?
-              </p>
-              <div className="flex gap-4">
-                <Button variant="outline" className="flex-1" onClick={() => setPendingSlot(null)}>Wait</Button>
-                <Button className="flex-1" onClick={confirmJoin}>Join Squad</Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {pendingSlot && (() => {
+          const isMassive = !battleType || battleType === 'Standard' || battleType === 'rapid';
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setPendingSlot(null)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative w-full max-w-sm glass p-8 rounded-[32px] text-center border-accent/20"
+              >
+                <div className={cn(
+                  "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-3",
+                  isMassive ? "bg-accent shadow-[0_0_20px_rgba(99,102,241,0.4)]" : 
+                  (pendingSlot.team === 'Team A' ? "bg-indigo-500" : "bg-rose-500")
+                )}>
+                  <MoveRight size={32} />
+                </div>
+                <h3 className="text-2xl font-black mb-2 uppercase italic">
+                  {isMassive ? "Sync Position?" : `Join ${teamNames[pendingSlot.team]}?`}
+                </h3>
+                <p className="text-text-soft text-sm mb-8 leading-relaxed">
+                  {isMassive 
+                    ? `Synchronize your identity to slot ${pendingSlot.index + 1} of the arena grid.` 
+                    : `You will be assigned to slot ${pendingSlot.index + 1}. Are you ready to represent this squad?`}
+                </p>
+                <div className="flex gap-4">
+                  <Button variant="outline" className="flex-1" onClick={() => setPendingSlot(null)}>Wait</Button>
+                  <Button className="flex-1" onClick={confirmJoin}>
+                    {isMassive ? "Establish Sync" : "Join Squad"}
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

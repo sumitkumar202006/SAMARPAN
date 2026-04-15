@@ -42,7 +42,7 @@ export const Topbar = () => {
         <div className="flex items-center gap-2 lg:gap-8 flex-1">
           <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all">
-              <img src="/logo.png" alt="Samarpan" className="w-5 h-5 lg:w-6 lg:h-6 object-contain" />
+              <img src="/favicon.ico" alt="Samarpan" className="w-5 h-5 lg:w-6 lg:h-6 object-contain" />
             </div>
             <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic">SAMARPAN</span>
           </Link>

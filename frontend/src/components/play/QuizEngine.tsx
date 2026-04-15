@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { Clock, CheckCircle2, XCircle, ChevronRight, Trophy, ArrowLeft, MessageSquare, Pause, Play, SkipForward, X, ShieldAlert } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { BikeArrow } from '@/components/ui/BikeArrow';
@@ -36,6 +37,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   socket, 
   pin 
 }) => {
+  const searchParams = useSearchParams();
+  const isHost = searchParams.get('role') === 'host';
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -225,59 +228,75 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Host Command Hub (FAB) */}
-      <div className="fixed bottom-32 right-8 z-[60]">
-        <motion.div layout className="flex flex-col items-end gap-3">
-          <AnimatePresence>
-            {isHostToolsOpen && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                className="glass p-6 rounded-[32px] border-accent/30 shadow-2xl w-72 mb-4"
+      {/* Host Tactical HUD (FAB) */}
+      {isLive && isHost && (
+        <div className="fixed bottom-8 right-8 z-[100]">
+          <LayoutGroup>
+            <div className="flex flex-col items-end gap-3">
+              <AnimatePresence>
+                {isHostToolsOpen && (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    className="glass p-6 rounded-[32px] border-amber-400/30 shadow-[0_0_30px_rgba(251,191,36,0.15)] w-72 mb-2"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                        <ShieldAlert size={12} /> Host Command Terminal
+                      </h5>
+                      <button onClick={() => setIsHostToolsOpen(false)} className="text-text-soft hover:text-white transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className={cn("flex-1 py-3 border-white/10 text-[10px] font-bold", isPaused && "text-amber-400 border-amber-400/30")}
+                          onClick={() => socket.emit(isPaused ? 'host_resume' : 'host_pause', pin)}
+                        >
+                          {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                          {isPaused ? 'Resume' : 'Pause'}
+                        </Button>
+                        <Button variant="outline" className="flex-1 py-3 border-white/10 text-[10px] font-bold" onClick={() => socket.emit('host_next', pin)}>
+                          <SkipForward size={14} /> Skip
+                        </Button>
+                      </div>
+                      
+                      <div className="relative">
+                        <input 
+                          value={broadcastText}
+                          onChange={(e) => setBroadcastText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && sendBroadcast()}
+                          placeholder="Tactical msg..."
+                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-[10px] outline-none focus:border-amber-400 transition-all"
+                        />
+                        <button onClick={sendBroadcast} className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 p-1 hover:scale-110 transition-transform">
+                          <MessageSquare size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <motion.button 
+                layout
+                onClick={() => setIsHostToolsOpen(!isHostToolsOpen)}
+                className={cn(
+                  "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/10 hover:scale-110 active:scale-95 transition-all",
+                  isHostToolsOpen ? "bg-bg-soft text-text-soft" : "bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.4)]"
+                )}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h5 className="text-[10px] font-black uppercase tracking-widest text-text-soft">Host Override</h5>
-                  <button onClick={() => setIsHostToolsOpen(false)}><X size={14} /></button>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 py-3 border-white/10" 
-                      onClick={() => socket.emit(isPaused ? 'host_resume' : 'host_pause', pin)}
-                    >
-                      {isPaused ? <Play size={16} /> : <Pause size={16} />}
-                      {isPaused ? 'Resume' : 'Pause'}
-                    </Button>
-                    <Button variant="outline" className="flex-1 py-3 border-white/10" onClick={() => socket.emit('host_next', pin)}>
-                      <SkipForward size={16} /> Skip
-                    </Button>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      value={broadcastText}
-                      onChange={(e) => setBroadcastText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && sendBroadcast()}
-                      placeholder="Broadcast msg..."
-                      className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-accent"
-                    />
-                    <button onClick={sendBroadcast} className="absolute right-2 top-1/2 -translate-y-1/2 text-accent p-1">
-                      <MessageSquare size={14} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <button 
-            onClick={() => setIsHostToolsOpen(!isHostToolsOpen)}
-            className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.5)] border-4 border-white/10 hover:scale-110 active:scale-95 transition-all"
-          >
-            {isHostToolsOpen ? <X /> : <ShieldAlert />}
-          </button>
-        </motion.div>
-      </div>
+                {isHostToolsOpen ? <X /> : <ShieldAlert />}
+              </motion.button>
+            </div>
+          </LayoutGroup>
+        </div>
+      )}
 
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">

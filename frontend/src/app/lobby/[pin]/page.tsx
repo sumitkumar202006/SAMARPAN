@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, Zap, X, Play, Edit3, Check, MoveRight, Trash2, Ban } from 'lucide-react';
+import { Users, Shield, Zap, X, Play, Edit3, Check, MoveRight, Trash2, Ban, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -99,8 +99,13 @@ function LobbyContent() {
     });
 
     socket.on('game_started', (data) => {
-      if (role === 'host') router.push(`/host/live/${pin}`);
-      else router.push(`/play/live?pin=${pin}`);
+      if (role === 'host' && data.rated !== false) {
+        router.push(`/host/live/${pin}`);
+      } else {
+        // In Friendly mode, host goes to Play UI but with host=true param
+        const roleParam = role === 'host' ? '&role=host' : '';
+        router.push(`/play/live?pin=${pin}${roleParam}`);
+      }
     });
 
     socket.on('error_msg', (data) => {
@@ -182,17 +187,33 @@ function LobbyContent() {
       >
         {occupant ? (
           <div className="flex flex-col items-center gap-1 animate-in zoom-in duration-300">
-            {occupant.avatar ? (
-              <img src={occupant.avatar} alt={occupant.name} className="w-10 h-10 rounded-full border-2 border-white/10 object-cover shadow-lg" />
-            ) : (
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-lg",
-                team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
-              )}>
-                {occupant.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="text-[10px] font-bold truncate max-w-[80px]">{occupant.name}</span>
+            <div className="relative">
+              {occupant.avatar ? (
+                <img src={occupant.avatar} alt={occupant.name} className={cn(
+                  "w-10 h-10 rounded-full border-2 object-cover shadow-lg",
+                  occupant.isHost ? "border-amber-400" : "border-white/10"
+                )} />
+              ) : (
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-lg border-2",
+                  occupant.isHost ? "border-amber-400" : "border-transparent",
+                  team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
+                )}>
+                  {occupant.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              {occupant.isHost && (
+                <div className="absolute -top-1 -right-1 bg-amber-400 text-black rounded-full p-0.5 shadow-lg border border-black/20">
+                  <Crown size={8} fill="currentColor" />
+                </div>
+              )}
+            </div>
+            <span className={cn(
+              "text-[10px] font-bold truncate max-w-[80px]",
+              occupant.isHost ? "text-amber-400" : "text-white"
+            )}>
+              {occupant.name}
+            </span>
             
             {isHost && (
               <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">

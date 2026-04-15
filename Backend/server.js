@@ -886,13 +886,13 @@ async function ensureSessionInMemory(pin) {
 
 function getLeaderboard(session) {
   return Object.values(session.players)
-    .filter(p => !p.isHost)
+    .filter(p => session.rated === false || !p.isHost)
     .sort((a, b) => b.score - a.score)
     .map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, streak: p.streak || 0 }));
 }
 
 function broadcastStats(pin, session) {
-  const players = Object.values(session.players).filter(p => !p.isHost);
+  const players = Object.values(session.players).filter(p => session.rated === false || !p.isHost);
   const responded = players.filter(p => p.answeredThisQ).length;
   io.in(pin).emit("stats_update", {
     stats: session.optionStats,
@@ -1051,7 +1051,7 @@ io.on("connection", (socket) => {
         userId: data.userId || null,
         avatar: data.avatar || null, // Persist host avatar
         score: 0, 
-        answeredThisQ: true, 
+        answeredThisQ: false, 
         optionIdx: -1, 
         isHost: true, 
         streak: 0,
@@ -1158,7 +1158,8 @@ io.on("connection", (socket) => {
         },
         timerSeconds: session.timerSeconds,
         timerMode: session.timerMode,
-        totalSessionTime: session.totalSessionTime
+        totalSessionTime: session.totalSessionTime,
+        rated: session.rated
       });
 
       // Global Session Timer (Fixed termination)

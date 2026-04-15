@@ -15,8 +15,9 @@ export const SidebarToggleArrow: React.FC<SidebarToggleArrowProps> = ({ isCollap
     <motion.button
       onClick={onClick}
       className={cn(
-        "absolute -right-4 top-1/2 -translate-y-1/2 z-[60]",
-        "flex items-center justify-center w-8 h-20 group cursor-pointer outline-none"
+        "absolute -right-4 z-[60]",
+        "flex items-center justify-center w-8 h-20 group cursor-pointer outline-none",
+        isCollapsed ? "top-1/2 -translate-y-1/2" : "top-20"
       )}
       initial={false}
       animate={{ 

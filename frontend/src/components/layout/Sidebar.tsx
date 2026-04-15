@@ -72,10 +72,6 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         isCollapsed ? "w-20" : "w-72"
       )}
     >
-      <SidebarToggleArrow isCollapsed={isCollapsed} onClick={() => {
-        playToggle?.();
-        onToggle?.();
-      }} />
       {/* Background HUD Effects */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
         <motion.div 
@@ -85,6 +81,11 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] opacity-[0.05]" />
       </div>
+
+      <SidebarToggleArrow isCollapsed={isCollapsed} onClick={() => {
+        playToggle?.();
+        onToggle?.();
+      }} />
 
       {/* Brand / Logo Section */}
       <div className={cn(
@@ -128,7 +129,10 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
           className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 transition-all duration-500 shrink-0"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center gap-3 relative z-10">
+          <div className={cn(
+            "flex items-center gap-3 relative z-10 transition-all duration-500",
+            isCollapsed && "justify-center gap-0"
+          )}>
             <div className={cn(
                "w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0",
                isCollapsed && "scale-110" // Make avatar stand out in collapsed
@@ -199,7 +203,8 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                   "group relative flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300",
                   isActive 
                     ? "bg-accent/15 border border-accent/30 text-white shadow-[0_0_25px_rgba(99,102,241,0.2)] ring-1 ring-white/5" 
-                    : "text-text-soft hover:bg-white/5 hover:text-white border border-transparent"
+                    : "text-text-soft hover:bg-white/5 hover:text-white border border-transparent",
+                  isCollapsed && "justify-center px-0 gap-0"
                 )}
               >
                 {/* Active Indicator Neon Bar */}

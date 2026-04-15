@@ -224,71 +224,94 @@ function LiveDashboardContent() {
             </div>
           </section>
 
-          {/* Player surveillance grid */}
+          {/* Player surveillance Matrix (PULSE GRID) */}
           <section className="glass rounded-[40px] border-white/5 overflow-hidden">
-            <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-              <h3 className="flex items-center gap-3 font-bold text-lg italic">
+            <div className="p-8 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01]">
+              <div className="flex items-center gap-3">
                 <Activity size={20} className="text-accent" />
-                Live Feed
-              </h3>
-              <div className="flex items-center gap-3 font-black text-[10px] uppercase tracking-widest text-text-soft">
-                <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }} className="w-1.5 h-1.5 rounded-full bg-accent-alt" />
-                Encrypted Data Stream
+                <h3 className="font-bold text-lg italic uppercase">Arena Pulse Grid</h3>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest text-text-soft">
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent-alt animate-pulse" />
+                    Syncing {activePlayers.length} Nodes
+                 </div>
               </div>
             </div>
 
-            <div className="p-8 max-h-[500px] overflow-y-auto custom-scrollbar bg-[#05060f]/50">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <AnimatePresence mode="popLayout">
-                  {activePlayers.sort((a: any, b: any) => b.score - a.score).map((player: any, i) => (
+            <div className="p-8 bg-[#05060f]/50">
+              <div className="flex flex-wrap gap-2 justify-center max-h-[400px] overflow-y-auto custom-scrollbar p-2">
+                {Array.from({ length: 200 }).map((_, i) => {
+                  const player = Object.values(players).find((p: any) => p.slotIndex === i && !p.isHost) as any;
+                  
+                  return (
                     <motion.div
-                      layout
-                      key={player.name}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      key={i}
+                      initial={false}
                       className={cn(
-                        "group p-4 rounded-[22px] border border-white/5 transition-all hover:bg-white/[0.03]",
-                        player.isSuspicious && "border-red-500/30 bg-red-500/[0.02]"
+                        "w-4 h-4 rounded-full border transition-all relative group cursor-help",
+                        !player ? "bg-white/[0.02] border-white/[0.05]" : 
+                        player.isSuspicious ? "bg-red-500 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)] animate-pulse" :
+                        player.answeredThisQ ? "bg-accent-alt border-emerald-400 shadow-[0_0_10px_rgba(34,197,94,0.4)]" :
+                        "bg-accent/40 border-accent/60"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "w-12 h-12 rounded-[18px] flex items-center justify-center font-black text-lg",
-                            player.answeredThisQ ? "bg-accent-alt/20 text-accent-alt" : "bg-white/5 text-text-soft"
-                          )}>
-                            {player.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm tracking-tight">{player.name}</span>
-                              {player.isSuspicious && <AlertTriangle size={12} className="text-red-500 animate-bounce" />}
-                            </div>
-                            <div className="flex items-center gap-3 text-[10px] font-black uppercase text-text-soft">
-                              <span className="text-accent">{player.score} PTS</span>
-                              {player.answeredThisQ && <span className="text-accent-alt">ANS: {String.fromCharCode(65 + player.optionIdx)}</span>}
-                            </div>
-                          </div>
+                      {/* Tooltip */}
+                      {player && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-black/90 border border-white/10 text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                          <p>{player.name}</p>
+                          <p className="text-text-soft text-[8px] uppercase">{player.score} PTS • {player.answeredThisQ ? 'Answered' : 'Thinking...'}</p>
+                          {player.isSuspicious && <p className="text-red-400 text-[8px] mt-1 italic">🚩 Flags Detected</p>}
                         </div>
+                      )}
 
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-all shadow-sm" title="Kick Player">
-                              <UserMinus size={16} />
-                           </button>
-                           <button className="p-2 rounded-lg hover:bg-red-500/20 text-red-500 transition-all shadow-sm" title="Ban ID">
-                              <Ban size={16} />
-                           </button>
+                      {!player && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-black/80 text-[8px] text-white/40 opacity-0 group-hover:opacity-100 pointer-events-none">
+                          Slot {i}
                         </div>
-                      </div>
+                      )}
                     </motion.div>
-                  ))}
-                </AnimatePresence>
-                {activePlayers.length === 0 && (
-                  <div className="col-span-full py-20 text-center text-text-soft border-2 border-dashed border-white/5 rounded-[40px] italic font-medium opacity-30">
-                    Host oversight active. Awaiting player decryption...
-                  </div>
-                )}
+                  );
+                })}
               </div>
+
+              {/* Grid Legend */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-6 border-t border-white/5 pt-6">
+                 <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-accent-alt" />
+                    <span className="text-[9px] font-bold text-text-soft uppercase tracking-widest">Answered</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-accent/40" />
+                    <span className="text-[9px] font-bold text-text-soft uppercase tracking-widest">Awaiting</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-[9px] font-bold text-text-soft uppercase tracking-widest">Suspicious</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-white/[0.05]" />
+                    <span className="text-[9px] font-bold text-text-soft uppercase tracking-widest">Empty</span>
+                 </div>
+              </div>
+            </div>
+
+            {/* Quick Detailed Oversight */}
+            <div className="p-8 border-t border-white/5 bg-white/[0.01]">
+               <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-xs font-black uppercase text-text-soft tracking-widest">Top Active Nodes</h4>
+                  <span className="text-[10px] text-accent font-bold italic underline cursor-pointer">View Detailed Feed</span>
+               </div>
+               <div className="flex flex-wrap gap-3">
+                  {activePlayers.sort((a: any, b: any) => b.score - a.score).slice(0, 8).map((p: any) => (
+                    <div key={p.name} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5">
+                        <div className={cn("w-2 h-2 rounded-full", p.answeredThisQ ? 'bg-accent-alt' : 'bg-white/20')} />
+                        <span className="text-[10px] font-bold">{p.name}</span>
+                        <span className="text-[9px] font-black text-accent">{p.score}</span>
+                    </div>
+                  ))}
+               </div>
             </div>
           </section>
         </div>

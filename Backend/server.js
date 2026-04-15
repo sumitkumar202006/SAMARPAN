@@ -440,15 +440,19 @@ app.get("/api/host/analytics/:pin", async (req, res) => {
         players[log.playerName] = {
           name: log.playerName,
           correct: 0,
+          incorrect: 0,
           total: 0,
+          accuracy: 0,
           totalTime: 0,
           answers: []
         };
       }
       players[log.playerName].total++;
       if (log.isCorrect) players[log.playerName].correct++;
+      else players[log.playerName].incorrect++;
       players[log.playerName].totalTime += log.timeTaken;
       players[log.playerName].answers.push(log);
+      players[log.playerName].accuracy = (players[log.playerName].correct / players[log.playerName].total) * 100;
 
       // Question aggregation
       if (questionPerformance[log.questionIndex]) {

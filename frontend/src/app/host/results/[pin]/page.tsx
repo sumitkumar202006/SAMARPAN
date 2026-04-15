@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Trophy, Users, Target, Clock, AlertCircle, 
-  ChevronRight, TrendingUp, BarChart3, Download, Home
+  ChevronRight, TrendingUp, BarChart3, Download, Home, Search, Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import api from '@/lib/axios';
@@ -21,6 +21,7 @@ function ResultsPageContent() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -41,6 +42,13 @@ function ResultsPageContent() {
     if (!data?.playerPerformance) return [];
     return [...data.playerPerformance].sort((a: any, b: any) => b.correct - a.correct).slice(0, 3);
   }, [data]);
+
+  const filteredPerformance = useMemo(() => {
+    if (!data?.playerPerformance) return [];
+    const sorted = [...data.playerPerformance].sort((a: any, b: any) => b.correct - a.correct);
+    if (!searchQuery) return sorted;
+    return sorted.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [data, searchQuery]);
 
   const worstQuestion = useMemo(() => {
     if (!data?.questionPerformance) return null;
@@ -69,7 +77,7 @@ function ResultsPageContent() {
   return (
     <div className="min-h-screen bg-[#05060f] text-white p-4 lg:p-12 font-sans selection:bg-accent selection:text-white pb-32">
       {/* Victory Header */}
-      <header className="max-w-6xl mx-auto mb-16 text-center">
+      <header className="max-w-7xl mx-auto mb-16 text-center">
         <motion.div 
           initial={{ scale: 0 }} 
           animate={{ scale: 1 }} 
@@ -84,13 +92,14 @@ function ResultsPageContent() {
         </p>
       </header>
 
-      <main className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-8">
         
-        {/* Top 3 Podium */}
+        {/* Main Content: Podium & Roster */}
         <section className="lg:col-span-2 space-y-8">
+          {/* Top 3 Podium */}
           <div className="glass rounded-[40px] p-10 border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent">
             <h3 className="flex items-center gap-3 font-bold text-xl mb-10 italic">
-              <Trophy size={24} className="text-gold" />
+              <Trophy size={24} className="text-yellow-500" />
               Podium Finishers
             </h3>
             
@@ -101,32 +110,117 @@ function ResultsPageContent() {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: i * 0.1 }}
                   key={player.name}
-                  className="flex items-center justify-between p-6 rounded-[28px] bg-white/[0.02] border border-white/5 hover:border-accent/30 transition-all hover:bg-white/[0.05]"
+                  className="flex items-center justify-between p-7 rounded-[32px] bg-white/[0.02] border border-white/5 hover:border-accent/30 transition-all hover:bg-white/[0.05] relative overflow-hidden group"
                 >
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-6 relative z-10">
                     <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl",
-                      i === 0 ? "bg-yellow-500 text-yellow-950" : 
-                      i === 1 ? "bg-slate-300 text-slate-900" : 
-                      "bg-amber-700 text-white"
+                      "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-2xl",
+                      i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-600 text-yellow-950" : 
+                      i === 1 ? "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-900" : 
+                      "bg-gradient-to-br from-orange-600 to-red-800 text-white"
                     )}>
                       {i + 1}
                     </div>
                     <div>
-                      <p className="text-xl font-bold tracking-tight">{player.name}</p>
-                      <p className="text-sm text-text-soft font-medium uppercase tracking-widest">{player.correct} Correct in {(player.totalTime).toFixed(1)}s</p>
+                      <p className="text-2xl font-black tracking-tight mb-1">{player.name}</p>
+                      <div className="flex items-center gap-4">
+                         <div className="flex flex-col">
+                            <span className="text-[8px] font-black uppercase text-text-soft tracking-widest">Efficiency</span>
+                            <span className="text-xs font-bold text-accent-alt">{player.correct} / {player.total}</span>
+                         </div>
+                         <div className="w-px h-6 bg-white/10" />
+                         <div className="flex flex-col">
+                            <span className="text-[8px] font-black uppercase text-text-soft tracking-widest">Total Time</span>
+                            <span className="text-xs font-bold">{(player.totalTime).toFixed(1)}s</span>
+                         </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-accent">{((player.correct / player.total) * 100).toFixed(0)}%</p>
-                    <p className="text-[10px] font-black uppercase text-text-soft">Accuracy</p>
+
+                  <div className="flex items-center gap-8 relative z-10">
+                    <div className="text-center">
+                       <p className="text-xs font-black text-accent-alt">-{player.correct}</p>
+                       <p className="text-[8px] font-black uppercase text-text-soft">Hits</p>
+                    </div>
+                    <div className="text-center">
+                       <p className="text-xs font-black text-red-500">-{player.incorrect || (player.total - player.correct)}</p>
+                       <p className="text-[8px] font-black uppercase text-text-soft">Misses</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-accent">{((player.correct / player.total) * 100).toFixed(0)}%</p>
+                      <p className="text-[9px] font-black uppercase text-text-soft tracking-widest">Accuracy</p>
+                    </div>
                   </div>
+
+                  {i === 0 && <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[80px] rounded-full" />}
                 </motion.div>
               ))}
             </div>
           </div>
 
-          {/* Question Breakdown */}
+          {/* Full Participant Roster */}
+          <div className="glass rounded-[40px] p-10 border-white/5 bg-white/[0.01]">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                <h3 className="flex items-center gap-3 font-bold text-xl italic">
+                  <Users size={24} className="text-text-soft" />
+                  Arena Command Log
+                </h3>
+                
+                <div className="relative w-full sm:w-64">
+                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft"><Search size={16} /></div>
+                   <input 
+                      type="text"
+                      placeholder="Search participant..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full h-11 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-xs font-bold outline-none focus:border-accent transition-all"
+                   />
+                </div>
+             </div>
+
+             <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-separate border-spacing-y-3">
+                   <thead>
+                      <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                         <th className="pb-4 pl-6">Rank</th>
+                         <th className="pb-4">Participant</th>
+                         <th className="pb-4 text-center">Correct</th>
+                         <th className="pb-4 text-center">Incorrect</th>
+                         <th className="pb-4 text-center">Attempted</th>
+                         <th className="pb-4 text-right pr-6">Accuracy</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {filteredPerformance.map((p: any, idx: number) => (
+                        <tr key={p.name} className="group bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
+                           <td className="py-4 pl-6 rounded-l-2xl font-black text-text-soft italic">#{idx + 1}</td>
+                           <td className="py-4">
+                              <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center font-bold text-xs text-accent">
+                                    {p.name.charAt(0).toUpperCase()}
+                                 </div>
+                                 <span className="font-bold text-sm tracking-tight">{p.name}</span>
+                              </div>
+                           </td>
+                           <td className="py-4 text-center font-black text-accent-alt text-sm">{p.correct}</td>
+                           <td className="py-4 text-center font-black text-red-500/70 text-sm">{p.incorrect || (p.total - p.correct)}</td>
+                           <td className="py-4 text-center font-black text-text-soft text-sm">{p.total}</td>
+                           <td className="py-4 text-right pr-6 rounded-r-2xl">
+                              <span className={cn(
+                                "text-sm font-black italic",
+                                (p.correct / p.total) > 0.7 ? "text-emerald-400" : "text-white"
+                              )}>
+                                {((p.correct / (p.total || 1)) * 100).toFixed(0)}%
+                              </span>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+          </div>
+
+          {/* Content Breakdown */}
           <div className="glass rounded-[40px] p-10 border-white/5">
             <h3 className="flex items-center gap-3 font-bold text-xl mb-10 italic">
               <BarChart3 size={24} className="text-accent" />

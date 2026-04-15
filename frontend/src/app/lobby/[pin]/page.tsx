@@ -128,7 +128,11 @@ function LobbyContent() {
 
   const confirmJoin = () => {
     if (!pendingSlot) return;
-    socket.emit('join_team_slot', { pin, ...pendingSlot });
+    socket.emit('join_team_slot', { 
+      pin, 
+      team: pendingSlot.team, 
+      slotIndex: Number(pendingSlot.index) 
+    });
     setPendingSlot(null);
   };
 

@@ -1066,8 +1066,8 @@ io.on("connection", (socket) => {
     // Auto-assign slot for Grand Arena (Standard/Rapid)
     if (!session.battleType || session.battleType === 'Standard' || session.battleType === 'rapid') {
       const takenSlots = Object.values(session.players)
-        .filter(p => p.slotIndex !== undefined)
-        .map(p => p.slotIndex);
+        .filter(p => p.slotIndex !== undefined && p.slotIndex !== null)
+        .map(p => Number(p.slotIndex));
       let nextSlot = 0;
       while (takenSlots.includes(nextSlot)) nextSlot++;
       session.players[socket.id].team = 'Team A';
@@ -1351,7 +1351,7 @@ io.on("connection", (socket) => {
     }
 
     // Check if slot taken (check all players including host)
-    const slotTaken = Object.values(session.players).some(p => p.team === team && p.slotIndex === slotIndex);
+    const slotTaken = Object.values(session.players).some(p => p.team === team && Number(p.slotIndex) === Number(slotIndex));
     if (slotTaken) {
       socket.emit("error_msg", { message: "This slot is already occupied." });
       return;
@@ -1371,7 +1371,7 @@ io.on("connection", (socket) => {
     if (!player) return;
 
     // Check if new slot taken
-    const slotTaken = Object.values(session.players).some(p => p.team === newTeam && p.slotIndex === newSlotIndex);
+    const slotTaken = Object.values(session.players).some(p => p.team === newTeam && Number(p.slotIndex) === Number(newSlotIndex));
     if (slotTaken) {
       socket.emit("error_msg", { message: "Target slot is already occupied." });
       return;

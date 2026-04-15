@@ -378,7 +378,17 @@ app.post("/api/host/start", async (req, res) => {
       attempts++;
     }
 
-        teamScores: battleType && battleType !== '1v1' ? { 'Team A': 0, 'Team B': 0 } : null,
+    const finalBattleType = mode === 'battle' ? battleType : null;
+
+    const game = await prisma.gameSession.create({
+      data: {
+        quizId: quiz.id,
+        hostId: user.id,
+        mode: mode || "rapid",
+        timerSeconds: timerSeconds || 30,
+        rated: rated !== false,
+        battleType: finalBattleType,
+        teamScores: finalBattleType && finalBattleType !== '1v1' ? { 'Team A': 0, 'Team B': 0 } : null,
         pin,
         metadata: {
           timerMode: timerMode || 'per-question',
@@ -1003,6 +1013,8 @@ io.on("connection", (socket) => {
         name: data.name || "Host", // Use host's real name if provided
         userId: data.userId || null,
         avatar: data.avatar || null, // Persist host avatar
+        team: 'Team A',
+        slotIndex: 0,
         score: 0, 
         answeredThisQ: false, 
         optionIdx: -1, 
@@ -1051,7 +1063,18 @@ io.on("connection", (socket) => {
     };
     socket.emit("join_success", { pin, name });
     
-    // Check if slot specified
+    // Auto-assign slot for Grand Arena (Standard/Rapid)
+    if (!session.battleType || session.battleType === 'Standard' || session.battleType === 'rapid') {
+      const takenSlots = Object.values(session.players)
+        .filter(p => p.slotIndex !== undefined)
+        .map(p => p.slotIndex);
+      let nextSlot = 0;
+      while (takenSlots.includes(nextSlot)) nextSlot++;
+      session.players[socket.id].team = 'Team A';
+      session.players[socket.id].slotIndex = nextSlot;
+    }
+    
+    // Check if slot specifically requested (overrides auto-assign if provided)
     if (data.team && data.slotIndex !== undefined) {
       session.players[socket.id].team = data.team;
       session.players[socket.id].slotIndex = data.slotIndex;

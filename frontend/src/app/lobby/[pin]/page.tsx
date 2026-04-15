@@ -172,7 +172,10 @@ function LobbyContent() {
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
     const isMassive = !battleType || battleType === 'Standard' || battleType === 'rapid';
-    const occupantId = Object.keys(players).find(id => players[id].team === team && players[id].slotIndex == index);
+    const occupantId = Object.keys(players).find(id => {
+      const p = players[id];
+      return p.team === team && Number(p.slotIndex) === index;
+    });
     const occupant = occupantId ? players[occupantId] : null;
 
     if (isMassive) {

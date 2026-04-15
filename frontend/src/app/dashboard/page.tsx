@@ -97,12 +97,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="py-6 lg:py-10">
+    <div className="py-2 lg:py-10">
       <UpdatesStrip />
 
-      <div className="flex flex-col gap-1 mb-8">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-text-soft">Your quick overview of tools, recent quizzes, rating and activity.</p>
+      <div className="flex flex-col gap-1 mb-8 px-1 lg:px-0">
+        <h2 className="text-2xl lg:text-3xl font-black tracking-tight">Dashboard</h2>
+        <p className="text-text-soft text-xs lg:text-base">Your quick overview of tools, recent quizzes, rating and activity.</p>
       </div>
 
       <motion.div 
@@ -117,23 +117,23 @@ export default function Dashboard() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-wider mb-4 w-fit">
               Samarpan Arena
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight">
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight">
               Host. Compete. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-accent-alt">Rank up.</span>
             </h1>
-            <p className="text-text-soft text-lg max-w-xl mb-8 leading-relaxed">
+            <p className="text-text-soft text-sm lg:text-lg max-w-xl mb-8 leading-relaxed">
               Turn your classroom into an e-sports style arena. Create quizzes,
               host live battles and watch players climb the leaderboard.
             </p>
 
             <div className="flex flex-wrap gap-4 mb-10">
-              <Link href="/battles" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black shadow-[0_0_25px_rgba(99,102,241,0.4)] hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-widest">
-                <Zap size={20} fill="currentColor" />
-                Start a battle
+              <Link href="/battles" className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3 lg:py-4 rounded-2xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black shadow-xl hover:scale-105 active:scale-95 transition-all text-xs lg:text-sm uppercase tracking-widest text-center">
+                <Zap size={18} fill="currentColor" />
+                Battle
               </Link>
-              <Link href="/host?friendly=true" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-accent-alt text-white font-black shadow-[0_0_25px_rgba(34,197,94,0.4)] hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-widest">
-                <Users size={20} />
-                Friendly Battle
+              <Link href="/host?friendly=true" className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3 lg:py-4 rounded-2xl bg-accent-alt text-white font-black shadow-xl hover:scale-105 active:scale-95 transition-all text-xs lg:text-sm uppercase tracking-widest text-center">
+                <Users size={18} />
+                Friendly
               </Link>
               <Link href="/create" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 hover:border-accent/30 transition-all text-sm uppercase tracking-widest">
                 <Plus size={20} />
@@ -141,18 +141,18 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="flex flex-wrap gap-x-8 gap-y-4">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-8 gap-y-4">
               <div className="flex flex-col">
-                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Quizzes hosted</span>
-                <span className="text-2xl font-black">{stats?.quizzesCount || 0}</span>
+                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Quizzes hosted</span>
+                <span className="text-xl lg:text-2xl font-black">{stats?.quizzesCount || 0}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">XP Points</span>
-                <span className="text-2xl font-black">{stats?.xp || 0}</span>
+                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">XP Points</span>
+                <span className="text-xl lg:text-2xl font-black">{stats?.xp || 0}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Global Rating</span>
-                <span className="text-2xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</span>
+                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Global Rating</span>
+                <span className="text-xl lg:text-2xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</span>
               </div>
             </div>
 

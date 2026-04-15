@@ -11,17 +11,15 @@ import {
   Zap, 
   Clock,
   TrendingUp,
-  BarChart2
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/axios';
-import { 
-  X, 
-  Edit3, 
-  Upload, 
-  Check, 
-  Camera, 
+  BarChart2,
+  Menu,
+  User,
+  Shield,
+  Camera,
+  Edit3,
+  X,
+  Upload,
+  Check,
   ShieldAlert,
   Dna,
   Gamepad2,
@@ -30,13 +28,16 @@ import {
   BrainCircuit,
   Zap as ZapIcon
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
 
 // Avatar Presets Matrix (DiceBear Collections)
 const AVATAR_STUFF = [
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=nexus-${i}`),
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=gamer-${i}`),
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=hero-${i}`),
-  ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=human-${i}`),
+  ...Array.from({ length: 12 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=nexus-${i}`),
+  ...Array.from({ length: 12 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=gamer-${i}`),
+  ...Array.from({ length: 12 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=hero-${i}`),
+  ...Array.from({ length: 8 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=human-${i}`),
 ];
 
 // Badge Logic Engine
@@ -150,43 +151,38 @@ export default function ProfilePage() {
             {/* Background Glow */}
             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-accent/20 blur-[120px] rounded-full group-hover:bg-accent/30 transition-all pointer-events-none" />
             
-            <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
-              <div className="group/avatar relative w-32 h-32 rounded-[40px] bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-bold text-5xl shadow-2xl overflow-hidden cursor-pointer" onClick={() => setIsEditing(true)}>
-                {stats?.avatar ? (
-                  <img src={stats.avatar} alt="profile" className="w-full h-full object-cover transition-transform group-hover/avatar:scale-110" />
-                ) : stats?.name?.charAt(0).toUpperCase() || 'U'}
-                
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
-                  <Camera className="text-white" size={32} />
-                </div>
-                
-                <div className="absolute -bottom-2 -right-2 bg-background p-2 rounded-2xl shadow-xl z-20">
-                  <Award className="text-yellow-400" size={24} />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+        <div className="flex items-center gap-5">
+           <div className="relative group">
+              <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-[32px] bg-gradient-to-tr from-accent to-accent-alt p-1 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                <div className="w-full h-full rounded-[28px] bg-background flex items-center justify-center overflow-hidden">
+                  {stats?.avatar ? (
+                    <img src={stats.avatar} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={40} className="text-text-soft" />
+                  )}
                 </div>
               </div>
+           </div>
+           
+           <div>
+             <h1 className="text-2xl lg:text-4xl font-black tracking-tight">{stats?.name || user?.name}</h1>
+             <p className="text-text-soft text-xs lg:text-sm uppercase font-black tracking-widest mt-1">Elite Strategist</p>
+           </div>
+        </div>
 
-              <div className="flex flex-col items-center md:items-start text-center md:text-left flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-4xl font-black">{stats?.name || 'Guest Explorer'}</h1>
-                  <button onClick={() => setIsEditing(true)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all">
-                    <Edit3 size={18} />
-                  </button>
-                </div>
-                <p className="text-accent font-bold uppercase tracking-widest text-xs mb-4">
-                  {user ? 'Verified Competitor' : 'Unregistered Terminal'}
-                </p>
-                
-                {user && (
-                  <div className="flex gap-4">
-                    <div className={cn("px-4 py-2 rounded-full border border-white/5 text-[10px] font-black uppercase tracking-widest flex items-center gap-2", rank.bg, rank.color)}>
-                      <rank.icon size={14} />
-                      {rank.label} Tier
-                    </div>
-                    <div className="px-4 py-2 rounded-full bg-white/5 border border-white/5 text-[10px] font-black uppercase tracking-widest text-text-soft">XP: {stats?.xp || 0}</div>
-                  </div>
-                )}
-              </div>
-            </div>
+        <button 
+          onClick={() => {
+            setEditName(stats?.name || user?.name || '');
+            setTempAvatar(stats?.avatar || user?.avatar || '');
+            setIsEditing(true);
+          }}
+          className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all text-sm uppercase tracking-widest"
+        >
+          <Edit3 size={18} />
+          Identity Forge
+        </button>
+      </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 relative z-10">
               {[
@@ -388,20 +384,20 @@ export default function ProfilePage() {
 
                       <div className="space-y-4">
                         <label className="text-[10px] font-black uppercase tracking-widest text-text-soft ml-1">Nexus Preset Core (40+ Avatars)</label>
-                        <div className="grid grid-cols-5 gap-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar p-1">
-                          {AVATAR_STUFF.map((url, i) => (
-                            <div 
-                              key={i} 
-                              onClick={() => setTempAvatar(url)}
-                              className={cn(
-                                "aspect-square rounded-2xl cursor-pointer hover:scale-110 transition-all border-2 overflow-hidden bg-white/5",
-                                tempAvatar === url ? "border-accent ring-4 ring-accent/20" : "border-transparent"
-                              )}
-                            >
-                              <img src={url} alt={`preset-${i}`} className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
+                        <div className="grid grid-cols-4 lg:grid-cols-5 gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                      {AVATAR_STUFF.map((url, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setTempAvatar(url)}
+                          className={cn(
+                            "aspect-square rounded-xl border-2 transition-all p-1 bg-white/5",
+                            tempAvatar === url ? "border-accent bg-accent/10" : "border-transparent opacity-60 hover:opacity-100"
+                          )}
+                        >
+                          <img src={url} alt="preset" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                       </div>
                     </div>
                   </div>

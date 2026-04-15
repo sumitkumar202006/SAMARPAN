@@ -53,6 +53,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
         </Suspense>
+        
         <div className={cn(
           "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
           mounted && (isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72")
@@ -60,9 +61,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           <Topbar />
           <main className={cn(
             "flex-1 flex flex-col pt-4 relative",
-            mounted && !isSidebarCollapsed && "lg:pt-6"
+            mounted && !isSidebarCollapsed && "lg:pt-6",
+            "pb-32 lg:pb-10"
           )}>
-            <div className="flex-1 px-4 lg:px-8 max-w-7xl mx-auto w-full">
+            <div className="flex-1 px-5 lg:px-8 max-w-7xl mx-auto w-full">
               {children}
             </div>
 

@@ -137,12 +137,12 @@ export default function SettingsPage() {
   return (
     <div className="max-w-6xl mx-auto p-4 lg:p-10 space-y-10">
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
-          <SettingsIcon size={24} />
+        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
+          <SettingsIcon size={20} lg-size={24} />
         </div>
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Command Center</h1>
-          <p className="text-text-soft text-sm">Personalize your arena experience and AI brain.</p>
+          <h1 className="text-2xl lg:text-3xl font-black tracking-tight uppercase tracking-widest">Command Center</h1>
+          <p className="text-text-soft text-[10px] lg:text-sm">Personalize your arena experience and AI brain.</p>
         </div>
       </div>
 
@@ -152,14 +152,14 @@ export default function SettingsPage() {
         <div className="lg:col-span-4 space-y-6">
           
           {/* Profile Identity */}
-          <div className="glass rounded-[32px] p-6 border-white/5 space-y-6">
+          <div className="glass rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 border-white/5 space-y-6">
             <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-black text-white text-xl">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-black text-white text-lg lg:text-xl">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="font-bold text-lg tracking-tight">{user?.name}</p>
-                <p className="text-[10px] text-text-soft uppercase font-black tracking-widest leading-none mt-1">Status: Online</p>
+                <p className="font-bold text-base lg:text-lg tracking-tight">{user?.name}</p>
+                <p className="text-[9px] lg:text-[10px] text-text-soft uppercase font-black tracking-widest leading-none mt-1">Status: Online</p>
               </div>
             </div>
             
@@ -178,11 +178,11 @@ export default function SettingsPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass rounded-[32px] p-6 border-white/5 space-y-6"
+            className="glass rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 border-white/5 space-y-6"
           >
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-              <Camera className="text-accent" size={18} />
-              <h2 className="text-sm font-black uppercase tracking-widest">Identity Forge</h2>
+              <Camera className="text-accent" size={16} lg-size={18} />
+              <h2 className="text-xs lg:text-sm font-black uppercase tracking-widest">Identity Forge</h2>
             </div>
 
             <div className="space-y-4">
@@ -237,11 +237,11 @@ export default function SettingsPage() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="glass rounded-[32px] p-6 border-white/5 space-y-6"
+            className="glass rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 border-white/5 space-y-6"
           >
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-              <School className="text-emerald-400" size={18} />
-              <h2 className="text-sm font-black uppercase tracking-widest">Institutional Context</h2>
+              <School className="text-emerald-400" size={16} lg-size={18} />
+              <h2 className="text-xs lg:text-sm font-black uppercase tracking-widest">Institutional Context</h2>
             </div>
             
             <div className="space-y-4">

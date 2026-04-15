@@ -36,19 +36,26 @@ export const Topbar = () => {
 
   return (
     <header className="sticky top-0 z-[100] w-full bg-background/80 backdrop-blur-3xl border-b border-white/5">
-      <div className="px-6 lg:px-12 h-16 flex items-center justify-between gap-4">
+      <div className="px-4 lg:px-12 h-16 flex items-center justify-between gap-4">
         
-        {/* Left: Search (Desktop) / Menu (Mobile) */}
-        <div className="flex items-center gap-4 flex-1">
-          <div className="lg:hidden w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center overflow-hidden">
-            <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-cover" />
-          </div>
-          <div className="hidden md:flex items-center max-w-sm w-full relative">
-            <Search className="absolute left-3 text-text-soft" size={18} />
+        {/* Left: Branding & Search */}
+        <div className="flex items-center gap-2 lg:gap-8 flex-1">
+          <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all">
+              <img src="/logo.png" alt="Samarpan" className="w-5 h-5 lg:w-6 lg:h-6 object-contain" />
+            </div>
+            <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic">SAMARPAN</span>
+          </Link>
+          
+          <div className="hidden lg:block h-6 w-px bg-white/5" />
+          
+          {/* Desktop Search */}
+          <div className="hidden md:flex items-center max-w-xs w-full relative">
+            <Search className="absolute left-3 text-text-soft" size={14} />
             <input 
               type="text" 
-              placeholder="Search quizzes, topics..." 
-              className="w-full bg-bg-soft/50 border border-border-soft rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all"
+              placeholder="Search vault..." 
+              className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20 transition-all"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   const target = e.target as HTMLInputElement;
@@ -61,62 +68,51 @@ export const Topbar = () => {
           </div>
         </div>
 
-        {/* Right: Actions & User */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button 
-            onClick={() => {
-              playAccelerate();
-              router.push('/host');
-            }}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-[11px] font-black uppercase tracking-[0.1em] hover:bg-accent hover:text-white transition-all duration-300 shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_25px_rgba(99,102,241,0.3)]"
-          >
-            Host Quiz
-          </button>
-          
+        {/* Right: Actions & Identity */}
+        <div className="flex items-center gap-2 lg:gap-4">
           <button 
             onClick={toggleMute}
-            className="p-2 rounded-full text-text-soft hover:bg-background hover:text-white transition-all flex items-center justify-center"
+            className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all outline-none"
             title={isMuted ? 'Unmute' : 'Mute'}
           >
-            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+          
+          <button className="hidden sm:flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none">
+            <Bell size={18} />
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent rounded-full border-2 border-background" />
           </button>
 
-          <button className="hidden xs:flex p-2 rounded-full text-text-soft hover:bg-background hover:text-white transition-all">
-            <Bell size={20} />
-          </button>
+          <div className="h-6 w-px bg-white/5 hidden sm:block" />
 
+          {/* User Profile Hook */}
           <div className="relative" ref={dropdownRef}>
             {user ? (
-              <button 
+               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 p-1 pl-2 rounded-full border border-border-soft bg-background/50 hover:border-accent/50 transition-all shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                className="flex items-center gap-2 lg:gap-3 p-1 rounded-xl lg:rounded-2xl hover:bg-white/5 transition-all outline-none"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-semibold text-sm overflow-hidden">
-                  {user?.avatar ? <img src={user.avatar} alt="user" className="w-full h-full object-cover" /> : user?.name?.charAt(0).toUpperCase() || <UserIcon size={16} />}
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt p-0.5 shadow-lg">
+                  <div className="w-full h-full rounded-md lg:rounded-lg bg-background flex items-center justify-center overflow-hidden">
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserIcon size={16} className="text-text-soft" />
+                    )}
+                  </div>
+                </div>
+                <div className="hidden md:flex flex-col items-start leading-none gap-1">
+                  <span className="text-xs font-black tracking-tight">{user?.name || 'Guest User'}</span>
+                  <span className="text-[9px] text-accent uppercase font-black tracking-widest">Level 12 Host</span>
                 </div>
               </button>
             ) : (
               <div className="flex items-center gap-2">
                 <Link 
                   href="/auth"
-                  onClick={() => playAccelerate()}
-                  className="relative group overflow-hidden flex flex-col items-center justify-center px-6 py-2 rounded-2xl bg-gradient-to-r from-[#00c6ff] via-[#0072ff] to-[#00c6ff] bg-[length:200%_auto] animate-flow text-white shadow-[0_0_20px_rgba(0,198,255,0.4)] hover:shadow-[0_0_40px_rgba(0,198,255,0.6)] transition-all duration-500 hover:-translate-y-1 active:scale-95 border border-white/20"
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)]"
                 >
-                  <span className="relative z-10 text-[10px] font-black uppercase tracking-[0.15em] drop-shadow-lg">Again? Respect!</span>
-                  <span className="relative z-10 text-[9px] font-bold uppercase opacity-90 italic tracking-widest mt-0.5">Login</span>
-                  {/* High-gloss shimmer */}
-                  <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:animate-shimmer" />
-                </Link>
-                
-                <Link 
-                  href="/auth?mode=signup"
-                  onClick={() => playAccelerate()}
-                  className="relative group overflow-hidden flex flex-col items-center justify-center px-6 py-2 rounded-2xl bg-gradient-to-r from-[#00b09b] via-[#96c93d] to-[#00b09b] bg-[length:200%_auto] animate-flow text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-[0_0_40px_rgba(34,197,94,0.6)] transition-all duration-500 hover:-translate-y-1 active:scale-95 border border-white/20"
-                >
-                  <span className="relative z-10 text-[10px] font-black uppercase tracking-[0.15em] drop-shadow-lg">First Time? Good Luck!</span>
-                  <span className="relative z-10 text-[9px] font-bold uppercase opacity-90 italic tracking-widest mt-0.5">Sign up</span>
-                  {/* High-gloss shimmer */}
-                  <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:animate-shimmer" />
+                  Join Arena
                 </Link>
               </div>
             )}
@@ -127,51 +123,48 @@ export const Topbar = () => {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 mt-2 w-56 glass rounded-2xl p-2 shadow-2xl overflow-hidden z-50"
+                  className="absolute right-0 mt-2 w-56 glass rounded-2xl p-2 shadow-2xl overflow-hidden z-50 border border-white/5"
                 >
-                  <div className="px-3 py-3 border-b border-white/5 mb-1 group/header">
-                    <p className="font-bold text-sm text-white group-hover/header:text-accent transition-colors">{user?.name || 'Guest User'}</p>
-                    <Link 
-                      href="/auth" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="text-xs text-text-soft hover:text-accent transition-colors block"
-                    >
-                      {user?.email || 'Sign in to sync stats →'}
-                    </Link>
+                  <div className="px-3 py-3 border-b border-white/5 mb-1 bg-white/5 rounded-t-xl">
+                    <p className="font-bold text-sm text-white">{user?.name || 'Guest User'}</p>
+                    <p className="text-[10px] text-text-soft truncate tracking-tight">{user?.email || 'Anonymous Session'}</p>
                   </div>
 
-                  <Link 
-                    href={user?.email ? "/profile" : "/auth?redirect=/profile&message=Identity+Sync+Required"}
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left group/item"
-                  >
-                    <div className="flex items-center gap-3">
-                      <BarChart size={16} />
-                      <span>My Stats</span>
-                    </div>
-                    {!user?.email && <Shield size={10} className="text-text-soft group-hover/item:text-accent" />}
-                  </Link>
-                  <Link 
-                    href={user?.email ? "/settings" : "/auth?redirect=/settings&message=Access+Denied"}
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all text-left group/item"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Settings size={16} />
-                      <span>Settings</span>
-                    </div>
-                    {!user?.email && <Shield size={10} className="text-text-soft group-hover/item:text-accent" />}
-                  </Link>
-                  
-                  <div className="border-t border-white/5 my-1" />
-                  
-                  <button 
-                    onClick={logout}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-red-500/10 text-red-400 transition-all text-left"
-                  >
-                    <LogOut size={16} />
-                    <span>Logout</span>
-                  </button>
+                  <div className="p-1 space-y-1">
+                    <Link 
+                      href={user?.email ? "/profile" : "/auth?redirect=/profile"}
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all group/it"
+                    >
+                      <div className="flex items-center gap-3">
+                        <BarChart size={16} className="text-white/60 group-hover/it:text-accent transition-colors" />
+                        <span className="font-medium">My Performance</span>
+                      </div>
+                      {!user?.email && <Shield size={10} className="text-orange-400" />}
+                    </Link>
+                    
+                    <Link 
+                      href={user?.email ? "/settings" : "/auth?redirect=/settings"}
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all group/it"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Settings size={16} className="text-white/60 group-hover/it:text-accent transition-colors" />
+                        <span className="font-medium">Command Center</span>
+                      </div>
+                      {!user?.email && <Shield size={10} className="text-orange-400" />}
+                    </Link>
+                    
+                    <div className="h-px bg-white/5 my-1 mx-2" />
+                    
+                    <button 
+                      onClick={logout}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm hover:bg-red-500/10 text-red-400 transition-all font-medium"
+                    >
+                      <LogOut size={16} />
+                      <span>Terminate Session</span>
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

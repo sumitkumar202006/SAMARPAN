@@ -100,11 +100,11 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         <motion.div 
           whileHover={{ rotate: 15, scale: 1.1 }}
           className={cn(
-            "w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative shrink-0",
+            "w-9 h-9 rounded-full bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative shrink-0 overflow-hidden",
             mounted && isCollapsed && "w-10 h-10 shadow-[0_0_25px_rgba(99,102,241,0.6)]"
           )}
         >
-          <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
+          <img src="/favicon.ico" alt="Logo" className="w-full h-full object-cover" />
         </motion.div>
         <div className="flex flex-col justify-center">
           <AnimatePresence mode="wait">

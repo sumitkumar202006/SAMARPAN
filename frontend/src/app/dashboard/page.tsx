@@ -11,7 +11,9 @@ import {
   Target, 
   Zap,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { UpdatesStrip } from '@/components/dashboard/UpdatesStrip';
 import { StatCard } from '@/components/ui/StatCard';
@@ -44,6 +46,7 @@ export default function Dashboard() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -265,19 +268,42 @@ export default function Dashboard() {
                   Loading your history...
                 </div>
               ) : filteredQuizzes.length > 0 ? (
-                filteredQuizzes.map((q) => {
-                  const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
-                  return (
-                    <QuizCard 
-                      key={q._id}
-                      title={q.title} 
-                      description={`${q.questions.length} questions • ${q.aiGenerated ? 'AI Forge' : 'Elite Cloud'}`}
-                      lastPlayed={isRecent ? 'Just Created ✨' : new Date(q.createdAt).toLocaleDateString()}
-                      onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
-                      onHost={() => router.push(`/host?quiz=${q._id}`)}
-                    />
-                  );
-                })
+                <>
+                  {filteredQuizzes.slice(0, isExpanded ? undefined : 4).map((q) => {
+                    const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
+                    return (
+                      <QuizCard 
+                        key={q._id}
+                        title={q.title} 
+                        description={`${q.questions.length} questions • ${q.aiGenerated ? 'AI Forge' : 'Elite Cloud'}`}
+                        lastPlayed={isRecent ? 'Just Created ✨' : new Date(q.createdAt).toLocaleDateString()}
+                        onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
+                        onHost={() => router.push(`/host?quiz=${q._id}`)}
+                      />
+                    );
+                  })}
+                  
+                  {filteredQuizzes.length > 4 && (
+                    <div className="col-span-2 flex justify-center mt-2">
+                      <button 
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="flex items-center gap-2 px-6 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:border-accent transition-all text-text-soft hover:text-white"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp size={14} />
+                            Collapse Vault
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={14} />
+                            Expand View (+{filteredQuizzes.length - 4} more)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="col-span-2 flex flex-col items-center justify-center h-40 text-text-soft border border-dashed border-border-soft rounded-3xl">
                   <BookOpen size={30} className="mb-2 opacity-20" />

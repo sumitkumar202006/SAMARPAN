@@ -14,6 +14,7 @@ interface AudioContextType {
   playError: () => void;
   playNavigate: () => void;
   playHover: () => void;
+  playToggle: () => void;
   isMuted: boolean;
   toggleMute: () => void;
 }
@@ -107,6 +108,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playNavigate = () => synthSound({ freq: 400, duration: 0.3, type: 'sine', rampTo: 50, volume: 0.15, rampType: 'linear' });
   const playHover = () => synthSound({ freq: 1500, duration: 0.02, type: 'sine', volume: 0.08 });
 
+  const playToggle = () => {
+    // Mechanical shutter / Slide sound
+    synthSound({ freq: 800, duration: 0.05, type: 'square', volume: 0.1 });
+    setTimeout(() => synthSound({ freq: 400, duration: 0.1, type: 'sine', rampTo: 100, volume: 0.15 }), 30);
+    setTimeout(() => synthSound({ freq: 1200, duration: 0.04, type: 'sine', volume: 0.05 }), 100);
+  };
+
   // Legacy mappings
   const playAccelerate = () => playNavigate();
   const playHorn = () => playError();
@@ -117,7 +125,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <AudioContext.Provider value={{ 
       playAccelerate, playHorn, playClick, playSuccess, playGlitch,
       playInput, playEnter, playError, playNavigate, playHover,
-      isMuted, toggleMute 
+      playToggle, isMuted, toggleMute 
     }}>
       {children}
     </AudioContext.Provider>

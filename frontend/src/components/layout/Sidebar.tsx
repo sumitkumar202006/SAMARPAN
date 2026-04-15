@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { cn } from '@/lib/utils';
+import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
@@ -34,12 +35,12 @@ const navItems = [
   { name: 'About', icon: Info, href: '/about' },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boolean; onToggle?: () => void }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isFriendly = searchParams.get('friendly') === 'true';
   const { user, logout } = useAuth();
-  const { playNavigate, playHover } = useAudio();
+  const { playNavigate, playHover, playToggle } = useAudio();
 
   const containerVariants = {
     hidden: { x: -300, opacity: 0 },
@@ -66,8 +67,15 @@ export const Sidebar = () => {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="hidden lg:flex flex-col w-72 h-screen fixed left-0 top-0 bg-black/40 backdrop-blur-3xl border-r border-white/10 z-[50] overflow-hidden"
+      className={cn(
+        "hidden lg:flex flex-col h-screen fixed left-0 top-0 bg-black/40 backdrop-blur-3xl border-r border-white/10 z-[110] transition-all duration-300 ease-in-out",
+        isCollapsed ? "w-20" : "w-72"
+      )}
     >
+      <SidebarToggleArrow isCollapsed={isCollapsed} onClick={() => {
+        playToggle?.();
+        onToggle?.();
+      }} />
       {/* Background HUD Effects */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
         <motion.div 
@@ -87,12 +95,23 @@ export const Sidebar = () => {
           <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
         </motion.div>
         <div className="flex flex-col justify-center">
-          <span className="text-lg font-black uppercase tracking-[0.05em] italic text-white leading-tight">
-            Samarpan
-          </span>
-          <span className="text-[7.5px] font-bold text-accent tracking-[0.35em] uppercase opacity-60 mt-1">
-            Nexus Protocol V4
-          </span>
+          <AnimatePresence mode="wait">
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex flex-col"
+              >
+                <span className="text-lg font-black uppercase tracking-[0.05em] italic text-white leading-tight">
+                  Samarpan
+                </span>
+                <span className="text-[7.5px] font-bold text-accent tracking-[0.35em] uppercase opacity-60 mt-1">
+                  Nexus Protocol V4
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -104,7 +123,7 @@ export const Sidebar = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative">
+            <div className="w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0">
                <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
                {user.avatar ? (
                  <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
@@ -114,13 +133,23 @@ export const Sidebar = () => {
                  </div>
                )}
             </div>
-            <div className="flex flex-col overflow-hidden">
-               <span className="font-black text-xs uppercase tracking-widest text-white truncate">{user.name}</span>
-               <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
-                 <Disc size={10} className="animate-pulse" />
-                 Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
-               </span>
-            </div>
+            
+            <AnimatePresence mode="wait">
+              {!isCollapsed && (
+                <motion.div 
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="flex flex-col overflow-hidden whitespace-nowrap"
+                >
+                   <span className="font-black text-xs uppercase tracking-widest text-white truncate">{user.name}</span>
+                   <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
+                     <Disc size={10} className="animate-pulse" />
+                     Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
+                   </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       )}
@@ -174,16 +203,25 @@ export const Sidebar = () => {
                   <item.icon size={18} />
                 </div>
 
-                <span className={cn(
-                  "font-black text-[11.5px] uppercase tracking-[0.2em] transition-all duration-300 flex-1",
-                  isActive ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-text-soft group-hover:text-white"
-                )}>
-                  {item.name}
-                </span>
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className={cn(
+                        "font-black text-[11.5px] uppercase tracking-[0.2em] transition-all duration-300 flex-1 whitespace-nowrap",
+                        isActive ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" : "text-text-soft group-hover:text-white"
+                      )}
+                    >
+                      {item.name}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
 
                 {/* Holographic Detail Tags */}
                 <AnimatePresence>
-                  {isActive && (
+                  {isActive && !isCollapsed && (
                     <motion.div 
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -210,7 +248,7 @@ export const Sidebar = () => {
           <Link href="/admin" onClick={() => playNavigate?.()}>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm">
               <ShieldCheck size={16} />
-              <span>Security Nexus</span>
+              {!isCollapsed && <span>Security Nexus</span>}
             </div>
           </Link>
         )}
@@ -226,15 +264,17 @@ export const Sidebar = () => {
             <div className="p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors">
               <LogOut size={18} />
             </div>
-            <span>Terminate Session</span>
+            {!isCollapsed && <span>Terminate Session</span>}
           </button>
         )}
       </div>
 
       {/* Footer Meta */}
-      <div className="px-8 pb-6 text-[8px] font-bold text-text-soft/40 uppercase tracking-[0.3em]">
-        Signal Strength: Optimized
-      </div>
+      {!isCollapsed && (
+        <div className="px-8 pb-6 text-[8px] font-bold text-text-soft/40 uppercase tracking-[0.3em] overflow-hidden whitespace-nowrap">
+          Signal Strength: Optimized
+        </div>
+      )}
     </motion.aside>
   );
 };

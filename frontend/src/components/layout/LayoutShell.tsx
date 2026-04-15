@@ -1,19 +1,30 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Footer } from "@/components/layout/Footer";
 import { DynamicBackground } from "@/components/ui/DynamicBackground";
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showFooter, setShowFooter] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', isSidebarCollapsed.toString());
+  }, [isSidebarCollapsed]);
+
   const isAdminPath = pathname?.startsWith('/admin');
 
   if (isAdminPath) {
@@ -36,9 +47,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
       <div className="min-h-screen relative z-10 transition-all duration-300">
         <Suspense fallback={null}>
-          <Sidebar />
+          <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
         </Suspense>
-        <div className="lg:pl-72 flex flex-col min-h-screen">
+        <div className={cn(
+          "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
+        )}>
           <Topbar />
           <main className="flex-1 pb-16 lg:pb-0 flex flex-col">
             <div className="flex-1">

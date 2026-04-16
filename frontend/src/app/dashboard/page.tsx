@@ -39,8 +39,7 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
-export default function Dashboard() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, profileCompletion } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -52,18 +51,15 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch Cloud Quizzes
         let cloudQuizzes = [];
         if (user?.email) {
-          // Fetch Profile independently
           try {
             const profileRes = await api.get(`/api/profile/${user.email}`);
             setStats(profileRes.data);
           } catch (profileErr) {
-            console.warn("Profile fetch failed, using fallbacks", profileErr);
+            console.warn("Profile fetch failed", profileErr);
           }
 
-          // Fetch Quizzes independently
           try {
             const quizzesRes = await api.get(`/api/quizzes/user/${user.email}`);
             cloudQuizzes = quizzesRes.data.quizzes || [];
@@ -74,8 +70,6 @@ export default function Dashboard() {
           const res = await api.get('/api/quizzes/public');
           cloudQuizzes = res.data.quizzes || [];
         }
-
-        // 2. Set State
         setQuizzes(cloudQuizzes);
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
@@ -93,278 +87,223 @@ export default function Dashboard() {
     return title.includes(query) || topic.includes(query);
   });
 
-  const handleSyncToCloud = async (q: any) => {
-    // This is now redundant but kept for compatibility if needed.
-    // In Full Cloud mode, we just return the existing ID.
-    return q._id;
-  };
-
   return (
-    <div className="py-2 lg:py-10">
+    <div className="py-2 lg:py-10 space-y-12">
       <UpdatesStrip />
 
-      <div className="flex flex-col gap-1 mb-8 px-1 lg:px-0">
-        <h2 className="text-2xl lg:text-3xl font-black tracking-tight">Dashboard</h2>
-        <p className="text-text-soft text-xs lg:text-base">Your quick overview of tools, recent quizzes, rating and activity.</p>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Arena Nexus</h1>
+          <p className="text-text-soft text-xs lg:text-sm">Strategic oversight of your combat history and neural assets.</p>
+        </div>
+        
+        {/* Rapid Deployment Buttons */}
+        <div className="flex gap-3">
+           <Link href="/battles" className="px-6 py-3 rounded-xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all">
+              <Zap size={14} className="inline mr-2" /> Quick Battle
+           </Link>
+           <Link href="/create" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:border-accent/40 transition-all">
+              <Plus size={14} className="inline mr-2" /> Create Asset
+           </Link>
+        </div>
       </div>
 
       <motion.div 
         variants={container}
         initial="hidden"
         animate="show"
-        className="space-y-12"
+        className="grid lg:grid-cols-3 gap-8 items-start"
       >
-        {/* Hero Section */}
-        <motion.section variants={item} className="grid xl:grid-cols-[1fr_350px] gap-10">
-          <div className="flex flex-col justify-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-wider mb-4 w-fit">
-              Samarpan Arena
-            </div>
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black mb-6 leading-tight">
-              Host. Compete. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-accent-alt">Rank up.</span>
-            </h1>
-            <p className="text-text-soft text-sm lg:text-lg max-w-xl mb-8 leading-relaxed">
-              Turn your classroom into an e-sports style arena. Create quizzes,
-              host live battles and watch players climb the leaderboard.
-            </p>
-
-            <div className="flex flex-wrap gap-4 mb-10">
-              <Link href="/battles" className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3 lg:py-4 rounded-2xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black shadow-xl hover:scale-105 active:scale-95 transition-all text-xs lg:text-sm uppercase tracking-widest text-center">
-                <Zap size={18} fill="currentColor" />
-                Battle
-              </Link>
-              <Link href="/host?friendly=true" className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 lg:px-8 py-3 lg:py-4 rounded-2xl bg-accent-alt text-white font-black shadow-xl hover:scale-105 active:scale-95 transition-all text-xs lg:text-sm uppercase tracking-widest text-center">
-                <Users size={18} />
-                Friendly
-              </Link>
-              <Link href="/create" className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 hover:border-accent/30 transition-all text-sm uppercase tracking-widest">
-                <Plus size={20} />
-                Create
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-8 gap-y-4">
-              <div className="flex flex-col">
-                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Quizzes hosted</span>
-                <span className="text-xl lg:text-2xl font-black">{stats?.quizzesCount || 0}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">XP Points</span>
-                <span className="text-xl lg:text-2xl font-black">{stats?.xp || 0}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-bold tracking-widest mb-1">Global Rating</span>
-                <span className="text-xl lg:text-2xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</span>
-              </div>
-            </div>
-
-            {!user && (
-              <div className="mt-8 p-4 rounded-2xl bg-accent-soft border border-accent/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-sm font-medium">Sync your stats and save your quizzes across terminals.</p>
-                <Link href="/auth" className="px-6 py-2 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-widest whitespace-nowrap">
-                  Login & Sync
-                </Link>
-              </div>
-            )}
+        {/* Track 1: Pilot Identity & Stats */}
+        <div className="space-y-8">
+           <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px]">1</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Biological Status</h2>
           </div>
 
-          <div className="hidden lg:block relative">
-            <div className="glass p-8 rounded-[32px] relative overflow-hidden group">
-              {/* Background gradient glow */}
-              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-accent/20 blur-[100px] rounded-full group-hover:bg-accent/30 transition-all" />
+          <div className="glass p-8 rounded-[40px] relative overflow-hidden group border-white/5 shadow-2xl">
+              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-accent/10 blur-[120px] rounded-full group-hover:bg-accent/20 transition-all" />
               
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-soft mb-8">Host Profile</p>
-              
-              <div className="w-24 h-24 rounded-full bg-background border-2 border-accent/20 flex items-center justify-center mb-8 shadow-2xl relative z-10 mx-auto overflow-hidden group/avatar hover:border-accent transition-all">
-                <img 
-                  src={user?.avatar || '/favicon.ico'} 
-                  alt="Host" 
-                  className="w-full h-full object-cover" 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-8 relative z-10">
-                <div>
-                  <p className="text-[10px] text-text-soft uppercase font-bold mb-1">Global Rating</p>
-                  <p className="text-2xl font-black">{stats?.globalRating || 1200}</p>
+              <div className="relative z-10 space-y-8">
+                <div className="flex items-center justify-between">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-text-soft italic">Nexus Profile</p>
+                   <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase">
+                      Operational
+                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-text-soft uppercase font-bold mb-1">Games Hosted</p>
-                  <p className="text-2xl font-black">{stats?.quizzesCount || 0}</p>
+                
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative group/avatar">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-accent to-accent-alt p-1 relative z-10 transition-transform group-hover/avatar:scale-105">
+                       <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
+                         <img src={user?.avatar || '/favicon.ico'} className="w-full h-full object-cover" />
+                       </div>
+                    </div>
+                    {/* Completion Ring Minimal */}
+                    <div className="absolute -inset-2 border-2 border-accent/20 rounded-full border-dashed animate-[spin_10s_linear_infinite]" />
+                  </div>
+                  
+                  <div className="text-center">
+                    <h3 className="text-xl font-black uppercase italic tracking-tighter">{user?.name || 'GUEST_USER'}</h3>
+                    <p className="text-[10px] text-accent font-black tracking-widest uppercase mt-1">@{user?.username || 'nexus_id'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                      <p className="text-[9px] text-text-soft uppercase font-black mb-1">Global Rating</p>
+                      <p className="text-2xl font-black text-accent-alt">{stats?.globalRating || 1200}</p>
+                   </div>
+                   <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                      <p className="text-[9px] text-text-soft uppercase font-black mb-1">XP Points</p>
+                      <p className="text-2xl font-black">{stats?.xp || 0}</p>
+                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[9px] font-black uppercase text-text-soft">
+                     <span>Sync Strength</span>
+                     <span className="text-accent">{profileCompletion}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                    <div 
+                      className="h-full bg-accent rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                      style={{ width: `${profileCompletion}%` }}
+                    />
+                  </div>
+                  <p className="text-[8px] text-text-soft text-center italic opacity-60">Sync profile in settings for precision bonuses.</p>
                 </div>
               </div>
-
-              <div className="space-y-2 mb-8 relative z-10">
-                <div className="h-2 w-full bg-bg-soft rounded-full overflow-hidden">
-                  <div className="h-full w-[65%] bg-gradient-to-r from-accent to-accent-alt rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                </div>
-                <p className="text-[10px] text-text-soft font-bold text-right">
-                  Next tier: <span className="text-accent-alt">Pro Host</span>
-                </p>
-              </div>
-
-              <p className="text-[10px] text-text-soft italic text-center opacity-60">
-                Tip: Use <strong className="text-accent underline">AI quizzes</strong> for fast tournament setups.
-              </p>
-            </div>
           </div>
-        </motion.section>
 
-        {/* Tactical Divider */}
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          <StatCard 
+            title="Arena Rating" 
+            value={stats?.globalRating || 1200}
+            description="Your current weight in global tournaments."
+            className="rounded-[32px] p-8"
+          />
+        </div>
 
-        {/* Dashboard Grid */}
-        <motion.section variants={item} className="grid lg:grid-cols-[400px_1fr] gap-8">
-          {/* Toolbar */}
-          <div className="glass p-6 rounded-[24px] flex flex-col gap-6">
-            <h3 className="font-bold text-lg">Toolbar</h3>
-            <div className="space-y-3">
+        {/* Track 2: Combat Record & History */}
+        <div className="space-y-8 lg:mt-0">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Match history</h2>
+          </div>
+
+          <CollapsibleCard 
+            title="History Vault" 
+            icon={BookOpen}
+            className="border-white/10"
+            headerAction={
+               <div className="relative group/search">
+                 <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-soft group-focus-within/search:text-accent transition-colors" />
+                 <input 
+                   type="text"
+                   placeholder="Filter vault..."
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                   className="h-8 w-32 bg-white/5 border border-white/10 rounded-lg pl-8 pr-2 text-[10px] outline-none focus:w-48 transition-all font-bold"
+                 />
+               </div>
+            }
+          >
+            <div className="space-y-4">
+              {loading ? (
+                <div className="flex items-center justify-center h-64 text-text-soft animate-pulse">
+                  Decrypting vault data...
+                </div>
+              ) : filteredQuizzes.length > 0 ? (
+                <div className="space-y-4">
+                  {filteredQuizzes.map((q) => {
+                    const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
+                    return (
+                      <QuizCard 
+                        key={q._id}
+                        title={q.title} 
+                        description={`${q.questions.length} Questions • ${q.aiGenerated ? 'AI Neural' : 'Manual Asset'}`}
+                        lastPlayed={isRecent ? 'Recently Decrypted ✨' : new Date(q.createdAt).toLocaleDateString()}
+                        onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
+                        onHost={() => router.push(`/host?quiz=${q._id}`)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-40 text-text-soft border border-dashed border-white/5 rounded-3xl">
+                  <BookOpen size={24} className="mb-2 opacity-20" />
+                  <p className="text-xs italic">No match logs discovered in the cloud.</p>
+                </div>
+              )}
+            </div>
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Recent Intel / Activity" icon={Activity} isDefaultExpanded={false}>
+             <div className="space-y-4 pt-2">
+                {quizzes.slice(0, 5).map((q, i) => (
+                  <div key={i} className="flex flex-col gap-1 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <p className="text-[11px] font-bold text-white tracking-tight leading-tight">
+                       Asset "{q.title}" {q.aiGenerated ? 'Neural Generated' : 'Manual Upload'}
+                    </p>
+                    <p className="text-[9px] text-text-soft uppercase font-black">{new Date(q.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+                {quizzes.length === 0 && <p className="text-xs text-text-soft italic text-center py-4">No recent intelligence logs.</p>}
+             </div>
+          </CollapsibleCard>
+        </div>
+
+        {/* Track 3: Nexus Operations */}
+        <div className="space-y-8">
+           <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-accent-alt/20 flex items-center justify-center text-accent-alt text-[10px]">3</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Nexus Operations</h2>
+          </div>
+
+          <div className="glass p-8 rounded-[40px] border-white/5 space-y-8">
+            <div className="flex items-center justify-between border-b border-white/5 pb-6">
+               <h3 className="font-black text-sm uppercase tracking-[0.2em] italic">Tactical Toolbar</h3>
+               <Link href="/explore" className="text-[10px] font-black text-accent-alt uppercase tracking-widest">Global Vault</Link>
+            </div>
+            
+            <div className="space-y-4">
               {[
-                { title: 'Create Quiz', sub: 'Build your own questions', icon: Plus, href: '/create' },
-                { title: 'Create Quiz (AI)', sub: 'Upload notes / PDFs, let AI work', icon: Zap, href: '/create' },
-                { title: 'Live Tournaments', sub: 'Host multi-round events', icon: Trophy, href: '/host' },
-                { title: 'Learn', sub: 'View guides, tips & practices', icon: BookOpen, href: '/about' },
+                { title: 'Battle Arena', sub: 'Host Competitive Tournament', icon: Trophy, href: '/battles', color: 'accent' },
+                { title: 'Neural Forge', sub: 'AI Automated Generation', icon: Zap, href: '/create', color: 'accent-alt' },
+                { title: 'Training Grounds', sub: 'Friendly/Solo Practice', icon: Users, href: '/host?friendly=true', color: 'emerald-500' },
+                { title: 'Command Center', sub: 'Account & Neural Config', icon: Settings, href: '/settings', color: 'white' },
               ].map((tool, i) => (
-                <Link key={i} href={tool.href} className="flex items-center gap-4 p-4 rounded-2xl bg-background/50 border border-border-soft border-dashed hover:border-accent/50 hover:bg-background transition-all cursor-pointer group">
-                  <div className="w-10 h-10 rounded-xl bg-accent-soft flex items-center justify-center text-accent group-hover:scale-110 transition-all">
-                    <tool.icon size={20} />
+                <Link key={i} href={tool.href} className="flex items-center gap-4 p-5 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all group overflow-hidden relative">
+                   {/* Mini glow element */}
+                  <div className={cn("absolute -right-4 -top-4 w-12 h-12 blur-2xl opacity-0 group-hover:opacity-40 transition-all", `bg-${tool.color}`)} />
+
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-all",
+                    i % 2 === 0 ? "bg-accent/10 text-accent" : "bg-accent-alt/10 text-accent-alt"
+                  )}>
+                    <tool.icon size={22} strokeWidth={2.5} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-sm tracking-tight">{tool.title}</span>
-                    <span className="text-[11px] text-text-soft">{tool.sub}</span>
+                    <span className="font-black text-sm tracking-tight uppercase italic">{tool.title}</span>
+                    <span className="text-[10px] text-text-soft font-medium uppercase tracking-widest">{tool.sub}</span>
                   </div>
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* Quizzes History */}
-          <div className="glass p-6 rounded-[24px] flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                  <h3 className="font-bold text-lg">{user ? 'Training Hub / History' : 'Featured Arena Quizzes'}</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Link href="/explore" className="text-xs font-bold text-accent uppercase tracking-wider flex items-center gap-1 hover:gap-2 transition-all">
-                    View all <ArrowRight size={14} />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Local Search Bar */}
-              <div className="relative group">
-                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" />
-                <input 
-                  type="text"
-                  placeholder="Search your vault (Topic, Title...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-background/50 border border-border-soft rounded-xl py-3 pl-10 pr-4 text-xs focus:ring-1 focus:ring-accent outline-none transition-all"
-                />
-              </div>
+          {/* Elite Sync Incentive */}
+          {!user && (
+            <div className="p-8 rounded-[40px] bg-gradient-to-br from-accent/20 to-transparent border border-accent/30 space-y-4 text-center">
+              <Shield className="text-accent mx-auto" size={32} />
+              <h4 className="font-black italic uppercase text-sm">Neural Cloud Sync Required</h4>
+              <p className="text-[11px] text-text-soft leading-relaxed italic px-4">Initialize your cloud identity to persist combat ratings and unlock the AI Forge.</p>
+              <Link href="/auth" className="block w-full py-4 rounded-2xl bg-accent text-white font-black uppercase text-[10px] tracking-[0.3em] hover:scale-[1.02] transition-all">
+                Sync Now
+              </Link>
             </div>
-
-            <div className="grid md:grid-cols-2 gap-4 flex-1">
-              {loading ? (
-                <div className="col-span-2 flex items-center justify-center h-40 text-text-soft animate-pulse">
-                  Loading your history...
-                </div>
-              ) : filteredQuizzes.length > 0 ? (
-                <>
-                  {filteredQuizzes.slice(0, isExpanded ? undefined : 4).map((q) => {
-                    const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
-                    return (
-                      <QuizCard 
-                        key={q._id}
-                        title={q.title} 
-                        description={`${q.questions.length} questions • ${q.aiGenerated ? 'AI Forge' : 'Elite Cloud'}`}
-                        lastPlayed={isRecent ? 'Just Created ✨' : new Date(q.createdAt).toLocaleDateString()}
-                        onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
-                        onHost={() => router.push(`/host?quiz=${q._id}`)}
-                      />
-                    );
-                  })}
-                  
-                  {filteredQuizzes.length > 4 && (
-                    <div className="col-span-2 flex justify-center mt-2">
-                      <button 
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="flex items-center gap-2 px-6 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:border-accent transition-all text-text-soft hover:text-white"
-                      >
-                        {isExpanded ? (
-                          <>
-                            <ChevronUp size={14} />
-                            Collapse Vault
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown size={14} />
-                            Expand View (+{filteredQuizzes.length - 4} more)
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="col-span-2 flex flex-col items-center justify-center h-40 text-text-soft border border-dashed border-border-soft rounded-3xl">
-                  <BookOpen size={30} className="mb-2 opacity-20" />
-                  <p className="text-sm">No quizzes found. Create your first one!</p>
-                </div>
-              )}
-            </div>
-
-            {/* Inline Rating Block */}
-            <div className="bg-bg-soft/50 rounded-2xl p-4 border border-accent/20">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-xs text-text-soft font-bold uppercase tracking-widest">Global Rating</span>
-                <span className="text-lg font-black text-accent-alt">{stats?.globalRating || 1200}</span>
-              </div>
-              <div className="h-2 w-full bg-background rounded-full overflow-hidden mb-2">
-                <div className="h-full w-[70%] bg-accent-alt rounded-full shadow-[0_0_10px_rgba(34,197,94,0.4)]" />
-              </div>
-              <p className="text-[10px] text-text-soft">Experience: {stats?.xp || 0} XP</p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Stats Row */}
-        <motion.section variants={item} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatCard 
-            title="Total Quizzes" 
-            value={stats?.quizzesCount || 0} 
-            description="Across classrooms, labs & events."
-          />
-          <StatCard 
-            title="XP Earned" 
-            value={stats?.xp || 0} 
-            description="Progression points for your profile."
-          />
-          <StatCard 
-            title="Global Rank" 
-            value="N/A" 
-            description="Your position in the world arena."
-          />
-        </motion.section>
-
-        {/* Activity Card */}
-        <motion.section variants={item} className="glass p-6 rounded-[24px]">
-          <h3 className="font-bold text-lg mb-6">Recent Activity</h3>
-          <div className="space-y-4">
-            {quizzes.slice(0, 4).map((q, i) => (
-              <div key={i} className="flex items-center gap-4 text-sm text-text-soft group">
-                <div className={cn("w-2 h-2 rounded-full shrink-0 group-hover:scale-150 transition-all", q.aiGenerated ? "bg-accent" : "bg-accent-alt")} />
-                <span className="group-hover:text-white transition-colors">
-                  You {q.aiGenerated ? 'generated' : 'created'} “{q.title}” on {new Date(q.createdAt).toLocaleDateString()}.
-                </span>
-              </div>
-            ))}
-            {quizzes.length === 0 && <p className="text-sm text-text-soft italic">No recent activity found.</p>}
-          </div>
-        </motion.section>
-      </motion.div>
+          )}
+        </div>
     </div>
   );
 }

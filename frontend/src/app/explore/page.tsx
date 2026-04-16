@@ -61,30 +61,30 @@ function ExploreContent() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-bold uppercase tracking-widest text-text-soft">Scouting the Arena...</p>
+        <p className="font-black uppercase tracking-[0.3em] text-text-soft text-[10px] animate-pulse">Scanning Neural Network...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+          <h2 className="text-3xl lg:text-4xl font-black tracking-tight text-white uppercase italic flex items-center gap-4">
             {isSearching ? <Search className="text-accent" /> : <Compass className="text-accent" />}
-            {isSearching ? `Results for "${query || categoryFilter}"` : "Explore Arena"}
+            {isSearching ? `Results for "${query || categoryFilter}"` : "Arena Explorer"}
           </h2>
-          <p className="text-text-soft">
-            {isSearching ? `Found ${searchResults.length} matches in the cloud.` : "Discover top-tier quizzes and live battlefields."}
+          <p className="text-text-soft text-xs lg:text-sm">
+            {isSearching ? `Identified ${searchResults.length} compatible neural assets.` : "Discover top-tier tactical modules and live battlefields."}
           </p>
         </div>
         
         {isSearching && (
           <button 
             onClick={() => router.push('/explore')}
-            className="px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest"
+            className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest italic"
           >
-            Clear Search
+            Reset Scanner
           </button>
         )}
       </div>
@@ -93,166 +93,195 @@ function ExploreContent() {
         {isSearching ? (
           <motion.div 
             key="search"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {searchResults.length > 0 ? searchResults.map((quiz, i) => (
               <div 
                 key={quiz._id} 
                 onClick={() => handlePlaySolo(quiz._id)}
-                className="glass p-6 rounded-3xl group cursor-pointer hover:border-accent/50 transition-all flex flex-col justify-between h-48"
+                className="glass p-8 rounded-[40px] group cursor-pointer hover:border-accent/50 transition-all flex flex-col justify-between h-56 relative overflow-hidden"
               >
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-lg">
-                      {quiz.difficulty || 'Medium'}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 blur-[40px] rounded-full group-hover:bg-accent/10 transition-all" />
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-6">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-accent bg-accent/10 px-3 py-1.5 rounded-xl border border-accent/20">
+                      {quiz.difficulty || 'CALIBRATED'}
                     </span>
-                    <PlayCircle className="text-white/20 group-hover:text-accent transition-all" size={20} />
+                    <PlayCircle className="text-white/20 group-hover:text-accent transition-all group-hover:scale-110" size={24} />
                   </div>
-                  <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-accent transition-all uppercase">{quiz.title}</h3>
-                  <p className="text-xs text-text-soft line-clamp-1 italic">Topic: {quiz.topic}</p>
+                  <h3 className="font-black text-lg leading-tight mb-2 group-hover:text-accent transition-all uppercase italic">{quiz.title}</h3>
+                  <p className="text-[10px] text-text-soft flex items-center gap-2 uppercase tracking-tighter">
+                    <LayoutGrid size={12} /> {quiz.topic}
+                  </p>
                 </div>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-[10px] text-text-soft uppercase tracking-tighter">
-                    {quiz.questions?.length} Questions • {quiz.playCount || 0} PLAYS
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 relative z-10">
+                  <span className="text-[9px] text-text-soft font-black uppercase tracking-widest">
+                    {quiz.questions?.length} Modules • {quiz.playCount || 0} Synced
                   </span>
-                  <span className="text-xs font-black text-white group-hover:translate-x-1 transition-all">PLAY →</span>
+                  <span className="text-[10px] font-black text-white group-hover:translate-x-1 transition-all uppercase italic">Infiltrate →</span>
                 </div>
               </div>
             )) : (
-              <div className="col-span-full py-20 text-center glass rounded-[40px] border-dashed">
-                <p className="text-text-soft italic">No results found for your search. Try another topic!</p>
+              <div className="col-span-full py-24 text-center glass rounded-[50px] border-dashed border-white/10">
+                <p className="text-text-soft italic font-black uppercase tracking-widest text-xs">No neural assets matched your signature. Expand search parameters.</p>
               </div>
             )}
           </motion.div>
         ) : (
-          <motion.div 
-            key="home"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16"
-          >
-            {/* Trending Section */}
-            <div className="glass p-6 rounded-[32px] flex flex-col">
-              <div className="flex items-center gap-3 mb-6">
-                <Flame className="text-orange-500" />
-                <h3 className="font-bold text-lg">Trending</h3>
+          <div className="grid lg:grid-cols-3 gap-8 items-start">
+            
+            {/* Track 1: Hot Sync (Trending) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 text-[10px]">1</div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Hot Sync</h2>
               </div>
-              <div className="space-y-3 flex-1">
-                {trending.length > 0 ? trending.map((quiz) => (
-                  <div 
-                    key={quiz._id} 
-                    onClick={() => handlePlaySolo(quiz._id)}
-                    className="flex flex-col p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-accent/30 transition-all cursor-pointer group"
-                  >
-                    <span className="font-bold text-sm mb-1 group-hover:text-accent transition-all uppercase leading-tight">{quiz.title}</span>
-                    <span className="text-[10px] text-text-soft uppercase tracking-widest leading-none">
-                      {quiz.questions?.length} Qs • {quiz.topic}
-                    </span>
-                  </div>
-                )) : (
-                  <div className="text-center py-10 opacity-30 text-xs italic">No trending quizzes</div>
-                )}
+              
+              <div className="glass p-8 rounded-[40px] border-white/5 space-y-6">
+                 {trending.length > 0 ? trending.slice(0, 5).map((quiz) => (
+                   <div 
+                     key={quiz._id} 
+                     onClick={() => handlePlaySolo(quiz._id)}
+                     className="flex items-center gap-4 p-4 rounded-3xl bg-white/5 border border-white/5 hover:border-orange-500/40 hover:bg-white/10 transition-all cursor-pointer group"
+                   >
+                     <div className="w-10 h-10 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-all shadow-inner">
+                        <Flame size={18} />
+                     </div>
+                     <div className="flex flex-col min-w-0">
+                       <span className="font-black text-xs uppercase italic truncate group-hover:text-orange-400 transition-all">{quiz.title}</span>
+                       <span className="text-[8px] text-text-soft uppercase font-black tracking-widest">
+                         {quiz.questions?.length} Qs • {quiz.playCount || 0} PLAYS
+                       </span>
+                     </div>
+                   </div>
+                 )) : (
+                   <div className="text-center py-10 opacity-30 text-[10px] font-black uppercase tracking-widest italic">Syncing trends...</div>
+                 )}
               </div>
             </div>
 
-            {/* Upcoming Events Section (Live Lobbies) */}
-            <div className="glass p-6 rounded-[32px] flex flex-col">
-              <div className="flex items-center gap-3 mb-6">
-                <Calendar className="text-accent-alt" />
-                <h3 className="font-bold text-lg italic">Live Battles</h3>
+            {/* Track 2: Tactical Feed (Recommended) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px]">2</div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Tactical Feed</h2>
               </div>
-              <div className="space-y-3 flex-1">
-                {events.length > 0 ? events.map((session) => (
-                  <div 
-                    key={session._id} 
-                    onClick={() => handleJoinEvent(session.pin)}
-                    className="flex flex-col p-4 rounded-2xl bg-accent-alt/10 border border-accent-alt/20 hover:bg-accent-alt/20 transition-all cursor-pointer group relative overflow-hidden"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-bold text-sm group-hover:text-white transition-all uppercase leading-tight">Join Live: {session.quiz?.title || "Game"}</span>
-                      <span className="text-[10px] font-black text-accent-alt animate-pulse">LIVE</span>
-                    </div>
-                    <span className="text-[10px] text-white/60 uppercase tracking-widest leading-none">
-                      PIN: {session.pin} • {session.mode} MODE
-                    </span>
-                    <div className="absolute top-0 right-0 w-2 h-full bg-accent-alt/30" />
-                  </div>
-                )) : (
-                  <div className="text-center py-10 flex flex-col items-center gap-4 opacity-50">
-                    <p className="text-xs italic">No live events right now.</p>
-                    <button 
-                      onClick={() => router.push('/host')}
-                      className="px-4 py-2 rounded-xl border border-white/5 bg-white/5 hover:bg-accent-alt/20 hover:border-accent-alt/30 text-[10px] font-black uppercase transition-all"
+
+              <div className="space-y-4">
+                 {recommended.length > 0 ? recommended.slice(0, 4).map((quiz) => (
+                    <div 
+                      key={quiz._id} 
+                      onClick={() => handlePlaySolo(quiz._id)}
+                      className="glass p-6 rounded-[32px] border-white/5 hover:border-accent/40 bg-gradient-to-br from-white/5 to-transparent transition-all cursor-pointer group flex flex-col gap-4"
                     >
-                      Host One Yourself
-                    </button>
-                  </div>
-                )}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                           <Star className="text-yellow-400" size={16} />
+                           <span className={cn(
+                             "text-[8px] font-black px-2 py-1 rounded bg-white/5 border uppercase tracking-widest",
+                             quiz.difficulty === 'hard' ? 'border-red-500/30 text-red-400' : 'border-emerald-500/30 text-emerald-400'
+                           )}>
+                             {quiz.difficulty || 'MEDIUM'}
+                           </span>
+                        </div>
+                        <PlayCircle size={18} className="text-white/20 group-hover:text-accent transition-all" />
+                      </div>
+                      <h4 className="font-black text-sm uppercase italic leading-tight group-hover:text-accent transition-all">{quiz.title}</h4>
+                      <p className="text-[9px] text-text-soft font-black uppercase tracking-widest border-t border-white/5 pt-3">
+                         {quiz.topic} • AI OPTIMIZED
+                      </p>
+                    </div>
+                 )) : (
+                    <div className="text-center py-12 glass rounded-[40px] opacity-30 text-[10px] font-black uppercase tracking-widest italic">Personalizing feed...</div>
+                 )}
               </div>
             </div>
 
-            {/* Recommended Section */}
-            <div className="glass p-6 rounded-[32px] flex flex-col">
-              <div className="flex items-center gap-3 mb-6">
-                <Star className="text-yellow-400" />
-                <h3 className="font-bold text-lg">Recommended</h3>
+            {/* Track 3: Live Theaters (Events) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-5 h-5 rounded-full bg-accent-alt/20 flex items-center justify-center text-accent-alt text-[10px]">3</div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Live Theaters</h2>
               </div>
-              <div className="space-y-3 flex-1">
-                {recommended.length > 0 ? recommended.map((quiz) => (
-                  <div 
-                    key={quiz._id} 
-                    onClick={() => handlePlaySolo(quiz._id)}
-                    className="flex flex-col p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-yellow-400/30 transition-all cursor-pointer group"
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-sm group-hover:text-yellow-400 transition-all uppercase leading-tight">{quiz.title}</span>
-                      <span className={cn(
-                        "text-[9px] font-black px-1.5 py-0.5 rounded border uppercase",
-                        quiz.difficulty === 'hard' ? 'border-red-500/30 text-red-400' : 'border-accent-alt/30 text-accent-alt'
-                      )}>
-                        {quiz.difficulty || 'medium'}
-                      </span>
+
+              <div className="space-y-4">
+                 {events.length > 0 ? events.map((session) => (
+                   <div 
+                     key={session._id} 
+                     onClick={() => handleJoinEvent(session.pin)}
+                     className="glass p-6 rounded-[32px] border-accent-alt/30 bg-accent-alt/[0.03] hover:bg-accent-alt/[0.08] transition-all cursor-pointer group relative overflow-hidden"
+                   >
+                     <div className="flex justify-between items-start mb-4">
+                        <span className="text-[10px] font-black text-accent-alt animate-pulse flex items-center gap-2 bg-accent-alt/10 px-3 py-1 rounded-full border border-accent-alt/20">
+                          <Activity size={10} /> LIVE ENGAGEMENT
+                        </span>
+                        <span className="text-[14px] font-black text-white italic tracking-widest">{session.pin}</span>
+                     </div>
+                     <h4 className="font-black text-sm group-hover:text-white transition-all uppercase italic mb-1">{session.quiz?.title || "Classified Operation"}</h4>
+                     <p className="text-[9px] text-accent-alt font-black uppercase tracking-[0.2em]">
+                        {session.mode} DEPLOYMENT
+                     </p>
+                     <div className="absolute top-0 right-0 w-1.5 h-full bg-accent-alt/20" />
+                   </div>
+                 )) : (
+                   <div className="glass p-10 rounded-[40px] text-center space-y-4 border-dashed border-white/10">
+                      <p className="text-[10px] font-black text-text-soft uppercase tracking-widest italic">No active theaters discovered.</p>
+                      <button 
+                        onClick={() => router.push('/host')}
+                        className="px-6 py-3 rounded-2xl bg-accent-alt text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-accent-alt/10"
+                      >
+                        Initialize Arena
+                      </button>
+                   </div>
+                 )}
+
+                 <div className="p-8 rounded-[40px] bg-white/5 border border-white/5 space-y-4">
+                    <div className="flex items-center gap-3">
+                       <Zap className="text-yellow-400" size={18} />
+                       <h4 className="text-[10px] font-black uppercase tracking-widest italic">Rapid Action</h4>
                     </div>
-                    <span className="text-[10px] text-text-soft uppercase tracking-widest leading-none">Special Training Feed</span>
-                  </div>
-                )) : (
-                  <div className="text-center py-10 opacity-30 text-xs italic">Personalizing your arena...</div>
-                )}
+                    <p className="text-[9px] text-text-soft leading-relaxed italic border-l-2 border-white/10 pl-4">
+                       Join a live battle by entering the 6-digit theater PIN in the main console or selecting an active engagement above.
+                    </p>
+                 </div>
               </div>
             </div>
-          </motion.div>
+
+          </div>
         )}
       </AnimatePresence>
 
-      <div className="space-y-8">
-        <h3 className="text-xl font-bold px-1 flex items-center gap-3 italic">
+      <div className="space-y-8 pt-10 border-t border-white/5">
+        <h3 className="text-xl font-black px-1 flex items-center gap-4 italic uppercase">
           <LayoutGrid className="text-accent" size={24} />
-          Browse by Arena
+          Theater Categories
+          <span className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {[
-            { name: 'Computer Science', id: 'Computer Science', icon: Zap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { name: 'Aptitude', id: 'Aptitude', icon: Calculator, color: 'text-accent-alt', bg: 'bg-accent-alt/10' },
-            { name: 'GATE / JEE', id: 'GATE', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-            { name: 'Mathematics', id: 'Math', icon: Compass, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { name: 'General Awareness', id: 'General Knowledge', icon: Globe, color: 'text-accent', bg: 'bg-accent/10' },
+            { name: 'Computation', id: 'Computer Science', icon: Zap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { name: 'Logistics', id: 'Aptitude', icon: Calculator, color: 'text-accent-alt', bg: 'bg-accent-alt/10' },
+            { name: 'Gateway', id: 'GATE', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { name: 'Calculus', id: 'Math', icon: Compass, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { name: 'Global Intel', id: 'General Knowledge', icon: Globe, color: 'text-accent', bg: 'bg-accent/10' },
           ].map(({ name, id, icon: Icon, color, bg }, i) => (
             <motion.div 
-              whileHover={{ y: -5, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ y: -8, scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               key={i} 
               onClick={() => router.push(`/explore?category=${encodeURIComponent(id)}`)}
-              className="glass p-6 rounded-[32px] flex flex-col items-center text-center gap-4 cursor-pointer hover:border-accent transition-all group"
+              className="glass p-8 rounded-[40px] flex flex-col items-center text-center gap-5 cursor-pointer hover:border-accent group relative overflow-hidden transition-all"
             >
-              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 group-hover:rotate-6 shadow-xl", bg, color)}>
-                <Icon size={28} />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-all" />
+              <div className={cn("w-16 h-16 rounded-[24px] flex items-center justify-center transition-all group-hover:scale-110 group-hover:rotate-12 shadow-2xl relative z-10", bg, color)}>
+                <Icon size={32} />
               </div>
-              <div className="space-y-1">
-                <span className="font-bold text-xs block group-hover:text-accent transition-all">{name}</span>
-                <span className="text-[9px] text-text-soft uppercase font-black tracking-widest">ENTER →</span>
+              <div className="space-y-1 relative z-10">
+                <span className="font-black text-xs block group-hover:text-accent transition-all uppercase italic tracking-tighter">{name}</span>
+                <span className="text-[8px] text-text-soft uppercase font-black tracking-[0.3em] opacity-40 group-hover:opacity-100 transition-all">INFILTRATE</span>
               </div>
             </motion.div>
           ))}
@@ -267,7 +296,7 @@ export default function ExplorePage() {
     <Suspense fallback={
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-bold uppercase tracking-widest text-text-soft">Scouting the Arena...</p>
+        <p className="font-black uppercase tracking-[0.3em] text-text-soft text-[10px]">Scanning Neural Network...</p>
       </div>
     }>
       <ExploreContent />

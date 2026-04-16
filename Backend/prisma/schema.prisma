@@ -24,6 +24,7 @@ model User {
   ratings        Json?
   college        String?
   course         String?
+  customField    String?
   dob            DateTime?
   preferredField String          @default("General")
   settings       Json?

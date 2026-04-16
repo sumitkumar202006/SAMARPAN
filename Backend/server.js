@@ -209,6 +209,12 @@ app.get("/api/quizzes/search", async (req, res) => {
 
 app.get("/api/explore/home", async (req, res) => {
   try {
+    const { email } = req.query;
+    let user = null;
+    if (email) {
+      user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    }
+
     // 1. Trending: Top 5 by playCount
     const trending = await prisma.quiz.findMany({
       where: { isPublished: true },
@@ -224,12 +230,33 @@ app.get("/api/explore/home", async (req, res) => {
       orderBy: { createdAt: "desc" }
     });
 
-    // 3. Recommended: Recent
-    const recommended = await prisma.quiz.findMany({
+    // 3. Recommended: Personalized based on user data, or just recent
+    const recQuery: any = {
       where: { isPublished: true },
       orderBy: { createdAt: "desc" },
-      take: 3
-    });
+      take: 6
+    };
+
+    if (user) {
+      // Prioritize quizzes matching preferredField, college, or course
+      recQuery.where.OR = [
+        { topic: { contains: user.preferredField || '', mode: 'insensitive' } },
+        { topic: { contains: user.course || '', mode: 'insensitive' } },
+        { topic: { contains: user.college || '', mode: 'insensitive' } },
+        { tags: { hasSome: [user.preferredField, user.customField].filter(Boolean) } }
+      ];
+    }
+
+    let recommended = await prisma.quiz.findMany(recQuery);
+    
+    // Fallback if no personalized matches
+    if (recommended.length < 3) {
+      recommended = await prisma.quiz.findMany({
+        where: { isPublished: true },
+        orderBy: { createdAt: "desc" },
+        take: 6
+      });
+    }
 
     return res.json({ 
       trending: mapId(trending), 

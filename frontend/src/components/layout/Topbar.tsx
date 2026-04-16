@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 
 export const Topbar = () => {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, profileCompletion } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -90,20 +90,55 @@ export const Topbar = () => {
             {user ? (
                <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 lg:gap-3 p-1 rounded-xl lg:rounded-2xl hover:bg-white/5 transition-all outline-none"
+                className="flex items-center gap-2 lg:gap-3 p-1 rounded-xl lg:rounded-2xl hover:bg-white/5 transition-all outline-none group/profile"
               >
-                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt p-0.5 shadow-lg">
-                  <div className="w-full h-full rounded-md lg:rounded-lg bg-background flex items-center justify-center overflow-hidden">
-                    {user?.avatar ? (
-                      <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <UserIcon size={16} className="text-text-soft" />
-                    )}
+                <div className="relative w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
+                  {/* Progress Ring Matrix */}
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 36 36">
+                    <circle
+                      className="text-white/5"
+                      strokeWidth="2"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="16"
+                      cx="18"
+                      cy="18"
+                    />
+                    <motion.circle
+                      initial={{ strokeDasharray: "0 100" }}
+                      animate={{ strokeDasharray: `${profileCompletion} 100` }}
+                      className={cn(
+                        "transition-all duration-1000",
+                        profileCompletion === 100 ? "text-emerald-500" : profileCompletion > 50 ? "text-accent" : "text-amber-500"
+                      )}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="16"
+                      cx="18"
+                      cy="18"
+                      style={{ filter: `drop-shadow(0 0 2px currentColor)` }}
+                    />
+                  </svg>
+
+                  <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt p-0.5 shadow-lg relative z-10 transition-transform group-hover/profile:scale-105">
+                    <div className="w-full h-full rounded-md lg:rounded-lg bg-background flex items-center justify-center overflow-hidden">
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon size={16} className="text-text-soft" />
+                      )}
+                    </div>
                   </div>
                 </div>
+                
                 <div className="hidden md:flex flex-col items-start leading-none gap-1">
-                  <span className="text-xs font-black tracking-tight">{user?.name || 'Guest User'}</span>
-                  <span className="text-[9px] text-accent uppercase font-black tracking-widest">Level 12 Host</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-tight">{user?.name || 'Guest User'}</span>
+                    {profileCompletion === 100 && <Shield size={10} className="text-emerald-400 fill-emerald-400/20" />}
+                  </div>
+                  <span className="text-[9px] text-accent uppercase font-black tracking-widest">{profileCompletion}% Synced</span>
                 </div>
               </button>
             ) : (

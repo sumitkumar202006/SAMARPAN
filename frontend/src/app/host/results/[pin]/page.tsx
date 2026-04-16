@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
 import { 
   Trophy, Users, Target, Clock, AlertCircle, 
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils';
 function ResultsPageContent() {
   const { pin } = useParams();
   const router = useRouter();
+  const { user, logout, profileCompletion } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +77,12 @@ function ResultsPageContent() {
   );
 
   return (
-    <div className="min-h-screen bg-black/40 backdrop-blur-[100px] text-white p-4 lg:p-12 font-sans selection:bg-accent selection:text-white pb-32">
+    <div className="min-h-screen bg-gradient-to-br from-[#05060f] via-[#0a0c1f] to-[#05060f] text-white p-4 lg:p-12 font-sans selection:bg-accent selection:text-white pb-32 relative overflow-hidden">
+      {/* Dynamic Background Accents */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-accent-alt/5 blur-[150px] rounded-full pointer-events-none" />
+
+      <div className="relative z-10">
       {/* Victory Header */}
       <header className="max-w-7xl mx-auto mb-16 text-center">
         <motion.div 
@@ -316,6 +323,7 @@ function ResultsPageContent() {
         </div>
         <div className="w-[1px] h-8 bg-white/10" />
         <Button variant="primary" size="sm" onClick={() => router.push('/battles')}>Host Again</Button>
+      </div>
       </div>
     </div>
   );

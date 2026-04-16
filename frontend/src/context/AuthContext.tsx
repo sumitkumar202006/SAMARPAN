@@ -16,6 +16,7 @@ interface User {
   };
   college?: string;
   course?: string;
+  customField?: string;
   dob?: string | Date;
   username?: string;
   role?: string;
@@ -27,6 +28,7 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   isLoading: boolean;
   logout: () => void;
+  profileCompletion: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Profile Completion Calculation logic
+  const calculateCompletion = (u: User | null): number => {
+    if (!u) return 0;
+    const fields = [
+      { val: u.name, weight: 15 },
+      { val: u.username, weight: 15 },
+      { val: u.avatar, weight: 15 },
+      { val: u.preferredField, weight: 10 },
+      { val: u.college, weight: 15 },
+      { val: u.course, weight: 15 },
+      { val: u.customField, weight: 10 },
+      { val: u.dob, weight: 5 }
+    ];
+    
+    let total = 0;
+    fields.forEach(f => {
+      if (f.val) total += f.weight;
+    });
+    return Math.min(total, 100);
+  };
+
+  const profileCompletion = React.useMemo(() => calculateCompletion(user), [user]);
 
   useEffect(() => {
     // 1. Check URL for social login tokens
@@ -81,11 +106,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
-    // Any other cleanup like stopping the socket
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, setUser, isLoading, logout, profileCompletion }}>
       {children}
     </AuthContext.Provider>
   );

@@ -81,7 +81,8 @@ router.post("/generate-quiz", async (req, res) => {
       {
         preferredField: user?.preferredField || 'General',
         college: user?.college || 'Not Specified',
-        course: user?.course || 'Not Specified'
+        course: user?.course || 'Not Specified',
+        customField: user?.customField || ''
       }
     );
 

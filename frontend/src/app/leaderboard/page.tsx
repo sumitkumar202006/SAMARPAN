@@ -14,7 +14,7 @@ const dummyLeaderboard = [
   { rank: 5, name: "ShadowWizard", rating: 1622, quizzes: 110, avgScore: "84%", bestRank: "#4" },
 ];
 
-export default function LeaderboardPage() {
+  const { user, profileCompletion } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,23 +33,88 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="py-10">
-      <div className="flex flex-col gap-1 mb-12">
-        <h2 className="text-3xl font-bold tracking-tight">Leaderboard & Ratings</h2>
-        <p className="text-text-soft">See who’s dominating your quizzes and how ratings are evolving.</p>
+    <div className="py-2 lg:py-10 space-y-10">
+      <div className="flex flex-col gap-1 px-2">
+        <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Global Rankings</h2>
+        <p className="text-text-soft text-xs lg:text-sm">Real-time neural standing of the elite pilots in the Samarpan Arena.</p>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-10">
+      <div className="grid lg:grid-cols-3 gap-8 items-start">
+        
+        {/* Track 1: User Standings */}
         <div className="space-y-6">
-          {/* Filters */}
-          <div className="flex gap-2">
-            {['This week', 'This month', 'All-time'].map((filter, i) => (
+           <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px]">1</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Your Standing</h2>
+          </div>
+
+          <div className="glass p-8 rounded-[40px] border-white/5 space-y-8 relative overflow-hidden group">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-[60px] rounded-full group-hover:bg-accent/10 transition-all" />
+             
+             <div className="relative z-10 flex flex-col items-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-accent to-accent-alt p-1">
+                   <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
+                      <img src={user?.avatar || '/favicon.ico'} className="w-full h-full object-cover" />
+                   </div>
+                </div>
+                <div className="text-center">
+                   <h3 className="text-lg font-black uppercase italic tracking-tight">{user?.name || 'GUEST_PILOT'}</h3>
+                   <span className="text-[10px] text-accent font-black tracking-widest uppercase mt-1">RANK: UNCALIBRATED</span>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                   <p className="text-[9px] text-text-soft uppercase font-black mb-1">Elo rating</p>
+                   <p className="text-2xl font-black text-accent-alt">{user?.globalRating || 1200}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                   <p className="text-[9px] text-text-soft uppercase font-black mb-1">XP level</p>
+                   <p className="text-2xl font-black">L12</p>
+                </div>
+             </div>
+             
+             <div className="p-4 rounded-2xl bg-accent-soft/10 border border-accent/20">
+                <div className="flex justify-between text-[8px] font-black uppercase text-text-soft mb-2">
+                   <span>Neural Sync</span>
+                   <span>{profileCompletion}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                   <div className="h-full bg-accent rounded-full" style={{ width: `${profileCompletion}%` }} />
+                </div>
+             </div>
+          </div>
+
+          <div className="glass p-6 rounded-3xl border-white/5 space-y-4">
+             <div className="flex items-center gap-3">
+                <Medal className="text-yellow-400" size={18} />
+                <h4 className="text-[10px] font-black uppercase tracking-widest">Achieved Medals</h4>
+             </div>
+             <div className="flex flex-wrap gap-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center grayscale opacity-30 hover:grayscale-0 hover:opacity-100 transition-all cursor-help" title="Locked Achievement">
+                    <Star size={14} />
+                  </div>
+                ))}
+             </div>
+          </div>
+        </div>
+
+        {/* Track 2: The Hall of Fame */}
+        <div className="lg:col-span-1 space-y-6">
+           <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Hall of Fame</h2>
+          </div>
+
+          <div className="flex gap-2 px-2 overflow-x-auto pb-2 scrollbar-none">
+            {['Weekly', 'Monthly', 'Arena All-time'].map((filter, i) => (
               <button 
                 key={i}
                 className={cn(
-                  "px-6 py-2 rounded-full text-[11.5px] font-black uppercase tracking-widest transition-all",
+                  "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap",
                   i === 0 
-                    ? "bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] ring-1 ring-white/10 scale-105" 
+                    ? "bg-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.3)] ring-1 ring-white/10 scale-105" 
                     : "glass text-text-soft hover:text-white"
                 )}
               >
@@ -58,50 +123,51 @@ export default function LeaderboardPage() {
             ))}
           </div>
 
-          {/* Table */}
-          <div className="glass rounded-[32px] overflow-hidden border-white/5">
+          <div className="glass rounded-[32px] overflow-hidden border-white/5 pb-2">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-white/5 text-[10px] uppercase tracking-widest text-text-soft font-black">
-                    <th className="px-6 py-4">#</th>
-                    <th className="px-6 py-4">Player</th>
+                  <tr className="bg-white/5 text-[9px] uppercase tracking-[0.2em] text-text-soft font-black">
+                    <th className="px-6 py-4">POS</th>
+                    <th className="px-6 py-4">Pilot</th>
                     <th className="px-6 py-4">Rating</th>
-                    <th className="px-6 py-4 hidden sm:table-cell">Quizzes</th>
-                    <th className="px-6 py-4 hidden md:table-cell">Avg Score</th>
-                    <th className="px-6 py-4 hidden lg:table-cell">Best Rank</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-20 text-center animate-pulse text-text-soft">Loading rankings...</td>
+                      <td colSpan={3} className="px-6 py-20 text-center animate-pulse text-text-soft uppercase text-[10px] font-black">Decrypting rankings...</td>
                     </tr>
                   ) : (
                     data.map((player, i) => (
                       <motion.tr 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.05 }}
                         key={i} 
-                        className="hover:bg-white/[0.02] transition-colors group"
+                        className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
                       >
-                        <td className="px-6 py-5 font-black text-text-soft text-center w-16">
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}
-                        </td>
-                        <td className="px-6 py-5 font-bold group-hover:text-accent transition-colors">
-                          {player.name}
+                        <td className="px-6 py-5 font-black text-xs text-text-soft">
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${(i + 1)}`}
                         </td>
                         <td className="px-6 py-5">
-                          <span className="bg-accent/10 text-accent px-3 py-1 rounded-lg font-black text-xs">
+                           <div className="flex flex-col">
+                             <span className="font-black text-sm uppercase italic group-hover:text-accent transition-colors">{player.name}</span>
+                             <span className="text-[8px] text-text-soft uppercase tracking-widest">Lvl {10 + i}</span>
+                           </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="bg-accent/10 text-accent px-3 py-1.5 rounded-xl font-black text-xs border border-accent/20">
                             {player.rating || player.score || 0}
                           </span>
                         </td>
-                        <td className="px-6 py-5 text-sm text-text-soft hidden sm:table-cell">{player.quizzes || 0}</td>
-                        <td className="px-6 py-5 text-sm text-text-soft hidden md:table-cell">{player.avgScore || '-'}</td>
-                        <td className="px-6 py-5 text-sm text-text-soft hidden lg:table-cell">{player.bestRank || '-'}</td>
                       </motion.tr>
                     ))
+                  )}
+                  {data.length === 0 && !isLoading && (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-10 text-center text-text-soft italic text-[10px]">No pilots discovered in this cycle.</td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -109,53 +175,55 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Tactical Divider (Mobile Only) */}
-        <div className="lg:hidden h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent my-10" />
-
-        {/* Info Cards */}
+        {/* Track 3: Strategic Intel */}
         <div className="space-y-6">
-          <div className="glass p-8 rounded-[32px]">
-            <div className="flex items-center gap-3 mb-6">
-              <TrendingUp className="text-accent-alt" />
-              <h3 className="font-bold text-lg">How ratings work</h3>
-            </div>
-            <ul className="space-y-4 text-sm text-text-soft leading-relaxed">
-              {[
-                'Each player starts around 1200 rating.',
-                'Win vs higher-rated player → bigger gain.',
-                'Win vs similar rating → moderate gain.',
-                'Loss vs lower-rated group → bigger loss.',
-              ].map((text, i) => (
-                <li key={i} className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0" />
-                  {text}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-8 text-[11px] text-text-soft bg-accent-soft p-4 rounded-2xl border border-accent/20 italic">
-              Behind the scenes, an Elo-like formula updates rating based on opponent strength and quiz difficulty.
-            </p>
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-5 h-5 rounded-full bg-accent-alt/20 flex items-center justify-center text-accent-alt text-[10px]">3</div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">System Logic</h2>
           </div>
 
-          <div className="glass p-8 rounded-[32px] bg-gradient-to-br from-bg-soft/50 to-transparent">
-            <div className="flex items-center gap-3 mb-6">
-              <Star className="text-yellow-400" />
-              <h3 className="font-bold text-lg">Mode-based ratings</h3>
-            </div>
-            <div className="space-y-6">
-              {[
-                { title: 'Quiz (Rapid)', desc: 'Standard class quizzes' },
-                { title: 'Tournament (Blitz)', desc: 'Fast-paced event games' },
-                { title: 'Practice (Casual)', desc: 'Unrated practice mode' },
-              ].map((mode, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <span className="font-bold text-sm">{mode.title}</span>
-                  <span className="text-[10px] text-text-soft uppercase tracking-widest">{mode.desc}</span>
+          <CollapsibleCard title="Elo Methodology" icon={TrendingUp} isDefaultExpanded={true}>
+             <div className="space-y-4 pt-2">
+                <p className="text-[10px] text-text-soft leading-relaxed border-l-2 border-accent/30 pl-4 italic">
+                  Behind the scenes, a custom neural Elo-formula updates your weight based on opponent strength and theater difficulty.
+                </p>
+                <div className="grid gap-3">
+                   {[
+                     { l: 'Victory vs Elite', d: 'Significant gain' },
+                     { l: 'Defeat vs Recruit', d: 'Critical loss' },
+                     { l: 'Global Seed', d: '1200 Rating base' }
+                   ].map((item, i) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/5">
+                         <span className="text-[9px] font-black uppercase tracking-widest text-white">{item.l}</span>
+                         <span className="text-[8px] text-accent uppercase font-black">{item.d}</span>
+                      </div>
+                   ))}
                 </div>
-              ))}
-            </div>
+             </div>
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Arena Modes" icon={Filter} isDefaultExpanded={false}>
+             <div className="space-y-3 pt-2">
+                {[
+                  { title: 'Blitz', sub: 'Single round burst' },
+                  { title: 'Theater', sub: 'High stakes ranked' },
+                  { title: 'Practice', sub: 'Zero neural weight' }
+                ].map((m, i) => (
+                   <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                      <p className="text-sm font-black uppercase italic group-hover:text-accent-alt transition-colors">{m.title}</p>
+                      <p className="text-[9px] text-text-soft uppercase tracking-widest">{m.sub}</p>
+                   </div>
+                ))}
+             </div>
+          </CollapsibleCard>
+
+          <div className="p-8 rounded-[40px] bg-gradient-to-tr from-accent-alt/10 to-transparent border border-accent-alt/20 text-center space-y-3">
+             <Trophy className="text-accent-alt mx-auto" size={24} />
+             <h4 className="font-black italic uppercase text-xs">Season Zero</h4>
+             <p className="text-[10px] text-text-soft italic leading-relaxed">Top 100 pilots at the end of the semester will receive an EXCLUSIVE <span className="text-accent underline font-black">Neural Core</span> badge.</p>
           </div>
         </div>
+
       </div>
     </div>
   );

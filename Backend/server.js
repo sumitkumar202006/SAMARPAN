@@ -1028,16 +1028,18 @@ io.on("connection", (socket) => {
         }
       });
 
-      // Deliver real-time if online
-      const receiverSockets = globalOnlineUsers.get(receiverId);
-      if (receiverSockets) {
-        receiverSockets.forEach(sid => {
-          io.to(sid).emit("new_private_message", msg);
-        });
-      }
+      // Unified Broadcast: Deliver to ALL sockets of both parties
+      const recipients = [
+        ...(globalOnlineUsers.get(senderId) || []),
+        ...(globalOnlineUsers.get(receiverId) || [])
+      ];
       
-      // Confirm to sender
-      socket.emit("message_sent", msg);
+      const uniqueRecipients = [...new Set(recipients)];
+      
+      uniqueRecipients.forEach(sid => {
+        io.to(sid).emit("new_private_message", msg);
+      });
+      
     } catch (err) {
       console.error("Failed to send private message", err);
     }

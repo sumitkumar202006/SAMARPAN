@@ -24,6 +24,7 @@ export default function FriendsPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [isSending, setIsSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch Friends
@@ -47,7 +48,11 @@ export default function FriendsPage() {
 
     const handleNewMessage = (msg: any) => {
       if (selectedFriend && (msg.senderId === selectedFriend.id || msg.receiverId === selectedFriend.id)) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          // De-duplication: check if message ID already exists
+          if (prev.find(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
       }
     };
 
@@ -81,8 +86,9 @@ export default function FriendsPage() {
   };
 
   const sendMessage = () => {
-    if (!newMessage.trim() || !selectedFriend) return;
+    if (!newMessage.trim() || !selectedFriend || isSending) return;
     
+    setIsSending(true);
     const msgData = {
       receiverId: selectedFriend.id,
       content: newMessage,
@@ -91,6 +97,8 @@ export default function FriendsPage() {
 
     socket.emit('private_message', msgData);
     setNewMessage('');
+    // Allow next message shortly (server echo will arrive fast)
+    setTimeout(() => setIsSending(false), 500);
   };
 
   const manageFriend = async (friendId: string, action: string) => {
@@ -226,10 +234,9 @@ export default function FriendsPage() {
               </div>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-              {messages.map((m, i) => (
-                <div key={i} className={cn("flex flex-col max-w-[80%]", m.senderId === user?.id ? "ml-auto items-end" : "items-start")}>
+              {messages.map((m) => (
+                <div key={m.id} className={cn("flex flex-col max-w-[80%]", m.senderId === user?.id ? "ml-auto items-end" : "items-start")}>
                   <div className={cn(
                     "p-4 rounded-2xl text-xs font-bold shadow-sm leading-relaxed",
                     m.senderId === user?.id 
@@ -262,9 +269,13 @@ export default function FriendsPage() {
                 />
                 <button 
                   onClick={sendMessage}
-                  className="p-3 bg-accent text-white rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all"
+                  disabled={isSending}
+                  className={cn(
+                    "p-3 bg-accent text-white rounded-xl shadow-lg transition-all",
+                    isSending ? "opacity-50 cursor-not-allowed" : "hover:scale-105 active:scale-95"
+                  )}
                 >
-                  <Send size={20} />
+                  <Send size={20} className={cn(isSending && "animate-pulse")} />
                 </button>
               </div>
             </div>

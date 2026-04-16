@@ -50,7 +50,8 @@ export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showAllIntel, setShowAllIntel] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -220,19 +221,42 @@ export default function DashboardPage() {
                 </div>
               ) : filteredQuizzes.length > 0 ? (
                 <div className="space-y-4">
-                  {filteredQuizzes.map((q) => {
-                    const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
-                    return (
-                      <QuizCard 
-                        key={q._id}
-                        title={q.title} 
-                        description={`${q.questions.length} Questions • ${q.aiGenerated ? 'AI Neural' : 'Manual Asset'}`}
-                        lastPlayed={isRecent ? 'Recently Decrypted ✨' : new Date(q.createdAt).toLocaleDateString()}
-                        onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
-                        onHost={() => router.push(`/host?quiz=${q._id}`)}
-                      />
-                    );
-                  })}
+                  <div className={cn(
+                    "space-y-4 overflow-y-auto transition-all duration-500 pr-2 scrollbar-none relative",
+                    showAllHistory ? "max-h-[1000px]" : "max-h-[320px]"
+                  )}>
+                    {filteredQuizzes.map((q) => {
+                      const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
+                      return (
+                        <QuizCard 
+                          key={q._id}
+                          title={q.title} 
+                          description={`${q.questions.length} Questions • ${q.aiGenerated ? 'AI Neural' : 'Manual Asset'}`}
+                          lastPlayed={isRecent ? 'Recently Decrypted ✨' : new Date(q.createdAt).toLocaleDateString()}
+                          onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
+                          onHost={() => router.push(`/host?quiz=${q._id}`)}
+                        />
+                      );
+                    })}
+                    
+                    {/* Glass Fade Overlay when collapsed */}
+                    {!showAllHistory && filteredQuizzes.length > 3 && (
+                      <div className="sticky bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background/80 to-transparent pointer-events-none z-10" />
+                    )}
+                  </div>
+                  
+                  {filteredQuizzes.length > 3 && (
+                    <button 
+                      onClick={() => setShowAllHistory(!showAllHistory)}
+                      className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-accent hover:text-accent-alt transition-colors flex items-center justify-center gap-2 border-t border-white/5 mt-2"
+                    >
+                      {showAllHistory ? (
+                        <><ChevronUp size={14} /> Collapse Records</>
+                      ) : (
+                        <><ChevronDown size={14} /> View All Records ({filteredQuizzes.length})</>
+                      )}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-40 text-text-soft border border-dashed border-white/5 rounded-3xl">
@@ -245,14 +269,33 @@ export default function DashboardPage() {
 
           <CollapsibleCard title="Recent Intel / Activity" icon={Activity} isDefaultExpanded={false}>
              <div className="space-y-4 pt-2">
-                {quizzes.slice(0, 5).map((q, i) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-                    <p className="text-[11px] font-bold text-white tracking-tight leading-tight">
-                       Asset "{q.title}" {q.aiGenerated ? 'Neural Generated' : 'Manual Upload'}
-                    </p>
-                    <p className="text-[9px] text-text-soft uppercase font-black">{new Date(q.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
+                <div className={cn(
+                  "space-y-4 overflow-y-auto transition-all duration-500 pr-2 scrollbar-none relative",
+                  showAllIntel ? "max-h-[800px]" : "max-h-[280px]"
+                )}>
+                  {quizzes.map((q, i) => (
+                    <div key={i} className="flex flex-col gap-1 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                      <p className="text-[11px] font-bold text-white tracking-tight leading-tight">
+                         Asset "{q.title}" {q.aiGenerated ? 'Neural Generated' : 'Manual Upload'}
+                      </p>
+                      <p className="text-[9px] text-text-soft uppercase font-black">{new Date(q.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))}
+                  
+                  {!showAllIntel && quizzes.length > 3 && (
+                    <div className="sticky bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background/80 to-transparent pointer-events-none z-10" />
+                  )}
+                </div>
+
+                {quizzes.length > 3 && (
+                  <button 
+                    onClick={() => setShowAllIntel(!showAllIntel)}
+                    className="w-full py-2 text-[9px] font-black uppercase tracking-widest text-text-soft hover:text-white transition-colors flex items-center justify-center gap-2 border-t border-white/5"
+                  >
+                    {showAllIntel ? <><ChevronUp size={12} /> Standard View</> : <><ChevronDown size={12} /> Expand Intel ({quizzes.length})</>}
+                  </button>
+                )}
+
                 {quizzes.length === 0 && <p className="text-xs text-text-soft italic text-center py-4">No recent intelligence logs.</p>}
              </div>
           </CollapsibleCard>

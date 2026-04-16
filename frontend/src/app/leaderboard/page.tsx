@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Star, TrendingUp, Filter } from 'lucide-react';
+import { Trophy, Medal, Star, TrendingUp, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
@@ -20,6 +20,7 @@ export default function LeaderboardPage() {
   const { user, profileCompletion } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     async function fetchLeaderboard() {
@@ -127,7 +128,10 @@ export default function LeaderboardPage() {
           </div>
 
           <div className="glass rounded-[32px] overflow-hidden border-white/5 pb-2">
-            <div className="overflow-x-auto">
+            <div className={cn(
+              "overflow-x-auto transition-all duration-700 relative",
+              isExpanded ? "max-h-[2000px]" : "max-h-[600px]"
+            )}>
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-white/5 text-[9px] uppercase tracking-[0.2em] text-text-soft font-black">
@@ -161,7 +165,7 @@ export default function LeaderboardPage() {
                         </td>
                         <td className="px-6 py-5">
                           <span className="bg-accent/10 text-accent px-3 py-1.5 rounded-xl font-black text-xs border border-accent/20">
-                            {player.rating || player.score || 0}
+                            {player.rating || player.score || player.pts || 0}
                           </span>
                         </td>
                       </motion.tr>
@@ -174,7 +178,24 @@ export default function LeaderboardPage() {
                   )}
                 </tbody>
               </table>
+
+              {!isExpanded && data.length > 10 && (
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background/90 via-background/40 to-transparent pointer-events-none z-10" />
+              )}
             </div>
+
+            {data.length > 10 && (
+              <button 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full py-4 text-[10px] font-black uppercase tracking-[0.3em] text-accent hover:text-accent-alt transition-all flex items-center justify-center gap-3 border-t border-white/5 bg-white/[0.01]"
+              >
+                {isExpanded ? (
+                  <><ChevronUp size={14} /> Condense Standings</>
+                ) : (
+                  <><ChevronDown size={14} /> Full Hub Rankings ({data.length})</>
+                )}
+              </button>
+            )}
           </div>
         </div>
 

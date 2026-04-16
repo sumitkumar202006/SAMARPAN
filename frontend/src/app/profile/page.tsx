@@ -26,7 +26,9 @@ import {
   Sword,
   Flame,
   BrainCircuit,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -57,6 +59,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandLog, setExpandLog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [tempAvatar, setTempAvatar] = useState('');
@@ -234,24 +237,49 @@ export default function ProfilePage() {
           </div>
 
           <CollapsibleCard title="Neural Activity Log" icon={Clock} isDefaultExpanded={true}>
-             <div className="space-y-3 pt-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-none">
-                {history.length > 0 ? history.map((h, i) => (
-                   <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center group hover:bg-white/10 transition-all">
-                      <div className="flex flex-col">
-                         <span className="text-[10px] font-black uppercase italic">{h.mode} Deployment</span>
-                         <span className="text-[8px] text-text-soft font-mono">{new Date(h.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex flex-col items-end">
-                         <span className={cn("text-[9px] font-black uppercase tracking-widest", h.change >= 0 ? "text-accent-alt" : "text-red-400")}>
-                            {h.change >= 0 ? `+${h.change}` : h.change}
-                         </span>
-                         <span className="text-[8px] text-text-soft font-mono">{h.oldRating} → {h.newRating}</span>
-                      </div>
-                   </div>
-                )) : (
-                   <div className="p-10 text-center text-[10px] text-text-soft italic uppercase border border-dashed border-white/10 rounded-2xl mt-2">
-                      Zero deployments detected.
-                   </div>
+             <div className="space-y-4 pt-2">
+                <div className={cn(
+                  "space-y-3 overflow-y-auto transition-all duration-700 pr-2 scrollbar-none relative",
+                  expandLog ? "max-h-[1000px]" : "max-h-[400px]"
+                )}>
+                  {history.length > 0 ? (
+                    <>
+                      {history.map((h, i) => (
+                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center group hover:bg-white/10 transition-all">
+                           <div className="flex flex-col">
+                              <span className="text-[10px] font-black uppercase italic">{h.mode} Deployment</span>
+                              <span className="text-[8px] text-text-soft font-mono">{new Date(h.createdAt).toLocaleDateString()}</span>
+                           </div>
+                           <div className="flex flex-col items-end">
+                              <span className={cn("text-[9px] font-black uppercase tracking-widest", h.change >= 0 ? "text-accent-alt" : "text-red-400")}>
+                                 {h.change >= 0 ? `+${h.change}` : h.change}
+                              </span>
+                              <span className="text-[8px] text-text-soft font-mono">{h.oldRating} → {h.newRating}</span>
+                           </div>
+                        </div>
+                      ))}
+                      {!expandLog && history.length > 5 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background/90 to-transparent pointer-events-none z-10" />
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-10 text-center text-[10px] text-text-soft italic uppercase border border-dashed border-white/10 rounded-2xl mt-2">
+                       Zero deployments detected.
+                    </div>
+                  )}
+                </div>
+
+                {history.length > 5 && (
+                  <button 
+                    onClick={() => setExpandLog(!expandLog)}
+                    className="w-full py-3 text-[9px] font-black uppercase tracking-widest text-text-soft hover:text-white transition-all flex items-center justify-center gap-2 border-t border-white/5"
+                  >
+                    {expandLog ? (
+                      <><ChevronUp size={12} /> Standard View</>
+                    ) : (
+                      <><ChevronDown size={12} /> Full Log Analysis ({history.length})</>
+                    )}
+                  </button>
                 )}
              </div>
           </CollapsibleCard>

@@ -954,8 +954,8 @@ io.on("connection", (socket) => {
         name: data.name || "Host", // Use host's real name if provided
         userId: data.userId || null,
         avatar: data.avatar || null, // Persist host avatar
-        team: 'Team A',
-        slotIndex: 0,
+        team: null,
+        slotIndex: null,
         score: 0, 
         answeredThisQ: false, 
         optionIdx: -1, 

@@ -41,11 +41,19 @@ function ResultsPageContent() {
   }, [pin]);
 
   const topPlayers = useMemo(() => {
+    if (data?.leaderboard) {
+      return [...data.leaderboard].sort((a: any, b: any) => b.score - a.score).slice(0, 3);
+    }
     if (!data?.playerPerformance) return [];
     return [...data.playerPerformance].sort((a: any, b: any) => b.correct - a.correct).slice(0, 3);
   }, [data]);
 
   const filteredPerformance = useMemo(() => {
+    if (data?.leaderboard) {
+      const sorted = [...data.leaderboard].sort((a: any, b: any) => b.score - a.score);
+      if (!searchQuery) return sorted;
+      return sorted.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
     if (!data?.playerPerformance) return [];
     const sorted = [...data.playerPerformance].sort((a: any, b: any) => b.correct - a.correct);
     if (!searchQuery) return sorted;
@@ -110,8 +118,13 @@ function ResultsPageContent() {
               Podium Finishers
             </h3>
             
-            <div className="flex flex-col gap-6">
-              {topPlayers.map((player: any, i: number) => (
+              <div className="flex flex-col gap-6">
+              {topPlayers.map((player: any, i: number) => {
+                const correct = player.correct ?? player.correctCount ?? 0;
+                const incorrect = player.incorrect ?? player.incorrectCount ?? (player.total ? player.total - correct : 0);
+                const total = player.total ?? player.attemptedCount ?? (correct + incorrect) ?? 1;
+                
+                return (
                 <motion.div 
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
@@ -133,12 +146,12 @@ function ResultsPageContent() {
                       <div className="flex items-center gap-4">
                          <div className="flex flex-col">
                             <span className="text-[8px] font-black uppercase text-text-soft tracking-widest">Efficiency</span>
-                            <span className="text-xs font-bold text-accent-alt">{player.correct} / {player.total}</span>
+                            <span className="text-xs font-bold text-accent-alt">{correct} / {total}</span>
                          </div>
                          <div className="w-px h-6 bg-white/10" />
                          <div className="flex flex-col">
-                            <span className="text-[8px] font-black uppercase text-text-soft tracking-widest">Total Time</span>
-                            <span className="text-xs font-bold">{(player.totalTime).toFixed(1)}s</span>
+                            <span className="text-[8px] font-black uppercase text-text-soft tracking-widest">Overall Score</span>
+                            <span className="text-xs font-bold text-white">{player.score !== undefined ? player.score : `${((correct / total) * 100).toFixed(0)}%`}</span>
                          </div>
                       </div>
                     </div>
@@ -146,22 +159,25 @@ function ResultsPageContent() {
 
                   <div className="flex items-center gap-8 relative z-10">
                     <div className="text-center">
-                       <p className="text-xs font-black text-accent-alt">-{player.correct}</p>
+                       <p className="text-xs font-black text-accent-alt">-{correct}</p>
                        <p className="text-[8px] font-black uppercase text-text-soft">Hits</p>
                     </div>
                     <div className="text-center">
-                       <p className="text-xs font-black text-red-500">-{player.incorrect || (player.total - player.correct)}</p>
+                       <p className="text-xs font-black text-red-500">-{incorrect}</p>
                        <p className="text-[8px] font-black uppercase text-text-soft">Misses</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-black text-accent">{((player.correct / player.total) * 100).toFixed(0)}%</p>
-                      <p className="text-[9px] font-black uppercase text-text-soft tracking-widest">Accuracy</p>
-                    </div>
+                    {player.penalties > 0 && (
+                       <div className="text-center flex flex-col items-center">
+                         <span className="text-xs font-black text-red-500 flex items-center"><AlertCircle size={10} className="mr-1 inline"/> -{player.penaltyScore || 0}</span>
+                         <p className="text-[8px] font-black uppercase text-red-400">Penalties ({player.penalties})</p>
+                       </div>
+                    )}
                   </div>
 
                   {i === 0 && <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[80px] rounded-full" />}
                 </motion.div>
-              ))}
+                )}
+              )}
             </div>
           </div>
 
@@ -187,18 +203,22 @@ function ResultsPageContent() {
 
              <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-separate border-spacing-y-3">
-                   <thead>
-                      <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                   <thead                       <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
                          <th className="pb-4 pl-6">Rank</th>
                          <th className="pb-4">Participant</th>
-                         <th className="pb-4 text-center">Correct</th>
-                         <th className="pb-4 text-center">Incorrect</th>
-                         <th className="pb-4 text-center">Attempted</th>
+                         <th className="pb-4 text-center">Score</th>
+                         <th className="pb-4 text-center">Hits</th>
+                         <th className="pb-4 text-center">Penalties</th>
                          <th className="pb-4 text-right pr-6">Accuracy</th>
                       </tr>
                    </thead>
                    <tbody>
-                      {filteredPerformance.map((p: any, idx: number) => (
+                      {filteredPerformance.map((p: any, idx: number) => {
+                         const correct = p.correct ?? p.correctCount ?? 0;
+                         const incorrect = p.incorrect ?? p.incorrectCount ?? (p.total ? p.total - correct : 0);
+                         const total = p.total ?? p.attemptedCount ?? (correct + incorrect) ?? 1;
+
+                         return (
                         <tr key={p.name} className="group bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
                            <td className="py-4 pl-6 rounded-l-2xl font-black text-text-soft italic">#{idx + 1}</td>
                            <td className="py-4">
@@ -209,19 +229,22 @@ function ResultsPageContent() {
                                  <span className="font-bold text-sm tracking-tight">{p.name}</span>
                               </div>
                            </td>
-                           <td className="py-4 text-center font-black text-accent-alt text-sm">{p.correct}</td>
-                           <td className="py-4 text-center font-black text-red-500/70 text-sm">{p.incorrect || (p.total - p.correct)}</td>
-                           <td className="py-4 text-center font-black text-text-soft text-sm">{p.total}</td>
+                           <td className="py-4 text-center font-black text-white text-sm">{p.score !== undefined ? p.score : '--'}</td>
+                           <td className="py-4 text-center font-black text-accent-alt text-sm">{correct} / {total}</td>
+                           <td className="py-4 text-center font-black text-red-500/70 text-sm">
+                             {p.penalties > 0 ? `-${p.penaltyScore} (${p.penalties})` : '--'}
+                           </td>
                            <td className="py-4 text-right pr-6 rounded-r-2xl">
                               <span className={cn(
                                 "text-sm font-black italic",
-                                (p.correct / p.total) > 0.7 ? "text-emerald-400" : "text-white"
+                                (correct / total) > 0.7 ? "text-emerald-400" : "text-white"
                               )}>
-                                {((p.correct / (p.total || 1)) * 100).toFixed(0)}%
+                                {((correct / (total || 1)) * 100).toFixed(0)}%
                               </span>
                            </td>
                         </tr>
-                      ))}
+                        )
+                      })})}
                    </tbody>
                 </table>
              </div>

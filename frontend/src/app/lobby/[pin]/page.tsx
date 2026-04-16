@@ -102,11 +102,14 @@ function LobbyContent() {
     });
 
     socket.on('game_started', (data) => {
-      if (role === 'host' && data.rated !== false) {
+      const playAsHost = searchParams.get('playAsHost') === 'true';
+      // If host chooses to play, route them to the player interface
+      if (role === 'host' && data.rated !== false && !playAsHost) {
         router.push(`/host/live/${pin}`);
       } else {
         const roleParam = role === 'host' ? '&role=host' : '';
-        router.push(`/play/live?pin=${pin}${roleParam}`);
+        const playParam = playAsHost ? '&playAsHost=true' : '';
+        router.push(`/play/live?pin=${pin}${roleParam}${playParam}`);
       }
     });
 

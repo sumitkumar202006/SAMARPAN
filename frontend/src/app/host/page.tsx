@@ -44,6 +44,13 @@ function HostContent() {
   // Tournament Queue
   const [quizQueue, setQuizQueue] = useState<any[]>([]);
 
+  // Exam Settings & Casual Roles
+  const [playAsHost, setPlayAsHost] = useState(false);
+  const [pointsPerQ, setPointsPerQ] = useState(100);
+  const [penaltyPoints, setPenaltyPoints] = useState(50);
+  const [strictFocus, setStrictFocus] = useState(false);
+  const [allowBacktrack, setAllowBacktrack] = useState(true);
+
   const isFriendly = searchParams.get('friendly') === 'true';
 
   useEffect(() => {
@@ -81,6 +88,7 @@ function HostContent() {
       setMode('battle');
       setIsRated(false);
       setBattleType('1v1'); // Default to 1v1 for friendly battles
+      setPlayAsHost(true);
     } else {
       setIsRated(true);
     }
@@ -111,11 +119,16 @@ function HostContent() {
         timerSeconds: timer,
         timerMode,
         totalSessionTime: totalTime,
-        rated: isRated
+        rated: isRated,
+        playAsHost,
+        pointsPerQ,
+        penaltyPoints,
+        strictFocus,
+        allowBacktrack
       });
       
       setStatus('Success! Opening Lobby...');
-      router.push(`/lobby/${res.data.pin}?role=host`);
+      router.push(`/lobby/${res.data.pin}?role=host${playAsHost ? '&playAsHost=true' : ''}`);
     } catch (err: any) {
       console.error("Failed to host quiz", err);
       setStatus(err.response?.data?.error || "Error initializing session.");
@@ -360,7 +373,41 @@ function HostContent() {
                    </p>
                 </div>
 
-                <button 
+                 {/* EXAM PARAMETERS */}
+                 <div className="space-y-4 pt-4 border-t border-white/5 pb-4">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-text-soft italic">Advanced Exam Setup</label>
+                    <div className="grid grid-cols-2 gap-4">
+                       <Input label="Points Per Question" type="number" value={pointsPerQ} onChange={(e: any) => setPointsPerQ(parseInt(e.target.value))} />
+                       <Input label="Tab Penalty Points" type="number" value={penaltyPoints} onChange={(e: any) => setPenaltyPoints(parseInt(e.target.value))} />
+                    </div>
+                    
+                    <div className="flex flex-col gap-3">
+                       <button 
+                         onClick={() => setPlayAsHost(!playAsHost)}
+                         className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all", playAsHost ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/5 border-white/5 text-text-soft")}
+                       >
+                         <span className="text-[10px] font-black uppercase tracking-widest">Participate as Player</span>
+                         <div className={cn("w-4 h-4 rounded-full", playAsHost ? "bg-accent" : "bg-white/10")} />
+                       </button>
+
+                       <button 
+                         onClick={() => setStrictFocus(!strictFocus)}
+                         className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all", strictFocus ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-white/5 border-white/5 text-text-soft")}
+                       >
+                         <span className="text-[10px] font-black uppercase tracking-widest">Strict Focus (Anti-Tab Switch)</span>
+                         <div className={cn("w-4 h-4 rounded-full", strictFocus ? "bg-red-500" : "bg-white/10")} />
+                       </button>
+
+                       <button 
+                         onClick={() => setAllowBacktrack(!allowBacktrack)}
+                         className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all", allowBacktrack ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-text-soft")}
+                       >
+                         <span className="text-[10px] font-black uppercase tracking-widest">Allow Backtracking</span>
+                         <div className={cn("w-4 h-4 rounded-full", allowBacktrack ? "bg-emerald-500" : "bg-white/10")} />
+                       </button>
+                    </div>
+                 </div>
+                 <button 
                    onClick={handleHost}
                    disabled={(!selectedQuiz && !topic && quizQueue.length === 0) || !!status}
                    className={cn(

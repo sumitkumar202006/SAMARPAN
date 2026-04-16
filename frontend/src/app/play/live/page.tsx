@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { QuizEngine } from '@/components/play/QuizEngine';
 import { useSocket } from '@/context/SocketContext';
-import { Trophy, ArrowLeft, BarChart3, Medal, Target, CheckCircle2, XCircle } from 'lucide-react';
+import { Trophy, ArrowLeft, BarChart3, Medal, Target, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
@@ -28,6 +28,7 @@ function LivePlayContent() {
   const [teamScores, setTeamScores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
+  const [examSettings, setExamSettings] = useState<any>(null);
 
   const fetchSession = useCallback(async () => {
     if (!pin) return;
@@ -36,7 +37,8 @@ function LivePlayContent() {
       if (res.data.quiz) {
         setQuiz(res.data.quiz);
         // Determine hosting status - GameSession 'host' is the user ID
-        if (user && res.data.host === user.userId) {
+        const playAsHost = searchParams.get('playAsHost') === 'true';
+        if (user && res.data.host === user.userId && !playAsHost) {
           setIsHost(true);
         }
       }
@@ -56,6 +58,7 @@ function LivePlayContent() {
     socket.on('game_started', (data: any) => {
       playEnter();
       setQuiz(data.quiz);
+      if (data.examSettings) setExamSettings(data.examSettings);
     });
 
     socket.on('quiz_finished', (data: any) => {
@@ -186,6 +189,12 @@ function LivePlayContent() {
                       <Target size={10} className="text-accent" />
                       <span className="text-[10px] font-bold text-white">{player.attemptedCount}</span>
                     </div>
+                    {player.penalties > 0 && (
+                      <div className="flex items-center gap-1.5 pl-2 border-l border-white/10" title="Tab Switch Penalties">
+                        <ShieldAlert size={10} className="text-red-500 animate-pulse" />
+                        <span className="text-[10px] font-bold text-red-500">-{player.penaltyScore} pts ({player.penalties})</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -217,6 +226,7 @@ function LivePlayContent() {
           isLive={true} 
           socket={socket} 
           pin={pin || ''}
+          examSettings={examSettings}
           onFinish={(score, total, lb) => {
             setIsFinished(true);
             if (lb) setLeaderboard(lb);

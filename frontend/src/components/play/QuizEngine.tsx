@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { useSearchParams } from 'next/navigation';
-import { Clock, CheckCircle2, XCircle, ChevronRight, Trophy, ArrowLeft, MessageSquare, Pause, Play, SkipForward, X, ShieldAlert } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Clock, CheckCircle2, XCircle, ChevronRight, Trophy, ArrowLeft, MessageSquare, Pause, Play, SkipForward, X, ShieldAlert, LogOut, ChevronLeft } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { BikeArrow } from '@/components/ui/BikeArrow';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +28,7 @@ interface QuizEngineProps {
   socket?: any;
   pin?: string;
   initialTimerMode?: 'per-question' | 'total';
+  examSettings?: { strictFocus?: boolean; allowBacktrack?: boolean };
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({ 
@@ -35,8 +36,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   isLive = false, 
   onFinish, 
   socket, 
-  pin 
+  pin,
+  examSettings
 }) => {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isHost = searchParams.get('role') === 'host';
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -131,6 +134,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       onFinish(score, quiz.questions.length, data.leaderboard);
     });
 
+    socket.on('answer_confirmed', (data: { optionIdx: number, isCorrect: boolean }) => {
+      // In Total Window / Exam mode, we handle local state progression here
+      // But actually, we don't show correct/incorrect during professional exams
+      setCorrectIdx(data.isCorrect ? data.optionIdx : -1); 
+      setIsLocked(true);
+      
+      if (data.isCorrect) playSuccess();
+      else playError();
+      
+      // Auto-advance if not back-trackable? Usually they have to click Next themselves.
+    });
+
     return () => {
       socket.off('timer_tick');
       socket.off('game_paused');
@@ -139,8 +154,25 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket.off('question_result');
       socket.off('next_question');
       socket.off('quiz_finished');
+      socket.off('answer_confirmed');
     };
   }, [isLive, socket, onFinish, quiz.questions.length, score, selectedIdx, playSuccess, playError]);
+
+  // Anti-Cheat Tab Focus Listener
+  useEffect(() => {
+    if (!isLive || !socket || !examSettings?.strictFocus) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        socket.emit("anti_cheat_violation", { pin, type: 'tab_switch' });
+        setHudMessage({ text: "STRIKE: TAB FOCUS LOST. POINT DEDUCTION APPLIED.", type: 'error' });
+        playError();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isLive, socket, pin, examSettings]);
 
   // Local timer for solo mode
   useEffect(() => {
@@ -165,7 +197,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     if (isLive) {
       playClick();
       const timeTaken = 30 - timeLeft; 
-      socket.emit('submit_answer', { pin, optionIdx: idx, timeTaken });
+      socket.emit('submit_answer', { pin, optionIdx: idx, timeTaken, questionIndex: currentIndex });
     } else {
       setIsLocked(true);
       const isCorrect = idx === currentQuestion.correctIndex;
@@ -184,14 +216,44 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     playNavigate();
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
-      setTimeLeft(30);
+      // Only reset timer if per-question mode
+      if (timerMode === 'per-question') setTimeLeft(30);
       setSelectedIdx(null);
       setIsLocked(false);
       setCorrectIdx(null);
       setExplanation(null);
     } else {
-      setIsFinished(true);
-      onFinish(score, quiz.questions.length);
+      // End Exam
+      if (isLive && timerMode === 'total') {
+         if (confirm("Submit final answers and end your exam arena?")) {
+            setIsFinished(true);
+            onFinish(score, quiz.questions.length);
+         }
+      } else {
+         setIsFinished(true);
+         onFinish(score, quiz.questions.length);
+      }
+    }
+  };
+
+  const handlePrev = () => {
+    if (examSettings?.allowBacktrack === false) {
+      setHudMessage({ text: "RESTRICTED: BACKTRACKING DISABLED IN THIS EXAM", type: 'error' });
+      return;
+    }
+    if (currentIndex > 0) {
+      playNavigate();
+      setCurrentIndex(prev => prev - 1);
+      setSelectedIdx(null);
+      setIsLocked(false);
+      setCorrectIdx(null);
+      setExplanation(null);
+    }
+  };
+
+  const handleLeave = () => {
+    if (confirm("WARNING: Are you sure you want to desert the arena? This will abandon your match.")) {
+      router.push('/dashboard');
     }
   };
 
@@ -300,9 +362,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-accent">Question {currentIndex + 1} of {quiz.questions.length}</span>
-          <h2 className="text-xl font-bold truncate max-w-full sm:max-w-md">{quiz.title}</h2>
+        <div className="flex items-center gap-4">
+          <button 
+             onClick={handleLeave}
+             className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center hover:bg-red-500/20 hover:text-red-300 transition-all hover:scale-105 active:scale-95"
+             title="Leave Arena"
+          >
+             <LogOut size={16} />
+          </button>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-accent">Question {currentIndex + 1} of {quiz.questions.length}</span>
+            <h2 className="text-xl font-bold truncate max-w-full sm:max-w-md">{quiz.title}</h2>
+          </div>
         </div>
 
         <div className={cn(
@@ -426,17 +497,28 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
           </motion.div>
         )}
 
-        {!isLive && isLocked && (
-          <Button onClick={handleNext} className="group">
-            {currentIndex < quiz.questions.length - 1 ? 'Next Question' : 'View Results'}
-            <BikeArrow className="group-hover:translate-x-1 transition-all" />
-          </Button>
-        )}
-
-        {isLive && isLocked && (
-          <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse">
-            Waiting for next tactical data...
-          </p>
+        {(!isLive && isLocked) || (isLive && timerMode === 'total') ? (
+          <div className="flex items-center gap-4 mt-6">
+            <Button 
+               onClick={handlePrev} 
+               variant="outline" 
+               className={cn("group px-8", currentIndex === 0 && "opacity-50 pointer-events-none")}
+               disabled={currentIndex === 0 || examSettings?.allowBacktrack === false}
+            >
+              <ChevronLeft className="mr-2" />
+              Previous
+            </Button>
+            <Button onClick={handleNext} className="group px-10">
+              {currentIndex < quiz.questions.length - 1 ? 'Next Question' : 'Finish Exam'}
+              {currentIndex < quiz.questions.length - 1 ? <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" /> : <CheckCircle2 className="ml-2" />}
+            </Button>
+          </div>
+        ) : (
+          isLive && isLocked && (
+            <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse mt-6">
+              Waiting for next tactical data...
+            </p>
+          )
         )}
       </div>
     </motion.div>

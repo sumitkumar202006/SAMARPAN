@@ -352,7 +352,12 @@ app.post("/api/host/start", async (req, res) => {
         pin,
         metadata: {
           timerMode: timerMode || 'per-question',
-          totalSessionTime: totalSessionTime || 10
+          totalSessionTime: totalSessionTime || 10,
+          playAsHost: req.body.playAsHost !== false,
+          pointsPerQ: req.body.pointsPerQ || 100,
+          penaltyPoints: req.body.penaltyPoints || 50,
+          strictFocus: req.body.strictFocus === true,
+          allowBacktrack: req.body.allowBacktrack !== false
         }
       }
     });
@@ -433,6 +438,7 @@ app.get("/api/host/analytics/:pin", async (req, res) => {
         createdAt: session.createdAt
       },
       playerPerformance: Object.values(players),
+      leaderboard: session.metadata?.finalLeaderboard || null,
       questionPerformance: questionPerformance.map((q, idx) => ({
         ...q,
         accuracy: q.responses > 0 ? (q.correct / q.responses) * 100 : 0,
@@ -810,7 +816,9 @@ function getLeaderboard(session) {
       streak: p.streak || 0,
       correctCount: p.correctCount || 0,
       incorrectCount: p.incorrectCount || 0,
-      attemptedCount: (p.correctCount || 0) + (p.incorrectCount || 0)
+      attemptedCount: (p.correctCount || 0) + (p.incorrectCount || 0),
+      penalties: p.penalties || 0,
+      penaltyScore: p.penaltyScore || 0
     }));
 }
 
@@ -866,6 +874,13 @@ function endSessionImmediately(pin, reason) {
   if (session.globalTimerHandle) clearInterval(session.globalTimerHandle);
 
   session.status = 'finished';
+  
+  // Persist final leaderboard
+  prisma.gameSession.update({
+    where: { pin },
+    data: { metadata: { finalLeaderboard: getLeaderboard(session), teamScores: session.teamScores, examSettings: session.examSettings } }
+  }).catch(console.error);
+
   io.in(pin).emit("quiz_finished", { 
     leaderboard: getLeaderboard(session),
     reason: reason || "TIME_EXPIRED",
@@ -910,6 +925,13 @@ function advanceQuestion(pin) {
       }
 
       session.status = 'finished';
+      
+      // Persist final leaderboard and exam settings
+      prisma.gameSession.update({
+        where: { pin },
+        data: { metadata: { finalLeaderboard: getLeaderboard(session), teamScores: session.teamScores, examSettings: session.examSettings } }
+      }).catch(console.error);
+
       RatingEngine.processGameResults(pin, session.players, session.rated !== false);
       io.in(pin).emit("quiz_finished", { 
         leaderboard: getLeaderboard(session),
@@ -990,7 +1012,9 @@ io.on("connection", (socket) => {
         streak: 0,
         correctCount: 0,
         incorrectCount: 0,
-        latency: 0 
+        latency: 0,
+        penalties: 0,
+        penaltyScore: 0
       };
     socket.emit("host_ready", { pin });
     console.log(`Host joined/created room ${pin}`);
@@ -1038,7 +1062,9 @@ io.on("connection", (socket) => {
       isHost: false, 
       ip: socket.handshake.address,
       isSuspicious: false,
-      idleTimeout: null
+      idleTimeout: null,
+      penalties: existingStats.penalties || 0,
+      penaltyScore: existingStats.penaltyScore || 0
     };
     socket.emit("join_success", { pin, name });
     
@@ -1118,7 +1144,13 @@ io.on("connection", (socket) => {
         timerSeconds: session.timerSeconds,
         timerMode: session.timerMode,
         totalSessionTime: session.totalSessionTime,
-        rated: session.rated
+        rated: session.rated,
+        examSettings: {
+          strictFocus: meta.strictFocus,
+          allowBacktrack: meta.allowBacktrack,
+          pointsPerQ: meta.pointsPerQ,
+          penaltyPoints: meta.penaltyPoints
+        }
       });
 
       // Global Session Timer (Fixed termination)
@@ -1143,21 +1175,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("submit_answer", (data) => {
-    const { pin, optionIdx, timeTaken } = data;
+    const { pin, optionIdx, timeTaken, questionIndex } = data;
     const session = liveSessions.get(pin);
     if (!session || session.status !== 'running') return;
     const player = session.players[socket.id];
     if (!player) return;
-    // Lift guard: Allow host to play in Friendly Battles
-    // if (player.isHost) return; 
-    const q = session.quiz.questions[session.currentQ];
+    
+    const qIndex = questionIndex !== undefined ? questionIndex : session.currentQ;
+    const q = session.quiz.questions[qIndex];
     if (!q) return;
+
     if (player.answeredThisQ && player.optionIdx >= 0 && player.optionIdx < session.optionStats.length) {
       session.optionStats[player.optionIdx] = Math.max(0, session.optionStats[player.optionIdx] - 1);
     }
     player.optionIdx = optionIdx;
     player.answeredThisQ = true;
     if (optionIdx >= 0 && optionIdx < session.optionStats.length) session.optionStats[optionIdx]++;
+    
     const isCorrect = optionIdx === q.correctIndex;
     
     // Suspicious Activity Detection
@@ -1170,7 +1204,10 @@ io.on("connection", (socket) => {
       const speedBonus = Math.max(0, Math.floor(50 * (1 - t / session.timerSeconds)));
       player.streak = (player.streak || 0) + 1;
       const streakBonus = Math.min(player.streak - 1, 5) * 10;
-      const points = 100 + speedBonus + streakBonus;
+      
+      const basePoints = session.pointsPerQ || 100;
+      const points = basePoints + speedBonus + streakBonus;
+      
       player.score += points;
 
       // Update Team Score if in a team battle
@@ -1369,6 +1406,38 @@ io.on("connection", (socket) => {
     if (!session.teamNames) session.teamNames = { 'Team A': 'Team A', 'Team B': 'Team B' };
     session.teamNames[teamKey] = newName;
     io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+  });
+
+  socket.on("anti_cheat_violation", (data) => {
+    const { pin, type } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.status !== 'running') return;
+    
+    const player = session.players[socket.id];
+    if (!player) return;
+
+    if (type === 'tab_switch') {
+      const penalty = session.penaltyPoints || 50;
+      player.score -= penalty;
+      player.penalties = (player.penalties || 0) + 1;
+      player.penaltyScore = (player.penaltyScore || 0) + penalty;
+      
+      console.log(`[Anti-Cheat] Penalized player ${player.name} in room ${pin} by ${penalty} points for tab switch.`);
+      
+      // Notify player of penalty log
+      socket.emit("error_msg", { message: `WARNING: Tab switch detected! -${penalty} points penalty applied.` });
+      
+      // Broadcast to host (oversight)
+      if (session.hostSocketId) {
+        io.to(session.hostSocketId).emit("broadcast_message", { 
+          message: `${player.name} left the exam tab. Penalty applied.`, 
+          type: 'warning' 
+        });
+      }
+      
+      // Update global stats
+      broadcastStats(pin, session);
+    }
   });
 
   socket.on("disconnect", () => {

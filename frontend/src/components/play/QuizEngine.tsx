@@ -31,6 +31,7 @@ interface QuizEngineProps {
   pin?: string;
   onFinish: (score: number, total: number, leaderboard?: any) => void;
   isHostOverride?: boolean;
+  examSettings?: any;
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({ 
@@ -39,10 +40,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   socket, 
   pin, 
   onFinish,
-  isHostOverride = false
+  isHostOverride = false,
+  examSettings: initialExamSettings
 }) => {
   const router = useRouter();
-  const [examSettings, setExamSettings] = useState<any>(null);
+  const [examSettings, setExamSettings] = useState<any>(initialExamSettings || null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);

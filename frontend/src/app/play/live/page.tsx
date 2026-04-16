@@ -233,7 +233,7 @@ function LivePlayContent() {
           socket={socket} 
           pin={pin || ''}
           examSettings={examSettings}
-          isHost={isHost}
+          isHostOverride={isHost}
           onFinish={(score, total, lb) => {
             setIsFinished(true);
             if (lb) setLeaderboard(lb);

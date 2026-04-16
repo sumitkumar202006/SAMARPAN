@@ -169,6 +169,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                     className="flex flex-col overflow-hidden whitespace-nowrap"
                   >
                      <span className="font-black text-xs uppercase tracking-widest text-white truncate group-hover:text-accent transition-colors">{user.name || 'Guest Explorer'}</span>
+                     <span className="text-[10px] text-text-soft font-black uppercase tracking-widest mt-0.5 group-hover:text-white/60 transition-colors">@{user.username || 'nexus_pilot'}</span>
                      <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
                        <Disc size={10} className="animate-pulse" />
                        Lvl {Math.floor((user.globalRating || 1200) / 100)} Online

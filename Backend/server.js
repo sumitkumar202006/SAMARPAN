@@ -510,6 +510,7 @@ app.get("/api/profile/:email", async (req, res) => {
     return res.json({
       name: user.name,
       email: user.email,
+      username: user.username,
       globalRating: user.globalRating,
       ratings: user.ratings,
       xp: user.xp,
@@ -671,7 +672,8 @@ function sendSocialLoginRedirect(req, res) {
     `&userId=${encodeURIComponent(user.id.toString())}` +
     `&name=${encodeURIComponent(user.name || "")}` +
     `&email=${encodeURIComponent(user.email || "")}` +
-    `&avatar=${encodeURIComponent(user.avatar || "")}`;
+    `&avatar=${encodeURIComponent(user.avatar || "")}` +
+    `&username=${encodeURIComponent(user.username || "")}`;
 
   return res.redirect(redirectUrl);
 }

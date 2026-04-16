@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import api from '@/lib/axios';
 
 interface User {
   id: string; // Internal standard
@@ -99,6 +100,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setIsLoading(false);
   }, []);
+
+  // Profile Sync Logic (Keep localStorage and State fresh)
+  useEffect(() => {
+    if (!user?.email || !user?.token) return;
+
+    const syncProfile = async () => {
+      try {
+        const res = await api.get(`/api/user/profile/${user.email}`);
+        if (res.data) {
+          const updatedUser = { ...user, ...res.data };
+          setUserState(updatedUser);
+          localStorage.setItem('samarpanUser', JSON.stringify(updatedUser));
+        }
+      } catch (err) {
+        console.error("Profile sync failed", err);
+      }
+    };
+
+    syncProfile();
+  }, [user?.email, user?.token]);
 
   const setUser = (user: User | null) => {
     setUserState(user);

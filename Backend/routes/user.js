@@ -10,7 +10,7 @@ router.get('/profile/:email', async (req, res) => {
       where: { email: req.params.email.toLowerCase().trim() } 
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json(mapId(user));
   } catch (err) {
     console.error("User profile fetch error:", err);
     res.status(500).json({ error: err.message });

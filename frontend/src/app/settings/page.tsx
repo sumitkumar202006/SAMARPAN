@@ -201,10 +201,10 @@ export default function SettingsPage() {
                 )}
               </div>
               <div className="overflow-hidden">
-                <p className="font-black text-base tracking-tight truncate uppercase italic">{user?.name}</p>
+                <p className="font-black text-base tracking-tight truncate uppercase italic">{user?.name || 'GUEST PILOT'}</p>
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[9px] text-text-soft uppercase font-black tracking-widest">@{user?.username || 'user'}</p>
+                  <p className="text-[9px] text-text-soft uppercase font-black tracking-widest">@{user?.username || 'nexus_pilot'}</p>
                 </div>
               </div>
             </div>

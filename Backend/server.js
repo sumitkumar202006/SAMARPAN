@@ -942,6 +942,14 @@ io.on("connection", (socket) => {
     }
 
     socket.join(pin);
+
+      // Stability: If host is already in players (reconnection), remove old socket entry
+      Object.entries(session.players).forEach(([sid, p]) => {
+        if (p.isHost || (data.userId && p.userId === data.userId)) {
+          delete session.players[sid];
+        }
+      });
+
       session.players[socket.id] = { 
         name: data.name || "Host", // Use host's real name if provided
         userId: data.userId || null,
@@ -974,22 +982,33 @@ io.on("connection", (socket) => {
     if (session.bannedNames.has(name.toLowerCase())) { socket.emit("join_error", { message: "You are banned from this room." }); return; }
     if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }
     if (session.status === 'finished') { socket.emit("join_error", { message: "This session has ended." }); return; }
-    const nameTaken = Object.values(session.players).some(p => p.name.toLowerCase() === name.toLowerCase() && !p.isHost);
-    if (nameTaken) { socket.emit("join_error", { message: "Name already taken. Choose another." }); return; }
+    
+    // Per user request: Names can be duplicate, but we handle same userId as reconnection
+    let existingStats = {};
+    if (data.userId) {
+      const oldSocketId = Object.keys(session.players).find(sid => session.players[sid].userId === data.userId);
+      if (oldSocketId) {
+        existingStats = { ...session.players[oldSocketId] };
+        delete session.players[oldSocketId];
+        console.log(`Reconnecting player ${name} (userId: ${data.userId})`);
+      }
+    }
+
     socket.join(pin);
     session.players[socket.id] = { 
       name, 
       userId: data.userId || null,
       email: data.email || null,
       avatar: data.avatar || null, // Persist player avatar
-      team: data.team || null, // Team A or Team B
-      score: 0, 
+      team: data.team || existingStats.team || null, 
+      slotIndex: data.slotIndex !== undefined ? data.slotIndex : existingStats.slotIndex,
+      score: existingStats.score || 0, 
+      streak: existingStats.streak || 0,
+      correctCount: existingStats.correctCount || 0,
+      incorrectCount: existingStats.incorrectCount || 0,
       answeredThisQ: false, 
       optionIdx: -1, 
       isHost: false, 
-      streak: 0,
-      correctCount: 0,
-      incorrectCount: 0,
       ip: socket.handshake.address,
       isSuspicious: false,
       idleTimeout: null
@@ -1328,14 +1347,23 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     liveSessions.forEach((session, pin) => {
       if (!session.players[socket.id]) return;
-      const wasHost = session.players[socket.id].isHost;
-      const playerName = session.players[socket.id].name;
+      const player = session.players[socket.id];
+      const wasActiveHost = (socket.id === session.hostSocketId);
+      const playerName = player.name;
+      
       delete session.players[socket.id];
-      if (wasHost) {
-        if (session.timerHandle) clearTimeout(session.timerHandle);
-        if (session.countdownHandle) clearInterval(session.countdownHandle);
-        io.in(pin).emit("host_left", { message: "Host disconnected. Session ended." });
-        liveSessions.delete(pin);
+      
+      if (player.isHost) {
+        // If the socket that disconnected was the CURRENT active host socket, end session
+        if (wasActiveHost) {
+          if (session.timerHandle) clearTimeout(session.timerHandle);
+          if (session.countdownHandle) clearInterval(session.countdownHandle);
+          io.in(pin).emit("host_left", { message: "Host disconnected. Session ended." });
+          liveSessions.delete(pin);
+          console.log(`Active Host disconnected, ending room ${pin}`);
+        } else {
+          console.log(`Inactive/Dangling Host socket ${socket.id} disconnected, PIN ${pin} remains.`);
+        }
       } else {
         io.in(pin).emit("player_list_update", { players: session.players });
         io.in(pin).emit("player_left", { name: playerName });

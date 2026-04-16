@@ -41,8 +41,9 @@ function LobbyContent() {
   const [editingTeam, setEditingTeam] = useState<'Team A' | 'Team B' | null>(null);
   const [editValue, setEditValue] = useState('');
 
+  const joinedRef = React.useRef(false);
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !socket || joinedRef.current) return;
 
     const name = searchParams.get('name') || user?.name || 'Guest';
     const password = searchParams.get('password');
@@ -77,6 +78,8 @@ function LobbyContent() {
         avatar: user?.avatar
       });
     }
+    
+    joinedRef.current = true;
 
     socket.on('player_list_update', (data) => {
       setPlayers(data.players);
@@ -102,7 +105,6 @@ function LobbyContent() {
       if (role === 'host' && data.rated !== false) {
         router.push(`/host/live/${pin}`);
       } else {
-        // In Friendly mode, host goes to Play UI but with host=true param
         const roleParam = role === 'host' ? '&role=host' : '';
         router.push(`/play/live?pin=${pin}${roleParam}`);
       }
@@ -119,8 +121,9 @@ function LobbyContent() {
       socket.off('host_left');
       socket.off('game_started');
       socket.off('error_msg');
+      joinedRef.current = false;
     };
-  }, [isConnected, pin, socket, user, router, searchParams]);
+  }, [isConnected, pin, socket, user?.userId, user?.name, router, searchParams]);
 
   const handleJoinSlot = (team: 'Team A' | 'Team B', index: number) => {
     setPendingSlot({ team, index });

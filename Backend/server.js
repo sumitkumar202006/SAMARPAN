@@ -231,7 +231,7 @@ app.get("/api/explore/home", async (req, res) => {
     });
 
     // 3. Recommended: Personalized based on user data, or just recent
-    const recQuery: any = {
+    const recQuery = {
       where: { isPublished: true },
       orderBy: { createdAt: "desc" },
       take: 6

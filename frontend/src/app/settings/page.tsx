@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, 
   Volume2, 
@@ -42,10 +42,13 @@ export default function SettingsPage() {
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
+    username: user?.username || '',
     avatar: user?.avatar || '',
     preferredField: user?.preferredField || 'General',
+    customField: '',
     college: user?.college || '',
     course: user?.course || '',
+    dob: user?.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
     soundEnabled: user?.settings?.soundEnabled ?? true
   });
   
@@ -53,17 +56,44 @@ export default function SettingsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
+  // Profile Completion Calculation
+  const calculateCompletion = () => {
+    const fields = [
+      { val: formData.name, weight: 15 },
+      { val: user?.username, weight: 15 },
+      { val: formData.avatar, weight: 15 },
+      { val: formData.preferredField, weight: 15 },
+      { val: formData.college, weight: 15 },
+      { val: formData.course, weight: 15 },
+      { val: formData.dob, weight: 10 }
+    ];
+    
+    let total = 0;
+    fields.forEach(f => {
+      if (f.val) total += f.weight;
+    });
+    return total;
+  };
+
+  const completion = calculateCompletion();
+
   useEffect(() => {
     if (!user?.email) {
       router.push('/auth?redirect=/settings&message=Access+Denied');
       return;
     }
+    
+    const isCustom = !fields.includes(user.preferredField || 'General');
+    
     setFormData({
       name: user.name || '',
+      username: user.username || '',
       avatar: user.avatar || '',
-      preferredField: user.preferredField || 'General',
+      preferredField: isCustom ? 'Custom' : (user.preferredField || 'General'),
+      customField: isCustom ? (user.preferredField || '') : '',
       college: user.college || '',
       course: user.course || '',
+      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
       soundEnabled: user.settings?.soundEnabled ?? true
     });
   }, [user, router]);
@@ -92,14 +122,17 @@ export default function SettingsPage() {
     setIsSaving(true);
     setStatus(null);
     
+    const finalField = formData.preferredField === 'Custom' ? formData.customField : formData.preferredField;
+    
     try {
       const res = await api.put('/api/user/settings', {
         email: user.email,
         name: formData.name,
         avatar: formData.avatar,
-        preferredField: formData.preferredField,
+        preferredField: finalField,
         college: formData.college,
         course: formData.course,
+        dob: formData.dob || null,
         settings: {
           soundEnabled: formData.soundEnabled
         }
@@ -110,9 +143,10 @@ export default function SettingsPage() {
           ...user,
           name: formData.name,
           avatar: formData.avatar,
-          preferredField: formData.preferredField,
+          preferredField: finalField,
           college: formData.college,
           course: formData.course,
+          dob: formData.dob || undefined,
           settings: {
             soundEnabled: formData.soundEnabled
           }
@@ -135,14 +169,35 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4 lg:p-10 space-y-10">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
-          <SettingsIcon size={20} lg-size={24} />
+    <div className="max-w-6xl mx-auto p-4 lg:p-10 space-y-10 font-bold">
+      {/* Header & Profile Completion */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-accent/20 flex items-center justify-center text-accent">
+            <SettingsIcon size={20} lg-size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight uppercase tracking-widest leading-tight italic">Command Center</h1>
+            <p className="text-text-soft text-[10px] lg:text-sm">Personalize your arena experience and AI brain.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-black tracking-tight uppercase tracking-widest">Command Center</h1>
-          <p className="text-text-soft text-[10px] lg:text-sm">Personalize your arena experience and AI brain.</p>
+
+        {/* Completion Matrix */}
+        <div className="w-full lg:w-64 space-y-2">
+           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-text-soft">
+              <span>Profile Synchronization</span>
+              <span className={cn(completion === 100 ? "text-emerald-400" : "text-accent")}>{completion}%</span>
+           </div>
+           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${completion}%` }}
+                className={cn(
+                  "h-full rounded-full transition-all duration-1000",
+                  completion === 100 ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-accent"
+                )}
+              />
+           </div>
         </div>
       </div>
 
@@ -155,26 +210,35 @@ export default function SettingsPage() {
           <div className="glass rounded-[24px] lg:rounded-[32px] p-5 lg:p-6 border-white/5 space-y-6">
             <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/5">
               <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-black text-white text-lg lg:text-xl">
-                {user?.name?.charAt(0).toUpperCase()}
+                {formData.avatar ? (
+                   <img src={formData.avatar} className="w-full h-full object-cover rounded-lg lg:rounded-xl" />
+                ) : (
+                   user?.name?.charAt(0).toUpperCase()
+                )}
               </div>
-              <div>
-                <p className="font-bold text-base lg:text-lg tracking-tight">{user?.name}</p>
-                <p className="text-[9px] lg:text-[10px] text-text-soft uppercase font-black tracking-widest leading-none mt-1">Status: Online</p>
+              <div className="overflow-hidden">
+                <p className="font-bold text-base lg:text-lg tracking-tight truncate uppercase">{user?.name}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-[9px] text-text-soft uppercase font-black tracking-widest">@{user?.username || 'user'}</p>
+                </div>
               </div>
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-4">
                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-text-soft px-1">
-                 <span>Security Level</span>
-                 <Shield size={12} className="text-accent" />
+                 <span>Security Status</span>
+                 <Shield size={12} className={cn(completion > 50 ? "text-emerald-400" : "text-amber-400")} />
                </div>
-               <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                 <motion.div initial={{ width: 0 }} animate={{ width: '85%' }} className="h-full bg-accent" />
+               <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-[10px] leading-relaxed text-text-soft italic">
+                 {completion === 100 
+                   ? "Identity fully synchronized. AI Forge accuracy at maximum capacity." 
+                   : "Complete your profile to increase AI precision and unlock unique rewards."}
                </div>
             </div>
           </div>
 
-          {/* Identity Matrix (New) */}
+          {/* Identity Matrix */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -186,7 +250,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="relative group/avatar w-24 h-24 mx-auto mb-4">
+              <div className="relative group/avatar w-24 h-24 mx-auto mb-4 font-bold">
                 <div className="w-full h-full rounded-2xl bg-gradient-to-tr from-accent to-accent-alt p-1">
                   <div className="w-full h-full rounded-[14px] bg-background flex items-center justify-center overflow-hidden">
                     {formData.avatar ? (
@@ -203,7 +267,7 @@ export default function SettingsPage() {
               </div>
 
               <Input 
-                label="Gamer Identifier"
+                label="Gamer Handle"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 placeholder="Enter your handle..."
@@ -212,7 +276,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-text-soft flex items-center gap-2">
-                  <Activity size={10} /> Preset Matrix
+                  <Activity size={10} /> Identity Matrix
                 </p>
                 <div className="grid grid-cols-5 gap-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
                    {AVATAR_STUFF.map((url, i) => (
@@ -232,7 +296,7 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
-          {/* Institutional Info */}
+          {/* Institutional Context */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -259,6 +323,15 @@ export default function SettingsPage() {
                 placeholder="What is your focus?"
                 className="bg-background/20"
               />
+              <div className="space-y-1.5 px-0.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-soft ml-1">Birth Timeline</p>
+                <input 
+                  type="date"
+                  value={formData.dob}
+                  onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                  className="w-full bg-background/20 border border-white/5 rounded-xl px-4 py-2.5 text-xs lg:text-sm font-bold outline-none focus:border-accent/40 transition-colors uppercase italic"
+                />
+              </div>
             </div>
           </motion.div>
         </div>
@@ -270,33 +343,60 @@ export default function SettingsPage() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-[32px] p-8 border-white/5 space-y-6"
+            className="glass rounded-[32px] p-8 border-white/5 space-y-8"
           >
-            <div className="flex items-center gap-3">
-              <Sparkles className="text-accent-alt" size={20} />
-              <h2 className="text-lg font-black tracking-tight underline elevation-1 underline-offset-8 decoration-accent-alt/30">AI Forge Personalization</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="text-accent-alt" size={24} />
+                <h2 className="text-xl font-black tracking-tight uppercase tracking-widest italic drop-shadow-[0_0_10px_rgba(34,197,94,0.2)]">AI Forge Personalization</h2>
+              </div>
+              <div className="px-3 py-1 rounded-full bg-accent-alt/10 border border-accent-alt/20 text-accent-alt text-[9px] font-black uppercase tracking-[0.2em] animate-pulse">
+                Neural Context Active
+              </div>
             </div>
             
-            <div className="space-y-4">
-              <p className="text-sm text-text-soft leading-relaxed max-w-2xl">
-                Tell the AI about your <span className="text-white font-bold italic">Field of Expertise</span>. This context will be injected into every quiz generation to ensure the questions remain relevant to your career path.
+            <div className="space-y-8">
+              <p className="text-sm text-text-soft leading-relaxed max-w-3xl">
+                Synchronize your <span className="text-white font-bold italic">Deep Knowledge Matrix</span> with the AI Forge. This data is injected into every quiz generation, ensuring the language and difficulty align with your academic path at <span className="text-accent underline underline-offset-4">{formData.college || 'your institution'}</span>.
               </p>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {fields.map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFormData({...formData, preferredField: f})}
-                    className={cn(
-                      "p-4 rounded-2xl border text-[11.5px] font-black uppercase tracking-widest transition-all text-center h-full flex items-center justify-center",
-                      formData.preferredField === f 
-                        ? "bg-accent-alt/15 border-accent-alt text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] ring-1 ring-white/5 scale-105" 
-                        : "bg-white/5 border-white/5 text-text-soft hover:border-white/20"
-                    )}
-                  >
-                    {f}
-                  </button>
-                ))}
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[...fields, "Custom"].map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setFormData({...formData, preferredField: f})}
+                      className={cn(
+                        "p-4 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all text-center h-full flex items-center justify-center min-h-[64px]",
+                        formData.preferredField === f 
+                          ? "bg-accent-alt/15 border-accent-alt text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] ring-1 ring-white/5 scale-105" 
+                          : "bg-white/5 border-white/5 text-text-soft hover:border-white/20"
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                <AnimatePresence>
+                  {formData.preferredField === 'Custom' && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-3 overflow-hidden mt-4"
+                    >
+                      <Input 
+                        label="Define Custom Expertise Matrix"
+                        value={formData.customField}
+                        onChange={(e) => setFormData({...formData, customField: e.target.value})}
+                        placeholder="e.g. Fullstack Web Dev, Quantum Biology, Ancient History..."
+                        className="bg-accent-alt/5 border-accent-alt/20"
+                      />
+                      <p className="text-[10px] text-accent-alt italic ml-2">* The AI will now prioritize this specific field in all future generations.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>
@@ -307,14 +407,14 @@ export default function SettingsPage() {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass rounded-[32px] p-6 border-white/5 space-y-6 h-full"
+              className="glass rounded-[32px] p-6 border-white/5 space-y-6"
             >
               <div className="flex items-center gap-3">
                 <Volume2 className="text-accent" size={20} />
-                <h2 className="text-sm font-black uppercase tracking-widest">Audio Identity</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest">Audio Experience</h2>
               </div>
               
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/5">
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
@@ -323,8 +423,8 @@ export default function SettingsPage() {
                     {formData.soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                   </div>
                   <div>
-                    <p className="font-bold text-xs">System SFX</p>
-                    <p className="text-[9px] text-text-soft uppercase tracking-widest">Feedback Audio</p>
+                    <p className="font-bold text-xs italic">System Audio</p>
+                    <p className="text-[9px] text-text-soft uppercase tracking-widest leading-none mt-1">Feedback SFX</p>
                   </div>
                 </div>
                 
@@ -343,29 +443,36 @@ export default function SettingsPage() {
               </div>
             </motion.div>
 
-            {/* Action Area */}
+            {/* Action Matrix */}
             <motion.div 
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.15 }}
-              className="glass rounded-[32px] p-6 border-white/5 flex flex-col justify-center items-center gap-4 text-center"
+              className="glass rounded-[32px] p-6 border-white/5 flex flex-col justify-center items-center gap-4 text-center relative overflow-hidden"
             >
-              <div className="p-3 rounded-full bg-accent/10 text-accent">
-                <Shield size={20} />
+              <div className="p-3 rounded-full bg-accent/10 text-accent relative">
+                <Save size={20} />
               </div>
-              <p className="text-[10px] text-text-soft uppercase font-black tracking-widest">Ready to sync changes?</p>
+              <p className="text-[10px] text-text-soft uppercase font-black tracking-widest relative">Ready to Commit Changes?</p>
               <Button 
-                 className="w-full py-4 text-xs font-black"
+                 className={cn(
+                   "w-full py-4 text-xs font-black relative overflow-hidden transition-all duration-500",
+                   completion === 100 ? "bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : "bg-accent"
+                 )}
                  isLoading={isSaving}
                  onClick={handleSave}
               >
-                <Save size={16} />
-                Deploy Sync
+                <div 
+                  className="absolute inset-x-0 bottom-0 h-1 bg-white/20 transition-all duration-500" 
+                  style={{ width: `${completion}%` }}
+                />
+                <Upload size={16} className="mr-2" />
+                Commit Synchronization
               </Button>
               
               {status && (
                 <p className={cn(
-                  "text-[10px] font-black uppercase tracking-widest mt-1",
+                  "text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse",
                   status.type === 'success' ? "text-accent-alt" : "text-red-400"
                 )}>
                   {status.msg}

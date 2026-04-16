@@ -16,6 +16,8 @@ interface User {
   };
   college?: string;
   course?: string;
+  dob?: string | Date;
+  username?: string;
   role?: string;
   status?: string;
 }

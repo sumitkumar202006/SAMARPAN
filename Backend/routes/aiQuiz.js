@@ -78,7 +78,11 @@ router.post("/generate-quiz", async (req, res) => {
       topic,
       difficulty,
       count || 5,
-      user?.preferredField || 'General'
+      {
+        preferredField: user?.preferredField || 'General',
+        college: user?.college || 'Not Specified',
+        course: user?.course || 'Not Specified'
+      }
     );
 
     // PERSISTENCE: Save to Cloud DB 

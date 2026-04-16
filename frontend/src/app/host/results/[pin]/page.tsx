@@ -122,7 +122,7 @@ function ResultsPageContent() {
               {topPlayers.map((player: any, i: number) => {
                 const correct = player.correct ?? player.correctCount ?? 0;
                 const incorrect = player.incorrect ?? player.incorrectCount ?? (player.total ? player.total - correct : 0);
-                const total = player.total ?? player.attemptedCount ?? (correct + incorrect) ?? 1;
+                const total = player.total ?? player.attemptedCount ?? (correct + incorrect);
                 
                 return (
                 <motion.div 
@@ -203,7 +203,8 @@ function ResultsPageContent() {
 
              <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-separate border-spacing-y-3">
-                   <thead                       <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                   <thead>
+                      <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
                          <th className="pb-4 pl-6">Rank</th>
                          <th className="pb-4">Participant</th>
                          <th className="pb-4 text-center">Score</th>
@@ -216,7 +217,7 @@ function ResultsPageContent() {
                       {filteredPerformance.map((p: any, idx: number) => {
                          const correct = p.correct ?? p.correctCount ?? 0;
                          const incorrect = p.incorrect ?? p.incorrectCount ?? (p.total ? p.total - correct : 0);
-                         const total = p.total ?? p.attemptedCount ?? (correct + incorrect) ?? 1;
+                         const total = p.total ?? p.attemptedCount ?? (correct + incorrect);
 
                          return (
                         <tr key={p.name} className="group bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
@@ -244,7 +245,7 @@ function ResultsPageContent() {
                            </td>
                         </tr>
                         )
-                      })})}
+                      })}
                    </tbody>
                 </table>
              </div>

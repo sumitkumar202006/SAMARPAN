@@ -803,12 +803,14 @@ async function ensureSessionInMemory(pin) {
 
     if (dbSession) {
       console.log(`♻️ Rehydrating session ${pin} from database...`);
+      const metadata = dbSession.metadata || {};
       liveSessions.set(pin, {
-        pin, // Store the pin internally so helpers can access it
+        pin, 
         hostSocketId: null, 
-        password: null,
+        password: dbSession.password || null,
         players: {},
         bannedNames: new Set(),
+        bannedIPs: new Set(),
         quiz: dbSession.quiz,
         status: dbSession.status || 'waiting',
         currentQ: 0,
@@ -817,7 +819,23 @@ async function ensureSessionInMemory(pin) {
         timeLeft: dbSession.timerSeconds || 30,
         isPaused: false,
         timerHandle: null,
-        countdownHandle: null
+        countdownHandle: null,
+        rated: dbSession.rated !== false,
+        pointsPerQ: metadata.pointsPerQ || 100,
+        penaltyPoints: metadata.penaltyPoints || 50,
+        maxPlayers: metadata.maxPlayers || 200,
+        battleType: dbSession.battleType || null,
+        teamScores: metadata.teamScores || null,
+        teamNames: metadata.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' },
+        examSettings: metadata.examSettings || { 
+          strictFocus: true, 
+          allowBacktrack: false,
+          lockdownMode: false,
+          randomizeOrder: false,
+          randomizeOptions: false,
+          ipLock: false,
+          escalationMode: true
+        }
       });
       return liveSessions.get(pin);
     }

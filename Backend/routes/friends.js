@@ -5,7 +5,7 @@ const prisma = require("../services/db");
 // 1. Search Users by precise username
 router.get('/search', async (req, res) => {
   try {
-    const { username } = req.query;
+    const { username, userId } = req.query;
     if (!username) return res.status(400).json({ error: "Username query required" });
 
     const users = await prisma.user.findMany({
@@ -24,10 +24,57 @@ router.get('/search', async (req, res) => {
       take: 10
     });
 
-    res.json(users);
+    // If userId provided, check friendship status for each found user
+    let userResults = users;
+    if (userId) {
+      userResults = await Promise.all(users.map(async (u) => {
+        const friendship = await prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { userId, friendId: u.id },
+              { userId: u.id, friendId: userId }
+            ]
+          }
+        });
+        return {
+          ...u,
+          status: friendship ? friendship.status : null,
+          isRequester: friendship ? friendship.userId === userId : false
+        };
+      }));
+    }
+
+    res.json(userResults);
   } catch (err) {
     console.error("User search error:", err);
     res.status(500).json({ error: "Search failed" });
+  }
+});
+
+// 1.1. Get Pending Friend Requests
+router.get('/pending/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const pending = await prisma.friendship.findMany({
+      where: {
+        friendId: userId,
+        status: 'pending'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
+          }
+        }
+      }
+    });
+    res.json(pending.map(p => ({ ...p.user, friendshipId: p.id })));
+  } catch (err) {
+    console.error("Pending requests error:", err);
+    res.status(500).json({ error: "Failed to fetch pending requests" });
   }
 });
 

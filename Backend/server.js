@@ -1041,6 +1041,23 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("friend_request", async (data) => {
+    const { senderId, receiverId, senderName } = data;
+    if (!senderId || !receiverId) return;
+
+    const receiverSockets = globalOnlineUsers.get(receiverId);
+    if (receiverSockets) {
+      receiverSockets.forEach(sid => {
+        io.to(sid).emit("new_notification", {
+          type: "friend_request",
+          senderId,
+          senderName,
+          message: `${senderName} wants to bridge neural links with you.`
+        });
+      });
+    }
+  });
+
   socket.on("disconnect", async () => {
     const userId = socketToUser.get(socket.id);
     if (userId) {

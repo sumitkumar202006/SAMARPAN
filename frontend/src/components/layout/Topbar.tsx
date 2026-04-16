@@ -9,17 +9,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { UserPlus, UserCheck } from 'lucide-react';
+import { UserPlus, UserCheck, CheckCircle2, XCircle } from 'lucide-react';
+import { useSocket } from '@/context/SocketContext';
 
 export const Topbar = () => {
   const router = useRouter();
   const { user, logout, profileCompletion } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
+  const { socket } = useSocket();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [currentToast, setCurrentToast] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,9 +34,12 @@ export const Topbar = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
     };
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || isNotificationsOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -38,10 +48,89 @@ export const Topbar = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDropdownOpen]);
+  }, [isDropdownOpen, isNotificationsOpen]);
+
+  // Social & Notifications Logic
+  useEffect(() => {
+    if (!user?.id) return;
+
+    loadPendingRequests();
+
+    if (socket) {
+      socket.on('new_notification', (data: any) => {
+        if (data.type === 'friend_request') {
+          loadPendingRequests();
+          setUnreadNotifications(prev => prev + 1);
+          
+          // Show Toast
+          setCurrentToast(data);
+          setTimeout(() => setCurrentToast(null), 5000);
+
+          // Play notification sound if possible
+          if (!isMuted) playAccelerate(); 
+        }
+      });
+    }
+
+    return () => {
+      if (socket) socket.off('new_notification');
+    };
+  }, [user?.id, socket, isMuted]);
+
+  const loadPendingRequests = async () => {
+    try {
+      const res = await api.get(`/api/friends/pending/${user?.id}`);
+      setPendingRequests(res.data);
+      setUnreadNotifications(res.data.length);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    }
+  };
+
+  const handleAcceptRequest = async (friendId: string) => {
+    try {
+      await api.put('/api/friends/manage', { userId: user?.id, friendId, action: 'accept' });
+      loadPendingRequests();
+      // Optionally notify the other user via socket (backend handles status broadcast)
+    } catch (err) {
+      console.error("Accept failed", err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    setPendingRequests([]);
+    setUnreadNotifications(0);
+    // Logic to clear on backend if we had a notifications table, 
+    // but for now we just handle pending friendships individually.
+  };
 
   return (
     <header className="sticky top-0 z-[100] w-full bg-background/80 backdrop-blur-3xl border-b border-white/5">
+      {/* Real-time Intel Toast */}
+      <AnimatePresence>
+        {currentToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 10, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-full max-w-sm"
+          >
+            <div className="mx-4 p-4 glass rounded-2xl border border-accent/20 shadow-[0_0_30px_rgba(99,102,241,0.2)] flex items-center gap-4 bg-background/60 backdrop-blur-xl">
+              <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent shrink-0">
+                <UserPlus size={20} />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent mb-1">New Neural Link</p>
+                <p className="text-xs font-bold truncate pr-4">{currentToast.message}</p>
+              </div>
+              <button onClick={() => setCurrentToast(null)} className="text-text-soft hover:text-white transition-colors">
+                <XCircle size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="px-4 lg:px-12 h-16 flex items-center justify-between gap-4">
         
         {/* Left: Branding & Search */}
@@ -67,7 +156,7 @@ export const Topbar = () => {
                 if (val.trim().length > 2) {
                   setIsSearching(true);
                   try {
-                    const res = await api.get(`/api/friends/search?username=${val.replace('@', '')}`);
+                    const res = await api.get(`/api/friends/search?username=${val.replace('@', '')}&userId=${user?.id}`);
                     setSearchResults(res.data);
                   } catch (err) {
                     console.error("Search failed", err);
@@ -109,21 +198,43 @@ export const Topbar = () => {
                             <span className="text-[10px] text-text-soft">@{u.username}</span>
                           </div>
                         </div>
-                        <button 
-                          onClick={async () => {
-                            try {
-                              await api.post('/api/friends/request', { userId: user?.id, friendId: u.id });
-                              setSearchResults([]);
-                              setSearchQuery('');
-                            } catch (err) {
-                              console.error("Friend request failed", err);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all"
-                          title="Add Friend"
-                        >
-                          <UserPlus size={14} />
-                        </button>
+                        {u.status === 'accepted' ? (
+                          <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-black uppercase tracking-widest px-2">
+                             <CheckCircle2 size={12} /> Allies
+                          </div>
+                        ) : u.status === 'pending' ? (
+                          u.isRequester ? (
+                            <div className="flex items-center gap-1 text-accent text-[10px] font-black uppercase tracking-widest px-2">
+                               <UserCheck size={12} /> Sent
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => handleAcceptRequest(u.id)}
+                              className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-emerald-500/20"
+                            >
+                               <CheckCircle2 size={12} /> Add Back
+                            </button>
+                          )
+                        ) : (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await api.post('/api/friends/request', { userId: user?.id, friendId: u.id });
+                                // Emit socket event for real-time alert
+                                if (socket) socket.emit('friend_request', { senderId: user?.id, receiverId: u.id, senderName: user?.name });
+                                // Refresh search results to show status change
+                                const res = await api.get(`/api/friends/search?username=${searchQuery.replace('@', '')}&userId=${user?.id}`);
+                                setSearchResults(res.data);
+                              } catch (err) {
+                                console.error("Friend request failed", err);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all scale-90 group-hover:scale-100"
+                            title="Add Friend"
+                          >
+                            <UserPlus size={14} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -147,10 +258,85 @@ export const Topbar = () => {
             <Users size={18} />
           </Link>
 
-          <button className="hidden sm:flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none">
-            <Bell size={18} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent rounded-full border-2 border-background" />
-          </button>
+          <div className="relative" ref={notificationsRef}>
+            <button 
+              onClick={() => {
+                setIsNotificationsOpen(!isNotificationsOpen);
+                if (!isNotificationsOpen) setUnreadNotifications(0);
+              }}
+              className="hidden sm:flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none"
+            >
+              <Bell size={18} />
+              {unreadNotifications > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-3 w-80 glass rounded-[24px] border border-white/10 shadow-2xl z-[150] overflow-hidden"
+                >
+                  <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                    <h3 className="text-xs font-black uppercase tracking-widest italic">Neural Alerts</h3>
+                    <button 
+                      onClick={handleClearAll}
+                      className="text-[9px] font-black uppercase tracking-widest text-accent hover:text-white transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {pendingRequests.length === 0 ? (
+                      <div className="p-12 text-center text-text-soft italic text-[10px] space-y-3">
+                        <Bell className="mx-auto opacity-20" size={24} />
+                        <p>No new cognitive synchronizations detected.</p>
+                      </div>
+                    ) : (
+                      <div className="p-2 space-y-1">
+                        {pendingRequests.map((req) => (
+                          <div key={req.id} className="p-3 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group/rect">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center overflow-hidden">
+                                {req.avatar ? <img src={req.avatar} className="w-full h-full object-cover" /> : <UserIcon size={14} />}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black leading-tight uppercase tracking-tighter italic">{req.name}</span>
+                                <span className="text-[9px] text-text-soft">wants to connect</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => handleAcceptRequest(req.id)}
+                                className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
+                              >
+                                <CheckCircle2 size={14} />
+                              </button>
+                              <button className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                <XCircle size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Link 
+                    href="/friends" 
+                    onClick={() => setIsNotificationsOpen(false)}
+                    className="block p-3 text-center text-[10px] font-black uppercase tracking-widest text-text-soft hover:bg-white/5 transition-colors border-t border-white/5"
+                  >
+                    View Social Hub
+                  </Link>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <div className="h-6 w-px bg-white/5 hidden sm:block" />
 

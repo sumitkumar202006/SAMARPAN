@@ -75,7 +75,7 @@ function ResultsPageContent() {
   );
 
   return (
-    <div className="min-h-screen bg-[#05060f] text-white p-4 lg:p-12 font-sans selection:bg-accent selection:text-white pb-32">
+    <div className="min-h-screen bg-black/40 backdrop-blur-[100px] text-white p-4 lg:p-12 font-sans selection:bg-accent selection:text-white pb-32">
       {/* Victory Header */}
       <header className="max-w-7xl mx-auto mb-16 text-center">
         <motion.div 
@@ -97,7 +97,7 @@ function ResultsPageContent() {
         {/* Main Content: Podium & Roster */}
         <section className="lg:col-span-2 space-y-8">
           {/* Top 3 Podium */}
-          <div className="glass rounded-[40px] p-10 border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent">
+          <div className="glass rounded-[40px] p-10 border-white/5 bg-white/[0.03] backdrop-blur-md">
             <h3 className="flex items-center gap-3 font-bold text-xl mb-10 italic">
               <Trophy size={24} className="text-yellow-500" />
               Podium Finishers
@@ -159,7 +159,7 @@ function ResultsPageContent() {
           </div>
 
           {/* Full Participant Roster */}
-          <div className="glass rounded-[40px] p-10 border-white/5 bg-white/[0.01]">
+          <div className="glass rounded-[40px] p-10 border-white/10 bg-white/[0.02] backdrop-blur-md">
              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
                 <h3 className="flex items-center gap-3 font-bold text-xl italic">
                   <Users size={24} className="text-text-soft" />

@@ -18,6 +18,7 @@ export default function FriendsPage() {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState<'friends' | 'pending' | 'blocked'>('friends');
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -73,6 +74,7 @@ export default function FriendsPage() {
       const res = await api.get(`/api/friends/messages/${user?.id}/${friend.id}`);
       setMessages(res.data);
       setSelectedFriend(friend);
+      setMobileView('chat');
     } catch (err) {
       console.error("Load messages failed", err);
     }
@@ -107,7 +109,10 @@ export default function FriendsPage() {
   return (
     <div className="flex h-[calc(100vh-64px)] bg-background/50 overflow-hidden font-bold">
       {/* Sidebar: Friends List */}
-      <div className="w-80 border-r border-white/5 bg-white/[0.01] flex flex-col backdrop-blur-xl">
+      <div className={cn(
+        "w-full lg:w-80 border-r border-white/5 bg-white/[0.01] flex flex-col backdrop-blur-xl transition-all",
+        mobileView === 'chat' ? "hidden lg:flex" : "flex"
+      )}>
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-black italic flex items-center gap-2">
@@ -185,29 +190,38 @@ export default function FriendsPage() {
       </div>
 
       {/* Main Content: Chat or Empty State */}
-      <div className="flex-1 flex flex-col bg-white/[0.01]">
+      <div className={cn(
+        "flex-1 flex flex-col bg-white/[0.01]",
+        mobileView === 'list' ? "hidden lg:flex" : "flex"
+      )}>
         {selectedFriend ? (
           <>
             {/* Chat Header */}
-            <div className="h-16 border-b border-white/5 px-6 flex items-center justify-between bg-white/[0.01]">
+            <div className="h-16 border-b border-white/5 px-4 lg:px-6 flex items-center justify-between bg-white/[0.01]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center overflow-hidden">
+                <button 
+                  onClick={() => setMobileView('list')}
+                  className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-white/5 text-text-soft"
+                >
+                  <Users size={18} />
+                </button>
+                <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-accent/20 flex items-center justify-center overflow-hidden">
                   {selectedFriend.avatar ? <img src={selectedFriend.avatar} className="w-full h-full object-cover" /> : selectedFriend.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-sm font-black leading-none mb-1 uppercase italic tracking-tighter">{selectedFriend.name}</h2>
+                  <h2 className="text-xs lg:text-sm font-black leading-none mb-1 uppercase italic tracking-tighter">{selectedFriend.name}</h2>
                   <div className="flex items-center gap-2">
                     <div className={cn("w-2 h-2 rounded-full", onlineUsers.has(selectedFriend.id) ? "bg-emerald-500" : "bg-red-500/50")} />
-                    <span className="text-[10px] text-text-soft uppercase font-black">{onlineUsers.has(selectedFriend.id) ? 'Active' : 'Offline'}</span>
+                    <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-black">{onlineUsers.has(selectedFriend.id) ? 'Active' : 'Offline'}</span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="h-9 px-4 gap-2 border-white/10 hover:border-accent">
-                  <Share2 size={14} /> Invite Arena
+              <div className="flex items-center gap-1 lg:gap-2 text-[10px]">
+                <Button size="sm" variant="outline" className="h-8 lg:h-9 px-2 lg:px-4 gap-2 border-white/10 hover:border-accent">
+                  <Share2 size={12} className="lg:w-[14px]" /> <span className="hidden sm:inline">Invite Arena</span>
                 </Button>
                 <button className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all">
-                  <MoreVertical size={18} />
+                  <MoreVertical size={16} lg-size={18} />
                 </button>
               </div>
             </div>

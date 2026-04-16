@@ -11,11 +11,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FloatingChat } from '@/components/social/FloatingChat';
+import { MobileSidebar } from '@/components/layout/MobileSidebar';
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showFooter, setShowFooter] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -35,12 +37,13 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   if (isAdminPath) {
     return (
       <div className="flex flex-col min-h-screen">
-        <Topbar />
+        <Topbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
         <DynamicBackground />
         <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
         <main className="flex-1 relative z-10 font-sans">
           {children}
         </main>
+        <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
       </div>
     );
   }
@@ -59,7 +62,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
           mounted && (isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72")
         )}>
-          <Topbar />
+          <Topbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} />
           <main className={cn(
             "flex-1 flex flex-col pt-4 relative",
             mounted && !isSidebarCollapsed && "lg:pt-6",
@@ -107,10 +110,13 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       {/* Tactical Center Line (Background) */}
       <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
 
-      {/* Global Social Hub (Conditional) */}
+      {/* Global Social Hub (Conditional) - Only for Desk/Tab */}
       {!pathname?.includes('/play/') && !pathname?.includes('/host/live/') && (
         <FloatingChat />
       )}
+
+      {/* Mobile Interaction Layer */}
+      <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
     </>
   );
 }

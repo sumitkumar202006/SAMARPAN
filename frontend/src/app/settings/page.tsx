@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/Input';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 // Avatar Presets Matrix (DiceBear Collections)
 const AVATAR_STUFF = [
@@ -56,10 +57,7 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   useEffect(() => {
-    if (!user?.email) {
-      router.push('/auth?redirect=/settings&message=Access+Denied');
-      return;
-    }
+    if (!user?.email) return;
     
     const isCustom = !fields.includes(user.preferredField || 'General');
     
@@ -74,7 +72,7 @@ export default function SettingsPage() {
       dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
       soundEnabled: user.settings?.soundEnabled ?? true
     });
-  }, [user, router]);
+  }, [user]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -150,7 +148,9 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 lg:p-10 space-y-10 font-bold overflow-hidden">
+    <AuthGuard>
+      <div className="max-w-7xl mx-auto p-4 lg:p-10 space-y-10 font-bold overflow-hidden">
+
       {/* Header & Profile Completion */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 px-2">
         <div className="flex items-center gap-4">
@@ -494,6 +494,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
+

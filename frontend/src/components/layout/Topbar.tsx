@@ -12,7 +12,7 @@ import api from '@/lib/axios';
 import { UserPlus, UserCheck, CheckCircle2, XCircle } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 
-export const Topbar = () => {
+export const Topbar = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
   const router = useRouter();
   const { user, logout, profileCompletion } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
@@ -135,6 +135,13 @@ export const Topbar = () => {
         
         {/* Left: Branding & Search */}
         <div className="flex items-center gap-2 lg:gap-8 flex-1">
+          <button 
+            onClick={onOpenMobileMenu}
+            className="lg:hidden p-2 rounded-lg bg-white/5 text-text-soft hover:text-white transition-all active:scale-95"
+          >
+            <Menu size={20} />
+          </button>
+          
           <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all overflow-hidden">
               <img src="/favicon.ico" alt="Samarpan" className="w-full h-full object-cover" />

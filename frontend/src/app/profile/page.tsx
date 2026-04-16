@@ -30,9 +30,10 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import { cn } from '@/lib/utils';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { useRouter } from 'next/navigation';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
 // Avatar Presets Matrix (DiceBear Collections)
@@ -66,10 +67,7 @@ export default function ProfilePage() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    if (!user?.email) {
-      router.push('/auth?redirect=/profile&message=Access+Denied');
-      return;
-    }
+    if (!user?.email) return;
     const fetchProfile = async () => {
       try {
         const [profileRes, historyRes] = await Promise.all([
@@ -134,7 +132,9 @@ export default function ProfilePage() {
   const rank = getRankInfo(stats?.globalRating || 1200);
 
   return (
-    <div className="py-2 lg:py-10 space-y-10">
+    <AuthGuard>
+      <div className="py-2 lg:py-10 space-y-10">
+
       <div className="flex flex-col gap-1 px-2">
         <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic text-white flex items-center gap-4">
           Pilot Profile
@@ -420,5 +420,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
     </div>
+    </AuthGuard>
   );
 }
+

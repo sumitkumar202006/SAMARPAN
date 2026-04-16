@@ -7,6 +7,10 @@ export const BikeCursor = () => {
   const cursorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Only initialize custom cursor if the device supports hover (not a touch device)
+    const canHover = window.matchMedia('(hover: hover)').matches;
+    if (!canHover) return;
+
     const cursor = cursorRef.current;
     if (!cursor) return;
 
@@ -41,11 +45,11 @@ export const BikeCursor = () => {
     document.addEventListener('mouseleave', handleMouseLeave);
     document.addEventListener('mouseenter', handleMouseEnter);
 
-    // Absolute global cursor hide
+    // Absolute global cursor hide (Only if we can hover)
     const style = document.createElement('style');
     style.id = 'hide-native-cursor';
     style.innerHTML = `* { cursor: none !important; }`;
-    document.head.appendChild(style);
+    if (canHover) document.head.appendChild(style);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
@@ -54,6 +58,11 @@ export const BikeCursor = () => {
       document.getElementById('hide-native-cursor')?.remove();
     };
   }, []);
+
+  // Don't render anything if we're on a touch device
+  if (typeof window !== 'undefined' && !window.matchMedia('(hover: hover)').matches) {
+    return null;
+  }
 
   return (
     <div

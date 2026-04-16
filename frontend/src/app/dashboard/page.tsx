@@ -26,6 +26,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import Link from 'next/link';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Search } from 'lucide-react';
 
 const container = {
@@ -56,27 +57,16 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      try {
-        let cloudQuizzes = [];
-        if (user?.email) {
-          try {
-            const profileRes = await api.get(`/api/profile/${user.email}`);
-            setStats(profileRes.data);
-          } catch (profileErr) {
-            console.warn("Profile fetch failed", profileErr);
-          }
+      if (!user?.email) return;
 
-          try {
-            const quizzesRes = await api.get(`/api/quizzes/user/${user.email}`);
-            cloudQuizzes = quizzesRes.data.quizzes || [];
-          } catch (quizErr) {
-            console.warn("Quiz fetch failed", quizErr);
-          }
-        } else {
-          const res = await api.get('/api/quizzes/public');
-          cloudQuizzes = res.data.quizzes || [];
-        }
-        setQuizzes(cloudQuizzes);
+      try {
+        const [profileRes, quizzesRes] = await Promise.all([
+          api.get(`/api/profile/${user.email}`),
+          api.get(`/api/quizzes/user/${user.email}`)
+        ]);
+        
+        setStats(profileRes.data);
+        setQuizzes(quizzesRes.data.quizzes || []);
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
@@ -94,7 +84,9 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="py-2 lg:py-10 space-y-12">
+    <AuthGuard>
+      <div className="py-2 lg:py-10 space-y-12">
+
       <UpdatesStrip />
 
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
@@ -150,8 +142,8 @@ export default function DashboardPage() {
                   </div>
                   
                   <div className="text-center">
-                    <h3 className="text-xl font-black uppercase italic tracking-tighter">{user?.name || 'GUEST_USER'}</h3>
-                    <p className="text-[10px] text-accent font-black tracking-widest uppercase mt-1">@{user?.username || 'nexus_id'}</p>
+                    <h3 className="text-xl font-black uppercase italic tracking-tighter">{user?.name}</h3>
+                    <p className="text-[10px] text-accent font-black tracking-widest uppercase mt-1">@{user?.username}</p>
                   </div>
                 </div>
 
@@ -340,19 +332,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Elite Sync Incentive */}
-          {!user && (
-            <div className="p-8 rounded-[40px] bg-gradient-to-br from-accent/20 to-transparent border border-accent/30 space-y-4 text-center">
-              <Shield className="text-accent mx-auto" size={32} />
-              <h4 className="font-black italic uppercase text-sm">Neural Cloud Sync Required</h4>
-              <p className="text-[11px] text-text-soft leading-relaxed italic px-4">Initialize your cloud identity to persist combat ratings and unlock the AI Forge.</p>
-              <Link href="/auth" className="block w-full py-4 rounded-2xl bg-accent text-white font-black uppercase text-[10px] tracking-[0.3em] hover:scale-[1.02] transition-all">
-                Sync Now
-              </Link>
-            </div>
-          )}
+          
         </div>
       </motion.div>
     </div>
+    </AuthGuard>
   );
 }
+

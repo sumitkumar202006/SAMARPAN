@@ -69,38 +69,41 @@ export const NeuralBackground = () => {
         ctx.fillStyle = `rgba(199, 210, 254, ${p.alpha * 0.8})`; 
         ctx.fill();
 
-        // Draw Connections
-        for (let j = i + 1; j < particles.current.length; j++) {
-          const p2 = particles.current[j];
-          const dx = p.x - p2.x;
-          const dy = p.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+        // Draw Connections (Skip on mobile for performance)
+        const isMobile = window.innerWidth < 768;
+        if (!isMobile) {
+          for (let j = i + 1; j < particles.current.length; j++) {
+            const p2 = particles.current[j];
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 150) {
+            if (dist < 150) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              // Boosted string visibility
+              const opacity = (1 - dist / 150) * 0.3;
+              ctx.strokeStyle = `rgba(129, 140, 248, ${opacity})`;
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+            }
+          }
+
+          // Mouse interaction: lines to mouse
+          const mdx = p.x - mouse.current.x;
+          const mdy = p.y - mouse.current.y;
+          const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+          if (mdist < 200) {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            // Boosted string visibility
-            const opacity = (1 - dist / 150) * 0.3;
-            ctx.strokeStyle = `rgba(129, 140, 248, ${opacity})`;
-            ctx.lineWidth = 0.8;
+            ctx.lineTo(mouse.current.x, mouse.current.y);
+            // Boosted mouse connection visibility
+            const opacity = (1 - mdist / 200) * 0.5;
+            ctx.strokeStyle = `rgba(34, 211, 94, ${opacity})`;
+            ctx.lineWidth = 1;
             ctx.stroke();
           }
-        }
-
-        // Mouse interaction: lines to mouse
-        const mdx = p.x - mouse.current.x;
-        const mdy = p.y - mouse.current.y;
-        const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (mdist < 200) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mouse.current.x, mouse.current.y);
-          // Boosted mouse connection visibility
-          const opacity = (1 - mdist / 200) * 0.5;
-          ctx.strokeStyle = `rgba(34, 211, 94, ${opacity})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
         }
       });
 

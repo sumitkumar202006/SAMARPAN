@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
+import { GuestGuard } from '@/components/auth/GuestGuard';
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -580,12 +581,16 @@ function AuthContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-      </div>
-    }>
-      <AuthContent />
-    </Suspense>
+    <GuestGuard>
+      <Suspense fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-background">
+          <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin shadow-[0_0_15px_rgba(99,102,241,0.3)]" />
+          <p className="font-black uppercase tracking-[0.3em] text-text-soft text-xs animate-pulse italic">Initalizing Security Nexus...</p>
+        </div>
+      }>
+        <AuthContent />
+      </Suspense>
+    </GuestGuard>
   );
 }
+

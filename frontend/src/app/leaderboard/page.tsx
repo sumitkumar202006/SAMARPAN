@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 const dummyLeaderboard = [
   { rank: 1, name: "MindBreaker", rating: 1842, quizzes: 127, avgScore: "92%", bestRank: "#1" },
@@ -37,7 +38,9 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="py-2 lg:py-10 space-y-10">
+    <AuthGuard>
+      <div className="py-2 lg:py-10 space-y-10">
+
       <div className="flex flex-col gap-1 px-2">
         <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Global Rankings</h2>
         <p className="text-text-soft text-xs lg:text-sm">Real-time neural standing of the elite pilots in the Samarpan Arena.</p>
@@ -62,7 +65,8 @@ export default function LeaderboardPage() {
                    </div>
                 </div>
                 <div className="text-center">
-                   <h3 className="text-lg font-black uppercase italic tracking-tight">{user?.name || 'GUEST_PILOT'}</h3>
+                   <h3 className="text-lg font-black uppercase italic tracking-tight">{user?.name}</h3>
+
                    <span className="text-[10px] text-accent font-black tracking-widest uppercase mt-1">RANK: UNCALIBRATED</span>
                 </div>
              </div>
@@ -250,5 +254,7 @@ export default function LeaderboardPage() {
 
       </div>
     </div>
+    </AuthGuard>
   );
 }
+

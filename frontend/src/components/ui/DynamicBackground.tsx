@@ -43,10 +43,10 @@ export const DynamicBackground = () => {
         }}
       />
 
-      {/* 2. Animated Aurora Blobs */}
+      {/* 2. Animated Aurora Blobs (Hidden on mobile for performance) */}
       <motion.div
         style={{ x: smoothX, y: backgroundY }}
-        className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent/15 blur-[120px]"
+        className="hidden sm:block absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent/15 blur-[120px]"
         animate={{
           scale: [1, 1.1, 1],
           opacity: [0.15, 0.25, 0.15],
@@ -56,7 +56,7 @@ export const DynamicBackground = () => {
 
       <motion.div
         style={{ x: useTransform(smoothX, x => x * -1.5), y: secondaryY }}
-        className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent-alt/10 blur-[100px]"
+        className="hidden sm:block absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent-alt/10 blur-[100px]"
         animate={{
           scale: [1, 1.2, 1],
           opacity: [0.1, 0.2, 0.1],
@@ -66,7 +66,7 @@ export const DynamicBackground = () => {
 
       <motion.div
         style={{ x: useTransform(smoothX, x => x * 0.8), y: useTransform(secondaryY, y => y * 0.5) }}
-        className="absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-indigo-500/10 blur-[90px]"
+        className="hidden sm:block absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-indigo-500/10 blur-[90px]"
         animate={{
           scale: [1, 1.3, 1],
           opacity: [0.05, 0.15, 0.05],

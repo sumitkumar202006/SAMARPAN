@@ -8,7 +8,9 @@ import { Input, Select } from '@/components/ui/Input';
 import { Zap, Users, Shield, Sword, Gamepad2, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
+export default function BattlesPage() {
   const { user, profileCompletion } = useAuth();
   const [pin, setPin] = useState('');
   const [joinName, setJoinName] = useState(user?.name || '');

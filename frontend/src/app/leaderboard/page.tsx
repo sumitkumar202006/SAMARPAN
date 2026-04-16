@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Trophy, Medal, Star, TrendingUp, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
 const dummyLeaderboard = [
   { rank: 1, name: "MindBreaker", rating: 1842, quizzes: 127, avgScore: "92%", bestRank: "#1" },
@@ -14,6 +16,7 @@ const dummyLeaderboard = [
   { rank: 5, name: "ShadowWizard", rating: 1622, quizzes: 110, avgScore: "84%", bestRank: "#4" },
 ];
 
+export default function LeaderboardPage() {
   const { user, profileCompletion } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

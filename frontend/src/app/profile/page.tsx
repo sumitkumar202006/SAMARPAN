@@ -31,6 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
 // Avatar Presets Matrix (DiceBear Collections)
 const AVATAR_STUFF = [
@@ -50,7 +51,9 @@ const getRankInfo = (rating: number) => {
   return { label: 'Iron', color: 'text-[#78350f]', icon: Target, bg: 'bg-orange-900/10' };
 };
 
+export default function ProfilePage() {
   const { user, profileCompletion, setUser } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -389,8 +392,5 @@ const getRankInfo = (rating: number) => {
         )}
       </AnimatePresence>
     </div>
-  );
-}
->
   );
 }

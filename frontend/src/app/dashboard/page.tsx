@@ -13,9 +13,13 @@ import {
   BookOpen,
   ArrowRight,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Activity,
+  Settings,
+  Shield
 } from 'lucide-react';
 import { UpdatesStrip } from '@/components/dashboard/UpdatesStrip';
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 import { StatCard } from '@/components/ui/StatCard';
 import { QuizCard } from '@/components/ui/QuizCard';
 import { useAuth } from '@/context/AuthContext';
@@ -39,6 +43,7 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
+export default function DashboardPage() {
   const { user, isLoading: authLoading, profileCompletion } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<any>(null);
@@ -304,6 +309,7 @@ const item = {
             </div>
           )}
         </div>
+      </motion.div>
     </div>
   );
 }

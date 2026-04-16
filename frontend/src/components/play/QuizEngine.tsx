@@ -62,6 +62,17 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [broadcastText, setBroadcastText] = useState('');
 
   const { playNavigate, playClick, playSuccess, playError } = useAudio();
+
+  // SAFETY GUARD: Prevent crash during rapid state transitions
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin opacity-40" />
+        <p className="text-[10px] uppercase font-black tracking-widest text-text-soft italic">Synchronizing Tactical Assets...</p>
+      </div>
+    );
+  }
+
   const currentQuestion = quiz.questions[currentIndex];
 
   useEffect(() => {

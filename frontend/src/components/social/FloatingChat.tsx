@@ -22,18 +22,23 @@ export const FloatingChat = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [mounted, setMounted] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load Friends for Floating Menu
   useEffect(() => {
-    if (user?.id && isOpen) {
+    if (mounted && user?.id && isOpen) {
        loadFriends();
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, mounted]);
 
   // Presence & Real-time Listeners
   useEffect(() => {
-    if (!socket) return;
+    if (!mounted || !socket) return;
 
     const handleStatus = ({ userId, status }: any) => {
       setOnlineUsers(prev => {
@@ -130,7 +135,7 @@ export const FloatingChat = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   return (
     <div className="hidden lg:block fixed bottom-6 right-6 z-[1000] font-bold px-4">

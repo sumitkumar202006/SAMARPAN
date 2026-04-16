@@ -32,8 +32,27 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     }
   }, [isSidebarCollapsed, mounted]);
 
-  const isMatchOrLobby = pathname?.includes('/play/') || pathname?.includes('/host/live/') || pathname?.includes('/lobby/');
+  const isMatchOrLobby = React.useMemo(() => {
+    return pathname?.includes('/play/') || pathname?.includes('/host/live/') || pathname?.includes('/lobby/');
+  }, [pathname]);
+
   const isAdminPath = pathname?.startsWith('/admin');
+
+  // SERVER-SIDE RENDERER (Minimal consistency shell)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <DynamicBackground />
+        <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
+        <div className="flex flex-col min-h-screen">
+          <header className="h-16 border-b border-white/5 backdrop-blur-3xl" />
+          <main className="flex-1 flex items-center justify-center">
+             <div className="w-10 h-10 rounded-full border-2 border-accent border-t-transparent animate-spin opacity-20" />
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (isAdminPath) {
     return (
@@ -42,7 +61,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         <DynamicBackground />
         <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
         <main className="flex-1 relative z-10 font-sans">
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </main>
         <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
       </div>
@@ -68,17 +89,19 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         
         <div className={cn(
           "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
-          mounted && (effectiveSidebarCollapsed ? "lg:pl-20" : "lg:pl-72")
+          effectiveSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
         )}>
           <Topbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} isMatchOrLobby={isMatchOrLobby} />
           
           <main className={cn(
             "flex-1 flex flex-col pt-4 relative",
-            mounted && !effectiveSidebarCollapsed && "lg:pt-6",
+            !effectiveSidebarCollapsed && "lg:pt-6",
             !isMatchOrLobby ? "pb-32 lg:pb-10" : "pb-10"
           )}>
             <div className="flex-1 px-5 lg:px-8 max-w-7xl mx-auto w-full">
-              {children}
+              <Suspense fallback={null}>
+                {children}
+              </Suspense>
             </div>
 
             {/* Footer Toggle Interface - Hidden in matched */}
@@ -124,9 +147,11 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
 
       {/* Global Social Hub (Conditional) - Only for Desk/Tab */}
-      {!isMatchOrLobby && (
-        <FloatingChat />
-      )}
+      <Suspense fallback={null}>
+        {!isMatchOrLobby && (
+          <FloatingChat />
+        )}
+      </Suspense>
 
       {/* Mobile Interaction Layer */}
       <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />

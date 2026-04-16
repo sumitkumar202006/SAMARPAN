@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Compass, Flame, Calendar, GraduationCap, 
-  Calculator, Globe, Trophy, Zap, Star, LayoutGrid, Gamepad2, PlayCircle, Plus 
+  Calculator, Globe, Trophy, Zap, Star, LayoutGrid, Gamepad2, PlayCircle, Plus, Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';

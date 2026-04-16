@@ -11,6 +11,7 @@ import api from '@/lib/axios';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
 export default function BattlesPage() {
+  const router = useRouter();
   const { user, profileCompletion } = useAuth();
   const [pin, setPin] = useState('');
   const [joinName, setJoinName] = useState(user?.name || '');

@@ -15,7 +15,9 @@ import {
   Trophy,
   Wand2,
   ListPlus,
-  Users
+  Users,
+  Check,
+  Activity
 } from 'lucide-react';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';

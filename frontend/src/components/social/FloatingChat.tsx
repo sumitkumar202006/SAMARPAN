@@ -47,7 +47,31 @@ export const FloatingChat = () => {
     const handleMsg = (msg: any) => {
       // If we are already chatting with this person in floating view
       if (selectedFriend && (msg.senderId === selectedFriend.id || msg.receiverId === selectedFriend.id)) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          // Prevent duplicates (either by database ID or exact same text within brief window)
+          if (msg.id && prev.some(p => p.id === msg.id)) return prev;
+          
+          // Deduplicate optimistic temp-messages matched by content
+          const isSender = msg.senderId === user?.id;
+          if (isSender) {
+             const existingTemp = prev.find(p => String(p.id).startsWith('temp-') && p.content === msg.content);
+             if (existingTemp) {
+               // Replace temp with official
+               return prev.map(p => p.id === existingTemp.id ? msg : p);
+             }
+          }
+
+          // Strict Deduplication fallback for identical rapid bounces
+          if (!isSender) {
+            const doubleReceipt = prev.find(p => p.senderId === msg.senderId && p.content === msg.content);
+            if (doubleReceipt && prev.length > 0 && prev[prev.length - 1].id === doubleReceipt.id) {
+               // If the absolute LAST message is an exact match entirely, block it
+               return prev;
+            }
+          }
+          
+          return [...prev, msg];
+        });
       }
     };
 
@@ -58,7 +82,7 @@ export const FloatingChat = () => {
       socket.off('friend_status_change', handleStatus);
       socket.off('new_private_message', handleMsg);
     };
-  }, [socket, selectedFriend]);
+  }, [socket, selectedFriend, user?.id]);
 
   const loadFriends = async () => {
     try {
@@ -82,6 +106,18 @@ export const FloatingChat = () => {
 
   const sendMessage = () => {
     if (!newMessage.trim() || !selectedFriend) return;
+    
+    // Optimistic Update
+    const tempMsg = {
+      id: `temp-${Date.now()}`,
+      senderId: user?.id,
+      receiverId: selectedFriend.id,
+      content: newMessage,
+      type: 'text'
+    };
+    
+    setMessages(prev => [...prev, tempMsg]);
+
     socket.emit('private_message', {
       receiverId: selectedFriend.id,
       content: newMessage,

@@ -204,10 +204,16 @@ function LivePlayContent() {
           </div>
         </div>
 
-        <Button onClick={() => router.push('/dashboard')} variant="outline" className="border-accent/30 hover:border-accent">
-          <ArrowLeft size={18} />
-          Back to Terminal
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Button onClick={() => router.push('/dashboard')} className="w-full sm:w-auto px-10 h-14 bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white transition-all">
+            <ArrowLeft className="mr-2" size={20} />
+            Back to Command Terminal
+          </Button>
+          <Button onClick={() => router.push(`/host/results/${pin}`)} variant="outline" className="w-full sm:w-auto px-10 h-14 border-white/10 hover:bg-white/5">
+            <Trophy className="mr-2" size={20} />
+            Review Arena Performance
+          </Button>
+        </div>
       </motion.div>
     );
   }
@@ -227,6 +233,7 @@ function LivePlayContent() {
           socket={socket} 
           pin={pin || ''}
           examSettings={examSettings}
+          isHost={isHost}
           onFinish={(score, total, lb) => {
             setIsFinished(true);
             if (lb) setLeaderboard(lb);

@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { UserPlus, UserCheck, CheckCircle2, XCircle } from 'lucide-react';
+import { UserPlus, UserCheck, CheckCircle2, XCircle, ChevronLeft } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 
-export const Topbar = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
+export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMobileMenu?: () => void, isMatchOrLobby?: boolean }) => {
   const router = useRouter();
   const { user, logout, profileCompletion } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
@@ -133,14 +133,59 @@ export const Topbar = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) 
 
       <div className="px-4 lg:px-12 h-16 flex items-center justify-between gap-4">
         
-        {/* Left: Branding & Search */}
-        <div className="flex items-center gap-2 lg:gap-8 flex-1">
-          <button 
-            onClick={onOpenMobileMenu}
-            className="lg:hidden p-2 rounded-lg bg-white/5 text-text-soft hover:text-white transition-all active:scale-95"
-          >
-            <Menu size={20} />
-          </button>
+        {/* MATCH/LOBBY MINIMAL HEADER */}
+        {isMatchOrLobby ? (
+          <>
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="flex items-center gap-2 group shrink-0" title="Return to Base">
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all overflow-hidden">
+                  <img src="/favicon.ico" alt="Samarpan" className="w-full h-full object-cover" />
+                </div>
+                <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic">SAMARPAN</span>
+              </Link>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={toggleMute}
+                className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all outline-none"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
+              
+              <button 
+                onClick={() => {
+                  if (confirm("⚠️ CAUTION: Aborting the arena will forfeit all progress and XP. Are you sure you want to retreat?")) {
+                    router.push('/dashboard');
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black text-xs uppercase tracking-widest shadow-lg"
+              >
+                <ChevronLeft size={16} /> Retreat
+              </button>
+            </div>
+          </>
+        ) : (
+          /* STANDARD FULL HEADER */
+          <>
+            {/* Left: Branding & Search */}
+            <div className="flex items-center gap-2 lg:gap-8 flex-1">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={onOpenMobileMenu}
+              className="lg:hidden p-2 rounded-lg bg-white/5 text-text-soft hover:text-white transition-all active:scale-95"
+            >
+              <Menu size={20} />
+            </button>
+            <Link 
+              href="/dashboard"
+              className="p-2 rounded-lg bg-white/5 text-text-soft hover:text-accent hover:bg-accent/10 transition-all"
+              title="Home Dashboard"
+            >
+              <BarChart size={20} />
+            </Link>
+          </div>
           
           <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all overflow-hidden">
@@ -467,6 +512,8 @@ export const Topbar = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) 
             </AnimatePresence>
           </div>
         </div>
+        </>
+        )}
       </div>
     </header>
   );

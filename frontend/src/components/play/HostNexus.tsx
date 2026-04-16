@@ -39,7 +39,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   useEffect(() => {
     if (!socket || !isMounted) return;
 
-    socket.on('player_list_update', (data: any) => {
+    socket.on('host_player_list_update', (data: any) => {
       setPlayers(data.players);
     });
 
@@ -97,7 +97,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
     });
 
     return () => {
-      socket.off('player_list_update');
+      socket.off('host_player_list_update');
       socket.off('stats_update');
       socket.off('timer_tick');
       socket.off('game_paused');
@@ -134,6 +134,14 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
 
   const handleBan = (playerId: string, name: string) => {
     socket.emit('host_ban', { pin, playerId, name });
+  };
+
+  const handleManualPenalty = (playerId: string) => {
+    socket.emit('host_reduce_score', { pin, playerId, amount: 100 });
+  };
+
+  const handleIssueWarning = (playerId: string) => {
+    socket.emit('host_broadcast_to_player', { pin, playerId, message: "⚠️ ADMIN WARNING: Suspicious activity detected on your uplink.", type: 'warning' });
   };
 
   const handlePatch = (updatedQuestions: any[]) => {
@@ -240,17 +248,28 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                 <motion.div 
                   layout
                   key={id}
-                  className="bg-background/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between group hover:border-accent/30 transition-all"
+                  className={cn(
+                    "bg-background/40 border p-4 rounded-2xl flex items-center justify-between group transition-all",
+                    player.ipMatch ? "border-amber-500/30 bg-amber-500/5 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : "border-white/5 hover:border-accent/30"
+                  )}
                 >
                   <div className="flex items-center gap-4">
                     <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center font-black",
+                      "w-10 h-10 rounded-xl flex items-center justify-center font-black relative",
                       player.answeredThisQ ? "bg-accent-alt/20 text-accent-alt" : "bg-white/5 text-text-soft"
                     )}>
                       {player.name.charAt(0).toUpperCase()}
+                      {player.strikeCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[8px] flex items-center justify-center text-white border-2 border-background animate-pulse">
+                          {player.strikeCount}
+                        </span>
+                      )}
                     </div>
                     <div>
-                      <p className="font-bold text-sm">{player.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm">{player.name}</p>
+                        {player.ipMatch && <span className="text-[7px] px-1 bg-amber-500/20 text-amber-500 border border-amber-500/20 rounded font-black tracking-tighter">SAME IP</span>}
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-accent">{player.score} PTS</span>
                         {player.answeredThisQ && (
@@ -268,18 +287,32 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
+                      onClick={() => handleIssueWarning(id)}
+                      className="p-1.5 rounded-lg hover:bg-amber-500/10 text-amber-400/60 hover:text-amber-400"
+                      title="Issue Direct Warning"
+                    >
+                      <Shield size={14} />
+                    </button>
+                    <button 
+                      onClick={() => handleManualPenalty(id)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400/60 hover:text-red-400 font-black text-[10px]"
+                      title="Deduct 100 Points"
+                    >
+                      -100
+                    </button>
+                    <button 
                       onClick={() => handleKick(id)}
-                      className="p-2 rounded-lg hover:bg-red-500/10 text-red-400/60 hover:text-red-400 transition-all"
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500/60 hover:text-red-500"
                       title="Kick Player"
                     >
-                      <XCircle size={16} />
+                      <XCircle size={14} />
                     </button>
                     <button 
                       onClick={() => handleBan(id, player.name)}
-                      className="p-2 rounded-lg hover:bg-red-500/20 text-red-500 transition-all font-bold"
+                      className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-500 transition-all font-bold"
                       title="Ban Permanently"
                     >
-                      <Ban size={16} />
+                      <Ban size={14} />
                     </button>
                   </div>
                 </motion.div>
@@ -290,6 +323,30 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                 </div>
               )}
             </div>
+          </div>
+          
+          <div className="glass p-8 rounded-[32px] border-white/5 bg-accent/5">
+             <div className="flex items-center justify-between mb-4">
+               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Security Feed logs</h4>
+               <span className="text-[10px] text-text-soft font-mono uppercase italic">Privileged Access Level: HOST</span>
+             </div>
+             <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar">
+                {Object.values(players).filter((p:any)=>!p.isHost && (p.strikeCount > 0 || p.ipMatch)).map((p:any, i) => (
+                  <div key={i} className="flex items-center justify-between text-[11px] font-medium py-1.5 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white">{p.name}</span>
+                      <span className="text-text-soft opacity-50 px-1.5 py-0.5 rounded bg-white/5 font-mono text-[9px]">{p.ip || '0.0.0.0'}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {p.strikeCount > 0 && <span className="text-red-500 font-bold uppercase tracking-tighter">{p.strikeCount} STRIKES</span>}
+                      {p.ipMatch && <span className="text-amber-500 font-bold uppercase tracking-tighter">DUPLICATE UPLINK</span>}
+                    </div>
+                  </div>
+                ))}
+                {Object.values(players).filter((p:any)=>!p.isHost && (p.strikeCount > 0 || p.ipMatch)).length === 0 && (
+                  <p className="text-[10px] text-text-soft italic">No active integrity violations detected.</p>
+                )}
+             </div>
           </div>
 
           {/* Question Preview & Stats */}

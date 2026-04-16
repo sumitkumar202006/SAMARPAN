@@ -16,12 +16,96 @@ interface Player {
   avatar?: string | null;
   team?: string;
   slotIndex?: number;
+  ip?: string; // only present in privileged data
+}
+
+interface ChatMessage {
+  id: string;
+  sender: string;
+  message: string;
+  isHost: boolean;
+  avatar?: string;
 }
 
 interface TeamNames {
   'Team A': string;
   'Team B': string;
 }
+
+const LobbySlot = React.memo(({ 
+  index, 
+  occupant, 
+  isHost, 
+  socket, 
+  pin, 
+  team,
+  onClick
+}: any) => {
+  const occupantId = occupant?.id;
+  const hasDuplicateIp = occupant && isHost && occupant.ipMatch;
+
+  return (
+    <div 
+      className={cn(
+        "relative group flex flex-col items-center gap-1.5",
+        !occupant && "cursor-pointer"
+      )}
+      onClick={onClick}
+    >
+      <div className={cn(
+        "w-10 h-10 rounded-full border-2 transition-all duration-300 flex items-center justify-center overflow-hidden",
+        hasDuplicateIp && "ring-2 ring-red-500 animate-pulse border-red-500/50 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.5)]",
+        occupant && !hasDuplicateIp
+          ? (occupant.isHost ? "border-amber-400 bg-amber-400/10" : "border-accent/40 bg-accent/5 shadow-[0_0_15px_rgba(99,102,241,0.15)]")
+          : !hasDuplicateIp && "border-dashed border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
+      )}>
+        {occupant ? (
+          <>
+            {occupant.avatar ? (
+              <img src={occupant.avatar} alt={occupant.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-black uppercase text-accent-alt">
+                {occupant.name.charAt(0)}
+              </span>
+            )}
+            {occupant.isHost && (
+              <div className="absolute -top-0.5 -right-0.5 bg-amber-400 text-black rounded-full p-0.5 border border-black/20 shadow-lg">
+                <Crown size={8} fill="currentColor" />
+              </div>
+            )}
+          </>
+        ) : (
+          <span className="text-[8px] font-black text-white/10 group-hover:text-white/30 tracking-tighter">
+            {index + 1}
+          </span>
+        )}
+      </div>
+      <span className={cn(
+        "text-[8px] font-bold truncate w-10 text-center uppercase tracking-tighter h-3",
+        occupant ? (occupant.isHost ? "text-amber-400" : "text-text-soft") : "text-white/5"
+      )}>
+        {occupant ? occupant.name : ""}
+      </span>
+      
+      {occupant && isHost && !occupant.isHost && (
+        <div className="absolute -top-1 -right-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all scale-[0.6]">
+          <button 
+            onClick={(e) => { e.stopPropagation(); socket.emit('host_kick', { pin, playerId: occupantId }); }}
+            className="p-1 rounded-full bg-orange-500 text-white" title="Kick Player"
+          >
+            <X size={10} />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); socket.emit('host_ban', { pin, playerId: occupantId, name: occupant.name, ip: occupant.ip }); }}
+            className="p-1 rounded-full bg-red-500 text-white" title="Ban Player (IP & Name)"
+          >
+            <Ban size={10} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
 
 function LobbyContent() {
   const { pin } = useParams();
@@ -36,10 +120,26 @@ function LobbyContent() {
   const [battleType, setBattleType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Slot state
   const [pendingSlot, setPendingSlot] = useState<{ team: 'Team A' | 'Team B', index: number } | null>(null);
   const [editingTeam, setEditingTeam] = useState<'Team A' | 'Team B' | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [examSettings, setExamSettings] = useState({
+    strictFocus: true,
+    allowBacktrack: false,
+    lockdownMode: false,
+    randomizeOrder: false,
+    randomizeOptions: false,
+    ipLock: false,
+    escalationMode: true,
+    pointsPerQ: 100,
+    penaltyPoints: 50,
+    maxPlayers: 200
+  });
 
   const joinedRef = React.useRef(false);
   useEffect(() => {
@@ -86,6 +186,14 @@ function LobbyContent() {
       if (data.teamNames) setTeamNames(data.teamNames);
     });
 
+    socket.on('host_player_list_update', (data) => {
+      setPlayers(data.players);
+    });
+
+    socket.on('new_lobby_chat_message', (msg: ChatMessage) => {
+      setChatMessages(prev => [...prev, msg].slice(-50));
+    });
+
     socket.on('join_error', (data) => {
       setError(data.message);
       setTimeout(() => router.push('/battles'), 3000);
@@ -103,7 +211,6 @@ function LobbyContent() {
 
     socket.on('game_started', (data) => {
       const playAsHost = searchParams.get('playAsHost') === 'true';
-      // If host chooses to play, route them to the player interface
       if (role === 'host' && data.rated !== false && !playAsHost) {
         router.push(`/host/live/${pin}`);
       } else {
@@ -119,6 +226,8 @@ function LobbyContent() {
 
     return () => {
       socket.off('player_list_update');
+      socket.off('host_player_list_update');
+      socket.off('new_lobby_chat_message');
       socket.off('join_error');
       socket.off('kicked');
       socket.off('host_left');
@@ -128,16 +237,28 @@ function LobbyContent() {
     };
   }, [isConnected, pin, socket, user?.userId, user?.name, router, searchParams]);
 
+  const sendChatMessage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || !socket || !isConnected) return;
+    socket.emit('lobby_chat_message', { pin, message: chatInput.trim() });
+    setChatInput('');
+  };
+
+  const saveHostSettings = () => {
+    socket.emit('host_update_settings', { pin, settings: examSettings });
+    setIsSettingsOpen(false);
+  };
+
   const handleJoinSlot = (team: 'Team A' | 'Team B', index: number) => {
     setPendingSlot({ team, index });
   };
 
   const confirmJoin = () => {
-    if (!pendingSlot) return;
-    socket.emit('join_team_slot', { 
+    if (!pendingSlot || !socket || !isConnected) return;
+    socket.emit('join_slot', { 
       pin, 
       team: pendingSlot.team, 
-      slotIndex: Number(pendingSlot.index) 
+      slotIndex: pendingSlot.index 
     });
     setPendingSlot(null);
   };
@@ -174,137 +295,65 @@ function LobbyContent() {
     if (type === '2v2') return 2;
     if (type === '3v3') return 3;
     if (type === '4v4') return 4;
-    return 200; // Standard / Massive view
+    return 200;
   };
 
   const slotCount = getSlotCount(battleType);
   const playerCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
-    const isMassive = !battleType || battleType === 'Standard' || battleType === 'rapid';
     const occupantId = Object.keys(players).find(id => {
       const p = players[id];
       return p.team === team && Number(p.slotIndex) === index;
     });
     const occupant = occupantId ? players[occupantId] : null;
 
-    if (isMassive) {
-      return (
-        <div 
-          key={`${team}-${index}`}
-          className={cn(
-            "relative group flex flex-col items-center gap-1.5",
-            !occupant && "cursor-pointer"
-          )}
-          onClick={() => !occupant && handleJoinSlot(team, index)}
-        >
-          <div className={cn(
-            "w-10 h-10 rounded-full border-2 transition-all duration-300 flex items-center justify-center overflow-hidden",
-            occupant 
-              ? (occupant.isHost ? "border-amber-400 bg-amber-400/10" : "border-accent/40 bg-accent/5 shadow-[0_0_15px_rgba(99,102,241,0.15)]")
-              : "border-dashed border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
-          )}>
-            {occupant ? (
-              <>
-                {occupant.avatar ? (
-                  <img src={occupant.avatar} alt={occupant.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs font-black uppercase text-accent-alt">
-                    {occupant.name.charAt(0)}
-                  </span>
-                )}
-                {occupant.isHost && (
-                  <div className="absolute -top-0.5 -right-0.5 bg-amber-400 text-black rounded-full p-0.5 border border-black/20 shadow-lg">
-                    <Crown size={8} fill="currentColor" />
-                  </div>
-                )}
-              </>
-            ) : (
-              <span className="text-[8px] font-black text-white/10 group-hover:text-white/30 tracking-tighter">
-                {index + 1}
-              </span>
-            )}
-          </div>
-          <span className={cn(
-            "text-[8px] font-bold truncate w-10 text-center uppercase tracking-tighter h-3",
-            occupant ? (occupant.isHost ? "text-amber-400" : "text-text-soft") : "text-white/5"
-          )}>
-            {occupant ? occupant.name : ""}
-          </span>
-          
-          {occupant && isHost && !occupant.isHost && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); socket.emit('host_kick', { pin, playerId: occupantId }); }}
-              className="absolute -top-1 -right-1 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-all scale-75"
-            >
-              <X size={8} />
-            </button>
-          )}
-        </div>
-      );
-    }
-
     return (
-      <div 
+      <LobbySlot 
         key={`${team}-${index}`}
-        className={cn(
-          "relative h-24 rounded-2xl border-2 transition-all group overflow-hidden flex items-center justify-center",
-          occupant 
-            ? (team === 'Team A' ? "bg-indigo-500/10 border-indigo-500/50" : "bg-rose-500/10 border-rose-500/50")
-            : "border-dashed border-white/10 hover:border-white/20 bg-white/5 cursor-pointer"
-        )}
+        index={index}
+        occupant={occupant}
+        isHost={isHost}
+        socket={socket}
+        pin={pin}
+        team={team}
         onClick={() => !occupant && handleJoinSlot(team, index)}
-      >
-        {occupant ? (
-          <div className="flex flex-col items-center gap-1 animate-in zoom-in duration-300">
-            <div className="relative">
-              {occupant.avatar ? (
-                <img src={occupant.avatar} alt={occupant.name} className={cn(
-                  "w-10 h-10 rounded-full border-2 object-cover shadow-lg",
-                  occupant.isHost ? "border-amber-400" : "border-white/10"
-                )} />
-              ) : (
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-lg border-2",
-                  occupant.isHost ? "border-amber-400" : "border-transparent",
-                  team === 'Team A' ? "bg-indigo-500" : "bg-rose-500"
-                )}>
-                  {occupant.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              {occupant.isHost && (
-                <div className="absolute -top-1 -right-1 bg-amber-400 text-black rounded-full p-0.5 shadow-lg border border-black/20">
-                  <Crown size={8} fill="currentColor" />
-                </div>
-              )}
-            </div>
-            <span className={cn(
-              "text-[10px] font-bold truncate max-w-[80px]",
-              occupant.isHost ? "text-amber-400" : "text-white"
-            )}>
-              {occupant.name}
-            </span>
-            
-            {isHost && (
-              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); socket.emit('host_kick', { pin, playerId: occupantId }); }}
-                  className="p-1 rounded-md bg-black/50 text-red-400 hover:text-red-300"
-                  title="Kick Player"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-[10px] font-black uppercase tracking-widest text-white/20 group-hover:text-white/40 transition-colors">
-            Empty Slot
-          </div>
-        )}
-      </div>
+      />
     );
   };
+
+  const renderChatWidget = () => (
+    <div className="flex flex-col h-80 glass rounded-[24px] border border-white/10 bg-bg-soft/50 shadow-2xl overflow-hidden mt-6">
+      <div className="p-4 border-b border-white/5 bg-black/20 flex justify-between items-center">
+        <span className="text-[10px] font-black uppercase tracking-widest text-accent">Lobby Intel</span>
+        <div className="flex items-center gap-2 text-text-soft text-[10px]">
+          <Zap size={10} className="text-accent-alt animate-pulse" /> Live
+        </div>
+      </div>
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
+        {chatMessages.length === 0 ? (
+           <p className="text-[9px] text-white/20 uppercase text-center italic m-auto">No tactical comms recorded.</p>
+        ) : (
+           chatMessages.map(m => (
+             <div key={m.id} className={cn("text-[10px] leading-relaxed p-2.5 rounded-lg border w-fit max-w-[90%]", m.isHost ? "bg-amber-500/10 border-amber-500/20 text-text-soft" : "bg-white/5 border-white/5 text-text-soft")}>
+               <span className={cn("font-black mb-1 block", m.isHost ? "text-amber-400" : "text-accent")}>{m.sender} {m.isHost && '👑'}</span>
+               {m.message}
+             </div>
+           ))
+        )}
+      </div>
+      <form onSubmit={sendChatMessage} className="p-3 bg-black/20 border-t border-white/5 relative">
+        <input 
+          value={chatInput} onChange={e => setChatInput(e.target.value)}
+          placeholder="Transmit comms..."
+          className="w-full bg-transparent text-[10px] uppercase font-bold tracking-widest text-white outline-none pl-2 pr-8 placeholder:text-white/20"
+        />
+        <button type="submit" disabled={!chatInput.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 text-accent hover:scale-110 transition-transform active:scale-95 disabled:opacity-50">
+          <MoveRight size={14} />
+        </button>
+      </form>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 lg:py-16">
@@ -384,13 +433,25 @@ function LobbyContent() {
                     INITIATE ARENA
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancel}
-                  className="w-full h-14 border-white/10 hover:bg-white/5 text-xs font-black uppercase tracking-[0.2em]"
-                >
-                  {isHost ? 'Cancel Session' : 'Abort Arena'}
-                </Button>
+                <div className="flex gap-2">
+                  {isHost && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsSettingsOpen(true)}
+                      className="h-14 aspect-square border-amber-400/30 hover:bg-amber-400/10 text-amber-400 p-0"
+                      title="Advanced Settings"
+                    >
+                      <Zap size={20} />
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCancel}
+                    className="flex-1 h-14 border-white/10 hover:bg-white/5 text-xs font-black uppercase tracking-[0.2em]"
+                  >
+                    {isHost ? 'Cancel Session' : 'Abort Arena'}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -399,12 +460,11 @@ function LobbyContent() {
                     <Shield size={16} />
                     <span className="text-[10px] uppercase font-black tracking-widest">Anti-Cheat Matrix Active</span>
                  </div>
-                 <div className="flex items-center gap-3 text-white/30">
-                    <Zap size={16} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Hyper-Sync Enabled</span>
-                 </div>
               </div>
             </div>
+            
+            {/* Massive Lobby Chat Widget */}
+            {renderChatWidget()}
           </div>
         </div>
       ) : (
@@ -579,19 +639,34 @@ function LobbyContent() {
                     Start Game
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
-                  onClick={handleCancel}
-                  className="w-full border-white/10 hover:bg-white/5"
-                >
-                  {isHost ? 'Cancel Session' : 'Leave Lobby'}
-                </Button>
+                <div className="flex gap-2">
+                  {isHost && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsSettingsOpen(true)}
+                      className="aspect-square border-amber-400/30 hover:bg-amber-400/10 text-amber-400 p-0 px-3"
+                      title="Advanced Settings"
+                    >
+                      <Zap size={16} />
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCancel}
+                    className="flex-1 border-white/10 hover:bg-white/5"
+                  >
+                    {isHost ? 'Cancel Session' : 'Leave Lobby'}
+                  </Button>
+                </div>
               </div>
             </div>
 
             <div className="p-4 rounded-xl border border-accent/20 bg-accent/5 text-[9px] text-text-soft leading-relaxed italic">
               <strong>Tip:</strong> Choose your squad carefully. Balanced teams lead to more intense competition and higher XP gains.
             </div>
+
+            {/* Battle Mode Lobby Chat Widget */}
+            {renderChatWidget()}
           </div>
         </div>
       )}
@@ -640,6 +715,122 @@ function LobbyContent() {
             </div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Advanced Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && isHost && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-lg glass p-8 rounded-[32px] border-amber-400/30 overflow-y-auto max-h-[90vh] custom-scrollbar"
+            >
+              <h3 className="text-xl font-black mb-6 uppercase italic text-amber-400">Tactical Arena Parameters</h3>
+              
+              <div className="space-y-3 mb-8">
+                 {/* Integrity Layer */}
+                 <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mb-2 border-b border-white/5 pb-1">Integrity & Surveillance</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, strictFocus: !s.strictFocus }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.strictFocus ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Strict Focus</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.strictFocus ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-white/10")} />
+                   </button>
+
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, escalationMode: !s.escalationMode }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.escalationMode ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Strike System</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.escalationMode ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-white/10")} />
+                   </button>
+
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, lockdownMode: !s.lockdownMode }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.lockdownMode ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Lockdown Mode</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.lockdownMode ? "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-white/10")} />
+                   </button>
+
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, ipLock: !s.ipLock }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.ipLock ? "bg-white/10 border-white/30 text-white" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Flag Same IP</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.ipLock ? "bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "bg-white/10")} />
+                   </button>
+                 </div>
+
+                 {/* Gameplay Layer */}
+                 <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mt-6 mb-2 border-b border-white/5 pb-1">Arena Mechanics</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, allowBacktrack: !s.allowBacktrack }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.allowBacktrack ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Nav-Previous</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.allowBacktrack ? "bg-emerald-500" : "bg-white/10")} />
+                   </button>
+
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, randomizeOrder: !s.randomizeOrder }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOrder ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Questions</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOrder ? "bg-accent-alt" : "bg-white/10")} />
+                   </button>
+
+                   <button 
+                     onClick={() => setExamSettings(s => ({ ...s, randomizeOptions: !s.randomizeOptions }))}
+                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOptions ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
+                   >
+                     <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Options</span>
+                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOptions ? "bg-accent-alt" : "bg-white/10")} />
+                   </button>
+                 </div>
+                 
+                 <div className="pt-4 mt-4 border-t border-white/5">
+                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                     <div>
+                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Points/Q</label>
+                       <input 
+                         type="number" value={examSettings.pointsPerQ} onChange={e => setExamSettings(s => ({...s, pointsPerQ: Number(e.target.value)}))}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-amber-400" 
+                       />
+                     </div>
+                     <div>
+                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Penalty</label>
+                       <input 
+                         type="number" value={examSettings.penaltyPoints} onChange={e => setExamSettings(s => ({...s, penaltyPoints: Number(e.target.value)}))}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-red-400 outline-none focus:border-red-400" 
+                       />
+                     </div>
+                     <div>
+                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Max Pool</label>
+                       <input 
+                         type="number" value={examSettings.maxPlayers} onChange={e => setExamSettings(s => ({...s, maxPlayers: Number(e.target.value)}))}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-accent-alt outline-none focus:border-accent-alt" 
+                       />
+                     </div>
+                   </div>
+                 </div>
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="outline" className="flex-1 border-white/10" onClick={() => setIsSettingsOpen(false)}>Discard</Button>
+                <Button className="flex-1 bg-amber-500 text-black shadow-lg shadow-amber-500/20" onClick={saveHostSettings}>Update Engine</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

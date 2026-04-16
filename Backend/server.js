@@ -1113,6 +1113,7 @@ io.on("connection", (socket) => {
         password: password || null,
         players: {},
         bannedNames: new Set(),
+        bannedIPs: new Set(),
         quiz: null,
         status: 'waiting',
         currentQ: 0,
@@ -1122,8 +1123,20 @@ io.on("connection", (socket) => {
         timerHandle: null,
         countdownHandle: null,
         rated: true,
+        pointsPerQ: 100,
+        penaltyPoints: 50,
+        maxPlayers: 200,
         battleType: null,
         teamScores: null,
+        examSettings: { 
+          strictFocus: true, 
+          allowBacktrack: false,
+          lockdownMode: false,
+          randomizeOrder: false,
+          randomizeOptions: false,
+          ipLock: false,
+          escalationMode: true
+        },
         teamNames: { 'Team A': 'Team A', 'Team B': 'Team B' }
       });
       session = liveSessions.get(pin);
@@ -1156,7 +1169,8 @@ io.on("connection", (socket) => {
         incorrectCount: 0,
         latency: 0,
         penalties: 0,
-        penaltyScore: 0
+        penaltyScore: 0,
+        strikeCount: 0
       };
     socket.emit("host_ready", { pin });
     console.log(`Host joined/created room ${pin}`);
@@ -1172,9 +1186,13 @@ io.on("connection", (socket) => {
     if (!session) { socket.emit("join_error", { message: "Room not found. Check the PIN." }); return; }
     
     if (session.password && session.password !== password) { socket.emit("join_error", { message: "Wrong room password." }); return; }
-    if (session.bannedNames.has(name.toLowerCase())) { socket.emit("join_error", { message: "You are banned from this room." }); return; }
+    if (session.bannedNames.has(name.toLowerCase()) || session.bannedIPs.has(socket.handshake.address)) { 
+      socket.emit("join_error", { message: "You are banned from this room." }); 
+      return; 
+    }
     if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }
     if (session.status === 'finished') { socket.emit("join_error", { message: "This session has ended." }); return; }
+    if (Object.keys(session.players).length >= (session.maxPlayers || 200)) { socket.emit("join_error", { message: "Room is full." }); return; }
     
     // Per user request: Names can be duplicate, but we handle same userId as reconnection
     let existingStats = {};
@@ -1206,7 +1224,8 @@ io.on("connection", (socket) => {
       isSuspicious: false,
       idleTimeout: null,
       penalties: existingStats.penalties || 0,
-      penaltyScore: existingStats.penaltyScore || 0
+      penaltyScore: existingStats.penaltyScore || 0,
+      strikeCount: existingStats.strikeCount || 0
     };
     socket.emit("join_success", { pin, name });
     
@@ -1227,7 +1246,7 @@ io.on("connection", (socket) => {
       session.players[socket.id].slotIndex = data.slotIndex;
     }
 
-    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' } });
+    broadcastPlayerList(pin, session);
     console.log(`${name} joined room ${pin}`);
   });
 
@@ -1268,6 +1287,18 @@ io.on("connection", (socket) => {
       session.totalSessionTime = meta.totalSessionTime || 10;
       session.sessionTimeLeft = session.totalSessionTime * 60;
 
+      // Shuffling
+      if (session.examSettings.randomizeOrder) {
+        session.quiz.questions.sort(() => Math.random() - 0.5);
+      }
+      if (session.examSettings.randomizeOptions) {
+        session.quiz.questions.forEach(q => {
+          const correct = q.options[q.correctIndex];
+          q.options.sort(() => Math.random() - 0.5);
+          q.correctIndex = q.options.indexOf(correct);
+        });
+      }
+
       session.status = 'running';
       session.currentQ = 0;
       
@@ -1287,12 +1318,7 @@ io.on("connection", (socket) => {
         timerMode: session.timerMode,
         totalSessionTime: session.totalSessionTime,
         rated: session.rated,
-        examSettings: {
-          strictFocus: meta.strictFocus,
-          allowBacktrack: meta.allowBacktrack,
-          pointsPerQ: meta.pointsPerQ,
-          penaltyPoints: meta.penaltyPoints
-        }
+        examSettings: session.examSettings
       });
 
       // Global Session Timer (Fixed termination)
@@ -1414,18 +1440,103 @@ io.on("connection", (socket) => {
     const target = io.sockets.sockets.get(playerId);
     if (target) { target.emit("kicked", { message: "You were removed by the host." }); target.leave(pin); }
     delete session.players[playerId];
-    io.in(pin).emit("player_list_update", { players: session.players });
+    broadcastPlayerList(pin, session);
   });
 
+  // Helper to safely broadcast player lists
+  function broadcastPlayerList(pin, session) {
+    if (!session) return;
+    
+    const publicPlayers = {};
+    const hostPlayers = {};
+    
+    // Detect IP groups (multiple users on same IP)
+    const ipGroups = {};
+    Object.values(session.players).forEach(p => {
+      if (p.ip && !p.isHost) {
+        ipGroups[p.ip] = (ipGroups[p.ip] || 0) + 1;
+      }
+    });
+
+    Object.entries(session.players).forEach(([sid, p]) => {
+      const isDuplicateIp = p.ip && ipGroups[p.ip] > 1;
+      
+      publicPlayers[sid] = { ...p, isSuspicious: p.isSuspicious || isDuplicateIp };
+      delete publicPlayers[sid].ip; 
+      
+      hostPlayers[sid] = { ...p, isSuspicious: p.isSuspicious || isDuplicateIp, ipMatch: isDuplicateIp }; 
+    });
+    
+    // Broadcast public list to room
+    io.in(pin).emit("player_list_update", { players: publicPlayers, teamNames: session.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B'} });
+    
+    // Send privileged list to Host
+    if (session.hostSocketId && io.sockets.sockets.get(session.hostSocketId)) {
+      io.to(session.hostSocketId).emit("host_player_list_update", { players: hostPlayers });
+    }
+  }
+
   socket.on("host_ban", (data) => {
-    const { pin, playerId, name } = data;
+    const { pin, playerId, name, ip } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
     if (name) session.bannedNames.add(name.toLowerCase());
+    if (ip) session.bannedIPs.add(ip);
+    
     const target = io.sockets.sockets.get(playerId);
-    if (target) { target.emit("kicked", { message: "You are banned from this room." }); target.leave(pin); }
+    if (target) { target.emit("kicked", { message: "You are permanently banned from this room." }); target.leave(pin); }
     delete session.players[playerId];
-    io.in(pin).emit("player_list_update", { players: session.players });
+    broadcastPlayerList(pin, session);
+  });
+
+  socket.on("lobby_chat_message", (data) => {
+    const { pin, message } = data;
+    const session = liveSessions.get(pin);
+    if (!session) return;
+    const player = session.players[socket.id];
+    if (!player) return; // Only joined players can chat
+    io.in(pin).emit("new_lobby_chat_message", { 
+      id: Date.now().toString(),
+      sender: player.name, 
+      message, 
+      isHost: player.isHost,
+      avatar: player.avatar
+    });
+  });
+
+  socket.on("host_update_settings", (data) => {
+    const { pin, settings } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    
+    session.examSettings = { ...session.examSettings, ...settings };
+    if (settings.pointsPerQ) session.pointsPerQ = settings.pointsPerQ;
+    if (settings.penaltyPoints) session.penaltyPoints = settings.penaltyPoints;
+    if (settings.maxPlayers) session.maxPlayers = settings.maxPlayers;
+
+    io.in(pin).emit("broadcast_message", { message: "Host updated arena configuration parameters.", type: "info" });
+  });
+
+  socket.on("host_reduce_score", (data) => {
+    const { pin, playerId, amount } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+
+    const player = session.players[playerId];
+    if (player) {
+      player.score -= amount;
+      socket.to(playerId).emit("error_msg", { message: `ADMIN ACTION: Your score was reduced by ${amount} points for arena violations.` });
+      broadcastPlayerList(pin, session);
+      broadcastStats(pin, session);
+    }
+  });
+
+  socket.on("host_broadcast_to_player", (data) => {
+    const { pin, playerId, message, type } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    
+    socket.to(playerId).emit("broadcast_message", { message, type });
   });
 
   socket.on("host_patch_quiz", (data) => {
@@ -1525,7 +1636,7 @@ io.on("connection", (socket) => {
 
     player.team = team;
     player.slotIndex = slotIndex;
-    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+    broadcastPlayerList(pin, session);
   });
 
   socket.on("host_move_player", (data) => {
@@ -1545,7 +1656,7 @@ io.on("connection", (socket) => {
 
     player.team = newTeam;
     player.slotIndex = newSlotIndex;
-    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+    broadcastPlayerList(pin, session);
   });
 
   socket.on("host_edit_team_name", (data) => {
@@ -1555,7 +1666,7 @@ io.on("connection", (socket) => {
 
     if (!session.teamNames) session.teamNames = { 'Team A': 'Team A', 'Team B': 'Team B' };
     session.teamNames[teamKey] = newName;
-    io.in(pin).emit("player_list_update", { players: session.players, teamNames: session.teamNames });
+    broadcastPlayerList(pin, session);
   });
 
   socket.on("anti_cheat_violation", (data) => {
@@ -1567,20 +1678,48 @@ io.on("connection", (socket) => {
     if (!player) return;
 
     if (type === 'tab_switch') {
-      const penalty = session.penaltyPoints || 50;
-      player.score -= penalty;
-      player.penalties = (player.penalties || 0) + 1;
-      player.penaltyScore = (player.penaltyScore || 0) + penalty;
+      const strikeCount = (player.strikeCount || 0) + 1;
+      player.strikeCount = strikeCount;
+      const escalationMode = session.examSettings?.escalationMode;
+
+      if (escalationMode) {
+        if (strikeCount === 1) {
+          // Warning
+          socket.emit("error_msg", { message: "⚠️ ESCALATION WARNING: Illegal tab switch detected. This is your only warning." });
+        } else if (strikeCount === 2) {
+          // Penalty
+          const penalty = session.penaltyPoints || 50;
+          player.score -= penalty;
+          player.penalties = (player.penalties || 0) + 1;
+          player.penaltyScore = (player.penaltyScore || 0) + penalty;
+          socket.emit("error_msg", { message: `🚫 ESCALATION PENALTY: Strike 2! -${penalty} points deducted.` });
+        } else {
+          // Disqualification
+          socket.emit("kicked", { message: "🛑 DISQUALIFIED: Strike 3! You have been removed for multiple integrity violations." });
+          if (session.hostSocketId) {
+             io.to(session.hostSocketId).emit("broadcast_message", { 
+               message: `TERMINATED: ${player.name} disqualified for anti-cheat strikes.`, 
+               type: 'error' 
+             });
+          }
+          delete session.players[socket.id];
+          socket.leave(pin);
+          broadcastPlayerList(pin, session);
+          return;
+        }
+      } else {
+        // Standard Penalty Mode
+        const penalty = session.penaltyPoints || 50;
+        player.score -= penalty;
+        player.penalties = (player.penalties || 0) + 1;
+        player.penaltyScore = (player.penaltyScore || 0) + penalty;
+        socket.emit("error_msg", { message: `WARNING: Tab switch detected! -${penalty} points penalty applied.` });
+      }
       
-      console.log(`[Anti-Cheat] Penalized player ${player.name} in room ${pin} by ${penalty} points for tab switch.`);
-      
-      // Notify player of penalty log
-      socket.emit("error_msg", { message: `WARNING: Tab switch detected! -${penalty} points penalty applied.` });
-      
-      // Broadcast to host (oversight)
+      // Update global host feed
       if (session.hostSocketId) {
         io.to(session.hostSocketId).emit("broadcast_message", { 
-          message: `${player.name} left the exam tab. Penalty applied.`, 
+          message: `${player.name} focus loss detected (Strike ${strikeCount}).`, 
           type: 'warning' 
         });
       }
@@ -1611,7 +1750,7 @@ io.on("connection", (socket) => {
           console.log(`Inactive/Dangling Host socket ${socket.id} disconnected, PIN ${pin} remains.`);
         }
       } else {
-        io.in(pin).emit("player_list_update", { players: session.players });
+        broadcastPlayerList(pin, session);
         io.in(pin).emit("player_left", { name: playerName });
       }
     });

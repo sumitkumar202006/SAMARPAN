@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Clock, CheckCircle2, XCircle, ChevronRight, Trophy, ArrowLeft, MessageSquare, Pause, Play, SkipForward, X, ShieldAlert, LogOut, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { 
+  Clock, CheckCircle2, XCircle, ChevronRight, 
+  ArrowLeft, MessageSquare, Pause, Play, 
+  SkipForward, X, ShieldAlert, LogOut, 
+  ChevronLeft, Shield, Zap 
+} from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
-import { BikeArrow } from '@/components/ui/BikeArrow';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { SecurityLockdown } from './SecurityLockdown';
 
 interface Question {
   question: string;
@@ -16,32 +21,28 @@ interface Question {
   explanation?: string;
 }
 
-interface Quiz {
-  title: string;
-  questions: Question[];
-}
-
 interface QuizEngineProps {
-  quiz: Quiz;
+  quiz: {
+    title: string;
+    questions: Question[];
+  };
   isLive?: boolean;
-  onFinish: (score: number, total: number, leaderboard?: any) => void;
   socket?: any;
   pin?: string;
-  initialTimerMode?: 'per-question' | 'total';
-  examSettings?: { strictFocus?: boolean; allowBacktrack?: boolean };
+  onFinish: (score: number, total: number, leaderboard?: any) => void;
+  isHostOverride?: boolean;
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({ 
   quiz, 
   isLive = false, 
-  onFinish, 
   socket, 
-  pin,
-  examSettings
+  pin, 
+  onFinish,
+  isHostOverride = false
 }) => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isHost = searchParams.get('role') === 'host';
+  const [examSettings, setExamSettings] = useState<any>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -54,17 +55,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
   
-  // HUD Messaging State
   const [hudMessage, setHudMessage] = useState<{ text: string; type: string } | null>(null);
-  
-  // Host FAB State
   const [isHostToolsOpen, setIsHostToolsOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState('');
 
   const { playNavigate, playClick, playSuccess, playError } = useAudio();
   const currentQuestion = quiz.questions[currentIndex];
 
-  // Socket event listeners for live mode
   useEffect(() => {
     if (!isLive || !socket) return;
 
@@ -80,26 +77,25 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setSessionTimeLeft(data.timeLeft);
     });
 
-    socket.on('game_paused', () => {
-      setIsPaused(true);
-    });
-
-    socket.on('game_resumed', () => {
-      setIsPaused(false);
-    });
+    socket.on('game_paused', () => setIsPaused(true));
+    socket.on('game_resumed', () => setIsPaused(false));
 
     socket.on('broadcast_message', (data: { message: string, type: string }) => {
       setHudMessage({ text: data.message, type: data.type });
-      setTimeout(() => setHudMessage(null), 5000); // Clear after 5s
+      setTimeout(() => setHudMessage(null), 5000);
     });
 
     socket.on('question_result', (data: { correctIndex: number, explanation?: string }) => {
       setCorrectIdx(data.correctIndex);
       setExplanation(data.explanation || null);
       setIsLocked(true);
-      
       if (selectedIdx === data.correctIndex) playSuccess();
       else playError();
+    });
+
+    socket.on('game_started', (data: any) => {
+      setHudMessage({ text: "ARENA DEPLOYED. GOOD LUCK.", type: 'info' });
+      if (data.examSettings) setExamSettings(data.examSettings);
     });
 
     socket.on('next_question', (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
@@ -113,37 +109,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setIsPaused(false);
     });
 
-    socket.on('next_set_started', (data: any) => {
-      // RESET ENGINE FOR NEXT ROUND
-      setCurrentIndex(0);
-      setTimeLeft(30);
-      setSelectedIdx(null);
-      setIsLocked(false);
-      setCorrectIdx(null);
-      setExplanation(null);
-      setIsPaused(false);
-      // We'd need to update the quiz prop too, but if it's passed from parent, 
-      // the parent should re-render QuizEngine with the new quiz data.
-    });
-
-    socket.on('quiz_finished', (data: { leaderboard: any, reason?: string }) => {
-      if (data.reason === 'SESSION_TIME_EXPIRED') {
-        setHudMessage({ text: "TIME EXPIRED! SESSION TERMINATED", type: 'error' });
-      }
+    socket.on('quiz_finished', (data: { leaderboard: any }) => {
       setIsFinished(true);
       onFinish(score, quiz.questions.length, data.leaderboard);
     });
 
-    socket.on('answer_confirmed', (data: { optionIdx: number, isCorrect: boolean }) => {
-      // In Total Window / Exam mode, we handle local state progression here
-      // But actually, we don't show correct/incorrect during professional exams
-      setCorrectIdx(data.isCorrect ? data.optionIdx : -1); 
-      setIsLocked(true);
-      
-      if (data.isCorrect) playSuccess();
-      else playError();
-      
-      // Auto-advance if not back-trackable? Usually they have to click Next themselves.
+    socket.on('host_broadcast_to_player', (data: { message: string, type: string }) => {
+       setHudMessage({ text: data.message, type: data.type });
+       setTimeout(() => setHudMessage(null), 5000);
     });
 
     return () => {
@@ -154,41 +127,30 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket.off('question_result');
       socket.off('next_question');
       socket.off('quiz_finished');
-      socket.off('answer_confirmed');
+      socket.off('host_broadcast_to_player');
     };
   }, [isLive, socket, onFinish, quiz.questions.length, score, selectedIdx, playSuccess, playError]);
 
-  // Anti-Cheat Tab Focus Listener
-  useEffect(() => {
-    if (!isLive || !socket || !examSettings?.strictFocus) return;
-    
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        socket.emit("anti_cheat_violation", { pin, type: 'tab_switch' });
-        setHudMessage({ text: "STRIKE: TAB FOCUS LOST. POINT DEDUCTION APPLIED.", type: 'error' });
-        playError();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isLive, socket, pin, examSettings]);
-
-  // Local timer for solo mode
-  useEffect(() => {
-    if (isLive || isFinished || isPaused) return;
-
-    if (timeLeft <= 0) {
-      handleNext();
-      return;
+  const handleAbort = () => {
+    if (confirm("⚠️ CAUTION: Aborting the arena will forfeit all progress. Are you sure?")) {
+      router.push('/dashboard');
     }
+  };
 
-    const timer = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
-    }, 1000);
+  const handleViolation = (type: string) => {
+    if (isLive && socket) {
+      socket.emit('anti_cheat_violation', { pin, type: `lockdown_${type}` });
+    }
+  };
 
-    return () => clearInterval(timer);
-  }, [timeLeft, isLive, isFinished, isPaused]);
+  useEffect(() => {
+    if (!isLive || isFinished || isPaused || timeLeft > 0) return;
+    if (selectedIdx !== null && !isLocked) {
+       handleSelect(selectedIdx);
+    } else if (selectedIdx === null && !isLocked) {
+       handleSelect(-1);
+    }
+  }, [timeLeft, isLive, isFinished, isPaused, selectedIdx, isLocked]);
 
   const handleSelect = (idx: number) => {
     if (isLocked || isPaused) return;
@@ -216,31 +178,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     playNavigate();
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
-      // Only reset timer if per-question mode
       if (timerMode === 'per-question') setTimeLeft(30);
       setSelectedIdx(null);
       setIsLocked(false);
       setCorrectIdx(null);
       setExplanation(null);
     } else {
-      // End Exam
-      if (isLive && timerMode === 'total') {
-         if (confirm("Submit final answers and end your exam arena?")) {
-            setIsFinished(true);
-            onFinish(score, quiz.questions.length);
-         }
-      } else {
-         setIsFinished(true);
-         onFinish(score, quiz.questions.length);
-      }
+      setIsFinished(true);
+      onFinish(score, quiz.questions.length);
     }
   };
 
   const handlePrev = () => {
-    if (examSettings?.allowBacktrack === false) {
-      setHudMessage({ text: "RESTRICTED: BACKTRACKING DISABLED IN THIS EXAM", type: 'error' });
-      return;
-    }
     if (currentIndex > 0) {
       playNavigate();
       setCurrentIndex(prev => prev - 1);
@@ -248,12 +197,6 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setIsLocked(false);
       setCorrectIdx(null);
       setExplanation(null);
-    }
-  };
-
-  const handleLeave = () => {
-    if (confirm("WARNING: Are you sure you want to desert the arena? This will abandon your match.")) {
-      router.push('/dashboard');
     }
   };
 
@@ -266,261 +209,139 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   if (isFinished) return null;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="max-w-4xl mx-auto w-full relative"
-    >
-      {/* Emergency HUD Overlay */}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto w-full relative">
       <AnimatePresence>
         {hudMessage && (
-          <motion.div 
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4"
-          >
-            <div className="absolute inset-0 bg-accent/20 backdrop-blur-md animate-pulse duration-[3000ms]" />
-            <div className="relative glass p-8 rounded-[40px] border-accent/50 max-w-lg text-center shadow-[0_0_50px_rgba(99,102,241,0.4)]">
-              <ShieldAlert size={48} className="text-accent-alt mx-auto mb-4 animate-bounce" />
-              <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-accent mb-2">Host Broadcast</h4>
-              <p className="text-2xl font-black italic text-white leading-tight">“{hudMessage.text}”</p>
+          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4">
+            <div className="bg-[#080d20] p-8 rounded-[40px] border border-accent/50 text-center shadow-[0_0_50px_rgba(99,102,241,0.4)]">
+              <ShieldAlert size={48} className="text-accent-alt mx-auto mb-4" />
+              <p className="text-2xl font-black italic text-white">“{hudMessage.text}”</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Host Tactical HUD (FAB) */}
-      {isLive && isHost && (
-        <div className="fixed bottom-8 right-8 z-[100]">
-          <LayoutGroup>
-            <div className="flex flex-col items-end gap-3">
-              <AnimatePresence>
-                {isHostToolsOpen && (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                    className="glass p-6 rounded-[32px] border-amber-400/30 shadow-[0_0_30px_rgba(251,191,36,0.15)] w-72 mb-2"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h5 className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-                        <ShieldAlert size={12} /> Host Command Terminal
-                      </h5>
-                      <button onClick={() => setIsHostToolsOpen(false)} className="text-text-soft hover:text-white transition-colors">
-                        <X size={14} />
-                      </button>
-                    </div>
-                    
-                    <div className="flex flex-col gap-3">
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          className={cn("flex-1 py-3 border-white/10 text-[10px] font-bold", isPaused && "text-amber-400 border-amber-400/30")}
-                          onClick={() => socket.emit(isPaused ? 'host_resume' : 'host_pause', pin)}
-                        >
-                          {isPaused ? <Play size={14} /> : <Pause size={14} />}
-                          {isPaused ? 'Resume' : 'Pause'}
-                        </Button>
-                        <Button variant="outline" className="flex-1 py-3 border-white/10 text-[10px] font-bold" onClick={() => socket.emit('host_next', pin)}>
-                          <SkipForward size={14} /> Skip
-                        </Button>
-                      </div>
-                      
-                      <div className="relative">
-                        <input 
-                          value={broadcastText}
-                          onChange={(e) => setBroadcastText(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && sendBroadcast()}
-                          placeholder="Tactical msg..."
-                          className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-[10px] outline-none focus:border-amber-400 transition-all"
-                        />
-                        <button onClick={sendBroadcast} className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 p-1 hover:scale-110 transition-transform">
-                          <MessageSquare size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              <motion.button 
-                layout
-                onClick={() => setIsHostToolsOpen(!isHostToolsOpen)}
-                className={cn(
-                  "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/10 hover:scale-110 active:scale-95 transition-all",
-                  isHostToolsOpen ? "bg-bg-soft text-text-soft" : "bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.4)]"
-                )}
-              >
-                {isHostToolsOpen ? <X /> : <ShieldAlert />}
-              </motion.button>
-            </div>
-          </LayoutGroup>
-        </div>
-      )}
-
-      {/* Header Info */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <button 
-             onClick={handleLeave}
-             className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center hover:bg-red-500/20 hover:text-red-300 transition-all hover:scale-105 active:scale-95"
-             title="Leave Arena"
-          >
-             <LogOut size={16} />
-          </button>
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-accent">Question {currentIndex + 1} of {quiz.questions.length}</span>
-            <h2 className="text-xl font-bold truncate max-w-full sm:max-w-md">{quiz.title}</h2>
-          </div>
-        </div>
-
-        <div className={cn(
-          "flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all",
-          isPaused ? "bg-accent/10 border-accent/30 text-accent" : (
-            (timerMode === 'per-question' && timeLeft < 10) || 
-            (timerMode === 'total' && sessionTimeLeft !== null && sessionTimeLeft < 60)
-          ) ? "bg-red-500/10 border-red-500/30 text-red-500" : "text-white"
-        )}>
-          {isPaused ? <Pause size={20} className="animate-pulse" /> : <Clock size={20} className={
-            ((timerMode === 'per-question' && timeLeft < 10) || 
-            (timerMode === 'total' && sessionTimeLeft !== null && sessionTimeLeft < 60)) ? "animate-pulse" : ""
-          } />}
-          
-          <span className="text-2xl font-black tabular-nums">
-            {isPaused ? 'HALTED' : (
-              timerMode === 'per-question' 
-                ? `${timeLeft}s` 
-                : (sessionTimeLeft !== null 
-                    ? `${Math.floor(sessionTimeLeft / 60)}:${(sessionTimeLeft % 60).toString().padStart(2, '0')}` 
-                    : '--:--')
-            )}
-          </span>
-        </div>
+      <div className="flex sm:hidden mb-6">
+        <Button variant="outline" onClick={handleAbort} className="w-full border-red-500/20 text-red-400 bg-red-400/5 hover:bg-red-400/10 rounded-xl">
+          <X className="mr-2" size={16} /> Retreat from Arena
+        </Button>
       </div>
 
-      {/* Progress Bar */}
-      <div className="w-full h-1.5 bg-bg-soft rounded-full overflow-hidden mb-12">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${((currentIndex + 1) / quiz.questions.length) * 100}%` }}
-          className="h-full bg-gradient-to-r from-accent to-accent-alt"
-        />
-      </div>
-
-      {/* Question Card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          className={cn(
-            "glass p-8 md:p-12 rounded-[32px] mb-8 transition-opacity duration-300",
-            isPaused && "opacity-50 pointer-events-none"
-          )}
-        >
-          <h3 className="text-xl md:text-3xl font-bold mb-10 leading-relaxed uppercase italic tracking-tight">
-            {currentQuestion.question}
-          </h3>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {currentQuestion.options.map((option, idx) => {
-              const isSelected = selectedIdx === idx;
-              const isCorrect = correctIdx === idx;
-              const isWrong = isLocked && isSelected && !isCorrect;
-              
-              return (
-                <button
-                  key={idx}
-                  disabled={isLocked && !isLive || isPaused}
-                  onClick={() => handleSelect(idx)}
-                  className={cn(
-                    "relative p-6 rounded-2xl border-2 text-left transition-all group overflow-hidden uppercase italic",
-                    !isLocked && !isSelected && "bg-background/40 border-border-soft hover:border-accent/50 hover:bg-background/60",
-                    isSelected && !isLocked && "bg-accent/10 border-accent shadow-lg",
-                    isLocked && isCorrect && "bg-accent-alt/10 border-accent-alt shadow-[0_0_20px_rgba(34,197,94,0.3)]",
-                    isLocked && isWrong && "bg-red-500/10 border-red-500",
+      <SecurityLockdown enabled={examSettings?.lockdownMode} onViolation={handleViolation}>
+        <div className="relative">
+          {isHostOverride && (
+            <div className="fixed bottom-8 right-8 z-[120]">
+              <div className="relative">
+                <AnimatePresence>
+                  {isHostToolsOpen && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-full right-0 mb-6 w-72 glass p-6 rounded-[32px] border-amber-400/30 shadow-2xl">
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                          <Shield size={20} className="text-amber-400" />
+                          <span className="font-black text-xs uppercase tracking-widest text-white/50">Host Overdrive</span>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                          <Button className={cn("w-full py-3 rounded-2xl gap-2", isPaused ? "bg-amber-500 text-black" : "bg-white/5")} onClick={() => socket.emit(isPaused ? 'host_resume' : 'host_pause', pin)}>
+                            {isPaused ? <Play size={14} /> : <Pause size={14} />} {isPaused ? 'Resume' : 'Pause'}
+                          </Button>
+                          <Button variant="outline" className="w-full py-3 border-white/10" onClick={() => socket.emit('host_next', pin)}>
+                            <SkipForward size={14} /> Skip
+                          </Button>
+                        </div>
+                        <div className="relative">
+                          <input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendBroadcast()} placeholder="Tactical msg..." className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-[10px] outline-none focus:border-amber-400 transition-all" />
+                          <button onClick={sendBroadcast} className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 p-1 hover:scale-110 transition-transform"><MessageSquare size={14} /></button>
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-8 h-8 rounded-xl flex items-center justify-center font-bold transition-all",
-                      !isSelected && !isLocked && "bg-bg-soft group-hover:bg-accent group-hover:text-white",
-                      isSelected && !isLocked && "bg-accent text-white",
-                      isLocked && isCorrect && "bg-accent-alt text-white",
-                      isLocked && isWrong && "bg-red-500 text-white"
-                    )}>
-                      {String.fromCharCode(65 + idx)}
-                    </div>
-                    <span className="font-bold tracking-tight">{option}</span>
-                  </div>
+                </AnimatePresence>
+                <motion.button onClick={() => setIsHostToolsOpen(!isHostToolsOpen)} className={cn("w-14 h-14 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/10 transition-all text-black", isHostToolsOpen ? "bg-bg-soft text-text-soft" : "bg-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]")}>
+                  {isHostToolsOpen ? <X /> : <ShieldAlert />}
+                </motion.button>
+              </div>
+            </div>
+          )}
 
-                  <AnimatePresence>
-                    {isLocked && (isCorrect || isWrong) && (
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2"
-                      >
-                        {isCorrect ? <CheckCircle2 className="text-accent-alt" /> : <XCircle className="text-red-500" />}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </button>
-              );
-            })}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              {!isHostOverride && (
+                <Button variant="outline" onClick={handleAbort} className="hidden sm:flex border-white/10 hover:border-red-500/30">
+                  <ArrowLeft size={16} />
+                </Button>
+              )}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent">Question {currentIndex + 1} of {quiz.questions.length}</span>
+                <h2 className="text-xl font-bold truncate max-w-full sm:max-w-md">{quiz.title}</h2>
+              </div>
+            </div>
+
+            <div className={cn("flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all", isPaused ? "text-accent" : (timeLeft < 10) ? "text-red-500" : "text-white")}>
+              <Clock size={20} className={timeLeft < 10 && !isPaused ? "animate-pulse" : ""} />
+              <span className="text-2xl font-black tabular-nums">
+                {isPaused ? 'HALTED' : `${timeLeft}s`}
+              </span>
+            </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
 
-      {/* Footer / Status */}
-      <div className="min-h-[100px] flex flex-col items-center gap-4">
-        {isPaused && (
-           <motion.div 
-             initial={{ opacity: 0, scale: 0.9 }}
-             animate={{ opacity: 1, scale: 1 }}
-             className="flex items-center gap-3 px-8 py-3 rounded-full bg-accent/20 border border-accent/50 text-accent font-black uppercase tracking-widest italic"
-           >
-             <Pause size={20} className="animate-pulse" /> Arena Halted by Host
-           </motion.div>
-        )}
-
-        {isLocked && explanation && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full p-6 rounded-2xl bg-bg-soft/50 border border-white/5 text-sm italic text-text-soft text-center"
-          >
-            <strong className="text-accent">Nexus Insight:</strong> {explanation}
-          </motion.div>
-        )}
-
-        {(!isLive && isLocked) || (isLive && timerMode === 'total') ? (
-          <div className="flex items-center gap-4 mt-6">
-            <Button 
-               onClick={handlePrev} 
-               variant="outline" 
-               className={cn("group px-8", currentIndex === 0 && "opacity-50 pointer-events-none")}
-               disabled={currentIndex === 0 || examSettings?.allowBacktrack === false}
-            >
-              <ChevronLeft className="mr-2" />
-              Previous
-            </Button>
-            <Button onClick={handleNext} className="group px-10">
-              {currentIndex < quiz.questions.length - 1 ? 'Next Question' : 'Finish Exam'}
-              {currentIndex < quiz.questions.length - 1 ? <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" /> : <CheckCircle2 className="ml-2" />}
-            </Button>
+          <div className="w-full h-1.5 bg-bg-soft rounded-full overflow-hidden mb-12">
+            <motion.div animate={{ width: `${((currentIndex + 1) / quiz.questions.length) * 100}%` }} className="h-full bg-gradient-to-r from-accent to-accent-alt" />
           </div>
-        ) : (
-          isLive && isLocked && (
-            <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse mt-6">
-              Waiting for next tactical data...
-            </p>
-          )
-        )}
-      </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div key={currentIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className={cn("bg-[#080d20] border border-white/5 p-8 md:p-12 rounded-[32px] mb-8 transition-opacity duration-300", isPaused && "opacity-50 pointer-events-none")}>
+              <h3 className="text-xl md:text-3xl font-bold mb-10 leading-relaxed uppercase italic tracking-tight">{currentQuestion.question}</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {currentQuestion.options.map((option, idx) => {
+                  const isSelected = selectedIdx === idx;
+                  const isCorrect = correctIdx === idx;
+                  const isWrong = isLocked && isSelected && !isCorrect;
+                  return (
+                    <motion.button key={idx} whileHover={!isLocked ? { scale: 1.01, x: 5 } : {}} onClick={() => handleSelect(idx)} disabled={isLocked || isPaused} className={cn("flex items-center gap-6 p-6 md:p-8 rounded-2xl md:rounded-3xl border-2 transition-all text-left group relative", isSelected && !isLocked && "border-accent bg-accent/10 shadow-[0_0_20px_rgba(99,102,241,0.2)]", isCorrect && "border-green-500 bg-green-500/10 text-green-400", isWrong && "border-red-500 bg-red-500/10 text-red-400", !isSelected && !isCorrect && !isWrong && "border-white/5 bg-white/[0.02] hover:border-white/20")}>
+                      <div className={cn("w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center font-black text-lg md:text-2xl transition-all", isSelected || isCorrect || isWrong ? "bg-current text-white" : "bg-white/5 text-text-soft group-hover:bg-white/10")}>{String.fromCharCode(65 + idx)}</div>
+                      <span className="text-base md:text-xl font-bold">{option}</span>
+                      {isLocked && (isCorrect || isWrong) && (
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                          {isCorrect ? <CheckCircle2 className="text-green-500" /> : isWrong ? <XCircle className="text-red-500" /> : null}
+                        </div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {explanation && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-10 p-6 rounded-2xl bg-white/5 border border-white/5 italic text-text-soft text-sm md:text-base flex gap-2">
+                  <Zap className="text-accent shrink-0" size={20} /> {explanation}
+                </motion.div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {(!isLive && isLocked) || (isLive && (timerMode === 'total' || examSettings?.allowBacktrack)) ? (
+                <>
+                  <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0 || (isLive && !examSettings?.allowBacktrack)} className="flex-1 py-4 px-8 border-white/10 rounded-2xl">
+                    <ChevronLeft className="mr-2" /> Previous
+                  </Button>
+                  <Button onClick={handleNext} className={cn("flex-1 py-4 px-10 rounded-2xl", currentIndex === quiz.questions.length - 1 ? "bg-emerald-500" : "bg-accent")}>
+                    {currentIndex === quiz.questions.length - 1 ? 'Final Submit' : 'Next Question'} <ChevronRight className="ml-2" />
+                  </Button>
+                </>
+              ) : (
+                isLive && isLocked && <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse">Waiting for tactical sync...</p>
+              )}
+            </div>
+            <div className="flex flex-col items-center sm:items-end opacity-50">
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-soft">Session Integrity</span>
+              <div className="flex items-center gap-2">
+                 <div className="w-24 h-1 bg-bg-soft rounded-full overflow-hidden"><div className="h-full bg-accent-alt w-[98%]" /></div>
+                 <span className="text-[10px] font-mono text-accent-alt">98.4ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SecurityLockdown>
     </motion.div>
   );
 };

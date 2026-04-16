@@ -853,7 +853,11 @@ function broadcastStats(pin, session) {
     total: players.length,
     leaderboard: getLeaderboard(session)
   });
-  // Auto-advance if everyone answered
+  
+  // Asynchronous Navigation: In 'total' (self-paced) mode, we NEVER force global question advancement.
+  if (session.timerMode === 'total') return;
+
+  // Synchronized Navigation: Auto-advance if everyone answered the current global question.
   if (responded === players.length && players.length > 0 && session.status === 'running') {
     if (session.timerHandle) clearTimeout(session.timerHandle);
     if (session.countdownHandle) clearInterval(session.countdownHandle);
@@ -1376,6 +1380,14 @@ io.on("connection", (socket) => {
   socket.on("host_next", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    
+    // In 'total' mode, players navigate independently. 
+    // Global skips would teleport all players, which is a logic violation.
+    if (session.timerMode === 'total') {
+      socket.emit("error_msg", { message: "Global skips are disabled in Self-Paced (Exam) mode." });
+      return;
+    }
+
     advanceQuestion(pin);
   });
 

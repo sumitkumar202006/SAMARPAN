@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send, MessageSquare, Globe } from 'lucide-react';
-import { XIcon as Twitter, InstagramIcon as Instagram } from '@/components/ui/BrandIcons';
+import { XIcon as Twitter, InstagramIcon as Instagram, WhatsappIcon as WhatsApp, GithubIcon as GitHub } from '@/components/ui/BrandIcons';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -59,9 +59,9 @@ export default function ContactPage() {
             
             <div className="space-y-6">
               {[
-                { icon: Mail, title: 'Email address', value: 'contact@samarpan.edu', color: 'text-accent' },
-                { icon: Phone, title: 'Phone number', value: '+91 98765 43210', color: 'text-accent-alt' },
-                { icon: MapPin, title: 'Main office', value: 'Bhubaneswar, Odisha, India', color: 'text-orange-500' },
+                { icon: Mail, title: 'Email address', value: 'samarpan.quiz.auth@gmail.com', color: 'text-accent' },
+                { icon: Phone, title: 'Phone number', value: '+91 63927 08964', color: 'text-accent-alt' },
+                { icon: MapPin, title: 'Main office', value: 'Somewhere on Earth', color: 'text-orange-500' },
               ].map(({ icon: Icon, title, value, color }, i) => (
                 <div key={i} className="flex gap-4">
                    <div className={cn("w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0", color)}>
@@ -79,10 +79,20 @@ export default function ContactPage() {
           <div className="glass p-10 rounded-[40px] bg-gradient-to-br from-accent/10 to-transparent">
             <h3 className="font-bold mb-6">Connect with us</h3>
             <div className="flex gap-4">
-              {[Twitter, Instagram, Globe, MessageSquare].map((Icon, i) => (
-                <button key={i} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-accent-soft hover:text-accent transition-all">
-                  <Icon size={20} />
-                </button>
+              {[
+                { icon: WhatsApp, href: 'https://whatsapp.com/channel/0029VbCDJ4M1XquaIIpJFw2b' },
+                { icon: Instagram, href: 'https://www.instagram.com/me.aman_2005?igsh=azJhMHpzOWtwOTM3' },
+                { icon: GitHub, href: 'https://github.com/infinity-me' },
+              ].map((social, i) => (
+                <a 
+                  key={i} 
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-accent-soft hover:text-accent transition-all"
+                >
+                  <social.icon size={20} />
+                </a>
               ))}
             </div>
           </div>

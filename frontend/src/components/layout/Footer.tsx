@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield } from 'lucide-react';
+import { WhatsappIcon as WhatsApp, InstagramIcon as Instagram, GithubIcon as GitHub } from '@/components/ui/BrandIcons';
 
 export const Footer = () => {
   return (
@@ -18,6 +19,23 @@ export const Footer = () => {
           <p className="text-[10px] text-text-soft uppercase tracking-[0.2em] font-medium opacity-60">
             © 2026 Developed for the Next Generation of Competitors.
           </p>
+          <div className="flex gap-4 mt-2">
+            {[
+              { icon: WhatsApp, href: 'https://whatsapp.com/channel/0029VbCDJ4M1XquaIIpJFw2b' },
+              { icon: Instagram, href: 'https://www.instagram.com/me.aman_2005?igsh=azJhMHpzOWtwOTM3' },
+              { icon: GitHub, href: 'https://github.com/infinity-me' }
+            ].map((social, i) => (
+              <a 
+                key={i} 
+                href={social.href} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-text-soft hover:text-accent transition-colors"
+              >
+                <social.icon size={16} />
+              </a>
+            ))}
+          </div>
         </div>
 
         <div className="flex gap-10">

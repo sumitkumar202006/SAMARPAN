@@ -752,6 +752,34 @@ app.use("/api/admin", isAdmin, adminRoutes);
 // ============================================================
 
 const liveSessions = new Map();
+const HOST_RECOVERY_WINDOW = 5 * 60 * 1000; // 5 mins
+const ARENA_GLOBAL_TTL = 2.5 * 60 * 60 * 1000; // 2.5 hrs
+
+/**
+ * Centralized Arena Termination Logic
+ */
+function terminateSession(pin, reason) {
+  const session = liveSessions.get(pin);
+  if (!session) return;
+
+  console.log(`[TERMINATION] Purging arena ${pin}. Reason: ${reason}`);
+
+  // Clear all associated timers
+  if (session.timerHandle) clearTimeout(session.timerHandle);
+  if (session.countdownHandle) clearInterval(session.countdownHandle);
+  if (session.hostDisconnectTimer) clearTimeout(session.hostDisconnectTimer);
+  if (session.globalExpireTimer) clearTimeout(session.globalExpireTimer);
+
+  // Notify all participants
+  io.in(pin).emit("host_left", { message: reason });
+  
+  // Clean up Memory & DB
+  liveSessions.delete(pin);
+  prisma.gameSession.update({ 
+    where: { pin }, 
+    data: { status: 'expired' } 
+  }).catch(() => {});
+}
 
 /**
  * HELPER: Log Answer to Database
@@ -804,6 +832,11 @@ async function ensureSessionInMemory(pin) {
     if (dbSession) {
       console.log(`♻️ Rehydrating session ${pin} from database...`);
       const metadata = dbSession.metadata || {};
+      const createdAt = new Date(dbSession.createdAt);
+      const now = new Date();
+      const timeElapsed = now.getTime() - createdAt.getTime();
+      const timeLeftToLive = Math.max(0, ARENA_GLOBAL_TTL - timeElapsed);
+
       liveSessions.set(pin, {
         pin, 
         hostSocketId: null, 
@@ -820,6 +853,9 @@ async function ensureSessionInMemory(pin) {
         isPaused: false,
         timerHandle: null,
         countdownHandle: null,
+        hostDisconnectTimer: null,
+        globalExpireTimer: setTimeout(() => terminateSession(pin, "Arena Global TTL Expired (2.5h limit reached)."), timeLeftToLive),
+        createdAt,
         rated: dbSession.rated !== false,
         pointsPerQ: metadata.pointsPerQ || 100,
         penaltyPoints: metadata.penaltyPoints || 50,
@@ -1125,8 +1161,9 @@ io.on("connection", (socket) => {
     let session = await ensureSessionInMemory(pin);
     
     if (!session) {
+      const createdAt = new Date();
       liveSessions.set(pin, {
-        pin, // Store the pin internally
+        pin, 
         hostSocketId: socket.id,
         password: password || null,
         players: {},
@@ -1140,6 +1177,9 @@ io.on("connection", (socket) => {
         timeLeft: 30,
         timerHandle: null,
         countdownHandle: null,
+        hostDisconnectTimer: null,
+        globalExpireTimer: setTimeout(() => terminateSession(pin, "Arena Global TTL Expired (2.5h limit reached)."), ARENA_GLOBAL_TTL),
+        createdAt,
         rated: true,
         pointsPerQ: 100,
         penaltyPoints: 50,
@@ -1159,6 +1199,13 @@ io.on("connection", (socket) => {
       });
       session = liveSessions.get(pin);
     } else {
+      // Reconnection: Clear the 5-minute termination timer if it exists
+      if (session.hostDisconnectTimer) {
+        clearTimeout(session.hostDisconnectTimer);
+        session.hostDisconnectTimer = null;
+        console.log(`[RECOVERY] Host returned to arena ${pin}. Recovery timer cleared.`);
+        io.in(pin).emit("broadcast_message", { message: "Host has returned to the arena. Recovery window closed.", type: 'success' });
+      }
       session.hostSocketId = socket.id;
       if (password) session.password = password;
     }
@@ -1442,13 +1489,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host_cancel", (pin) => {
-    const session = liveSessions.get(pin);
-    if (!session || session.hostSocketId !== socket.id) return;
-    if (session.timerHandle) clearTimeout(session.timerHandle);
-    if (session.countdownHandle) clearInterval(session.countdownHandle);
-    io.in(pin).emit("host_left", { message: "Host ended the session." });
-    liveSessions.delete(pin);
-    console.log(`Host cancelled room ${pin}`);
+    terminateSession(pin, "Host chose to terminate the arena session.");
   });
 
   socket.on("host_kick", (data) => {
@@ -1749,27 +1790,31 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     liveSessions.forEach((session, pin) => {
-      if (!session.players[socket.id]) return;
-      const player = session.players[socket.id];
-      const wasActiveHost = (socket.id === session.hostSocketId);
-      const playerName = player.name;
+      const isHostSocket = (socket.id === session.hostSocketId);
       
-      delete session.players[socket.id];
-      
-      if (player.isHost) {
-        // If the socket that disconnected was the CURRENT active host socket, end session
-        if (wasActiveHost) {
-          if (session.timerHandle) clearTimeout(session.timerHandle);
-          if (session.countdownHandle) clearInterval(session.countdownHandle);
-          io.in(pin).emit("host_left", { message: "Host disconnected. Session ended." });
-          liveSessions.delete(pin);
-          console.log(`Active Host disconnected, ending room ${pin}`);
-        } else {
-          console.log(`Inactive/Dangling Host socket ${socket.id} disconnected, PIN ${pin} remains.`);
+      if (isHostSocket) {
+        console.log(`[HOST DISCONNECT] Host left room ${pin}. Starting ${HOST_RECOVERY_WINDOW/60000}m buffer.`);
+        session.hostSocketId = null; // Clear active socket reference
+        
+        // Start 5-minute countdown to session termination
+        session.hostDisconnectTimer = setTimeout(() => {
+          terminateSession(pin, "Host failed to return within the 5-minute recovery window.");
+        }, HOST_RECOVERY_WINDOW);
+
+        io.in(pin).emit("broadcast_message", { 
+          message: "Host disconnected. Arena will expire in 5 minutes unless host returns.", 
+          type: 'warning' 
+        });
+      }
+
+      if (session.players[socket.id]) {
+        const playerName = session.players[socket.id].name;
+        delete session.players[socket.id];
+        
+        if (!isHostSocket) {
+           broadcastPlayerList(pin, session);
+           io.in(pin).emit("player_left", { name: playerName });
         }
-      } else {
-        broadcastPlayerList(pin, session);
-        io.in(pin).emit("player_left", { name: playerName });
       }
     });
     console.log("Socket disconnected:", socket.id);

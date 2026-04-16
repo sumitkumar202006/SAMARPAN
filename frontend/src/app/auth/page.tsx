@@ -22,24 +22,120 @@ function AuthContent() {
   }, [searchParams]);
   const [formData, setFormData] = useState({ 
     name: '', 
+    username: '',
     email: '', 
     password: '',
+    confirmPassword: '',
     college: '',
     course: '',
-    dob: ''
+    dob: '',
+    preferredField: 'General',
+    avatar: ''
   });
   const [status, setStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [validation, setValidation] = useState({
+    username: { status: 'idle' as 'idle' | 'checking' | 'available' | 'taken', msg: '' },
+    email: { status: 'idle' as 'idle' | 'checking' | 'available' | 'taken', msg: '' },
+    passwordStrength: 0, // 0 to 4
+  });
+  const [isForgotPass, setIsForgotPass] = useState(false);
+  const [resetStep, setResetStep] = useState<'email' | 'otp' | 'password'>('email');
   
   const router = useRouter();
   const { setUser } = useAuth();
   const { playAccelerate } = useAudio();
 
+  // Debounced Validation for Username
+  useEffect(() => {
+    if (isLogin || !formData.username || formData.username.length < 3) {
+      setValidation(v => ({ ...v, username: { status: 'idle', msg: '' } }));
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setValidation(v => ({ ...v, username: { ...v.username, status: 'checking' } }));
+      try {
+        const res = await api.get(`/api/auth/check-username?username=${formData.username}`);
+        setValidation(v => ({ 
+          ...v, 
+          username: { 
+            status: res.data.available ? 'available' : 'taken', 
+            msg: res.data.available ? 'Username available!' : 'Username already taken' 
+          } 
+        }));
+      } catch (err) {
+        setValidation(v => ({ ...v, username: { status: 'idle', msg: '' } }));
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.username, isLogin]);
+
+  // Debounced Validation for Email
+  useEffect(() => {
+    if (isLogin || !formData.email || !formData.email.includes('@')) {
+      setValidation(v => ({ ...v, email: { status: 'idle', msg: '' } }));
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setValidation(v => ({ ...v, email: { ...v.email, status: 'checking' } }));
+      try {
+        const res = await api.get(`/api/auth/check-email?email=${formData.email}`);
+        setValidation(v => ({ 
+          ...v, 
+          email: { 
+            status: res.data.available ? 'available' : 'taken', 
+            msg: res.data.available ? 'Email available!' : 'Email already registered' 
+          } 
+        }));
+      } catch (err) {
+        setValidation(v => ({ ...v, email: { status: 'idle', msg: '' } }));
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.email, isLogin]);
+
+  // Password Strength Calculator
+  useEffect(() => {
+    const pass = formData.password;
+    if (!pass) {
+      setValidation(v => ({ ...v, passwordStrength: 0 }));
+      return;
+    }
+    let strength = 0;
+    if (pass.length >= 6) strength++;
+    if (pass.length >= 10) strength++;
+    if (/[0-9]/.test(pass)) strength++;
+    if (/[!@#$%^&*]/.test(pass)) strength++;
+    setValidation(v => ({ ...v, passwordStrength: strength }));
+  }, [formData.password]);
+
+  // Auto-suggest Username
+  const suggestUsername = () => {
+    if (!formData.name) return;
+    const base = formData.name.toLowerCase().replace(/\s+/g, '');
+    const suggested = `${base}${Math.floor(Math.random() * 1000)}`;
+    setFormData({ ...formData, username: suggested });
+  };
+
+  // Avatar Generator
+  useEffect(() => {
+    if (!isLogin && formData.username) {
+      setFormData(prev => ({ 
+        ...prev, 
+        avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${formData.username}` 
+      }));
+    }
+  }, [formData.username, isLogin]);
+
   // Mode-dependent content
   const theme = {
-    title: isLogin ? 'Welcome Back' : 'Elite Recruitment',
-    subtitle: isLogin ? 'Enter the arena and claim your glory.' : 'Forge your legacy and join the elite ranks.',
-    button: isLogin ? 'Secure Entry' : 'Deploy Account',
+    title: isForgotPass ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Elite Recruitment'),
+    subtitle: isForgotPass ? 'Verify your identity to regain access.' : (isLogin ? 'Enter the arena and claim your glory.' : 'Forge your legacy and join the elite ranks.'),
+    button: isForgotPass ? (resetStep === 'email' ? 'Send OTP' : resetStep === 'otp' ? 'Verify OTP' : 'Reset Password') : (isLogin ? 'Secure Entry' : 'Deploy Account'),
     glowColor: isLogin ? 'bg-accent/30' : 'bg-accent-alt/30',
     logoGlow: isLogin ? 'from-accent to-accent-alt' : 'from-accent-alt to-emerald-400',
   };
@@ -49,20 +145,70 @@ function AuthContent() {
     setIsLoading(true);
     setStatus(null);
 
-    const endpoint = isLogin ? '/api/login' : '/api/signup';
+    if (isForgotPass) {
+      await handlePasswordReset();
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isLogin) {
+      if (formData.password !== formData.confirmPassword) {
+        setStatus({ type: 'error', msg: 'Passwords do not match' });
+        setIsLoading(false);
+        return;
+      }
+      if (validation.username.status === 'taken') {
+        setStatus({ type: 'error', msg: 'Please choose a unique username' });
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
+    const payload = isLogin 
+      ? { identifier: formData.email, password: formData.password }
+      : formData;
     
     try {
-      const res = await api.post(endpoint, formData);
+      const res = await api.post(endpoint, payload);
       if (res.status === 200 || res.status === 201) {
-        const { token, userId, name, email, avatar, globalRating, xp } = res.data;
-        setUser({ token, userId, name, email, avatar, globalRating, xp });
+        const { token, user } = res.data;
+        setUser({ token, ...user });
         setStatus({ type: 'success', msg: isLogin ? 'Access Granted. Welcome back!' : 'Recruitment Complete. Welcome Agent!' });
         setTimeout(() => router.push('/dashboard'), 1500);
       }
     } catch (err: any) {
-      setStatus({ type: 'error', msg: err.response?.data?.message || 'Authentication failed' });
+      setStatus({ type: 'error', msg: err.response?.data?.error || 'Authentication failed' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const [otp, setOtp] = useState('');
+  const handlePasswordReset = async () => {
+    try {
+      if (resetStep === 'email') {
+        await api.post('/api/auth/forgot-password', { email: formData.email });
+        setResetStep('otp');
+        setStatus({ type: 'success', msg: 'OTP sent to your email' });
+      } else if (resetStep === 'otp') {
+        // We verify during final reset or separately? Let's just go to next step
+        setResetStep('password');
+      } else {
+        await api.post('/api/auth/reset-password', { 
+          email: formData.email, 
+          otp, 
+          newPassword: formData.password 
+        });
+        setStatus({ type: 'success', msg: 'Password reset successful. Please login.' });
+        setTimeout(() => {
+          setIsForgotPass(false);
+          setResetStep('email');
+          setIsLogin(true);
+        }, 2000);
+      }
+    } catch (err: any) {
+      setStatus({ type: 'error', msg: err.response?.data?.error || 'Action failed' });
     }
   };
 
@@ -120,14 +266,10 @@ function AuthContent() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3 mb-6">
-            {!isLogin && (
+            {!isLogin && !isForgotPass && (
               <>
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="relative"
-                >
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
                   <input 
                     type="text" 
                     placeholder="Agent Handle (Full Name)" 
@@ -138,90 +280,199 @@ function AuthContent() {
                   />
                 </motion.div>
 
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="relative transition-all duration-300"
-                >
-                  <School className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="relative group">
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
                   <input 
                     type="text" 
-                    placeholder="College / Institution" 
-                    className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all"
-                    value={formData.college}
-                    onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                    placeholder="Unique Username" 
+                    className={cn(
+                      "w-full bg-bg-soft/30 border rounded-2xl py-3.5 pl-12 pr-24 text-sm focus:outline-none transition-all",
+                      validation.username.status === 'available' ? "border-emerald-500/50" : 
+                      validation.username.status === 'taken' ? "border-red-500/50" : "border-white/10"
+                    )}
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })}
                     required
                   />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    {validation.username.status === 'checking' && <div className="w-4 h-4 border-2 border-accent border-t-transparent animate-spin rounded-full" />}
+                    <button 
+                      type="button"
+                      onClick={suggestUsername}
+                      className="text-[10px] font-black uppercase text-accent hover:text-white transition-colors"
+                    >
+                      Suggest
+                    </button>
+                  </div>
+                  {validation.username.msg && (
+                    <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.username.status === 'available' ? "text-emerald-400" : "text-red-400")}>
+                      {validation.username.msg}
+                    </p>
+                  )}
                 </motion.div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative"
-                  >
-                    <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="relative group">
+                    <School className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
                     <input 
                       type="text" 
-                      placeholder="Course / Class" 
+                      placeholder="College (Optional)" 
                       className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-[13px] focus:outline-none focus:border-accent transition-all"
-                      value={formData.course}
-                      onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                      required
+                      value={formData.college}
+                      onChange={(e) => setFormData({ ...formData, college: e.target.value })}
                     />
                   </motion.div>
 
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative"
-                  >
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="relative group">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
                     <input 
                       type="date" 
                       className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-10 pr-2 text-[10px] focus:outline-none focus:border-accent transition-all"
                       value={formData.dob}
                       onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                      required
                     />
                   </motion.div>
                 </div>
+
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="relative group">
+                  <Zap className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
+                  <select 
+                    className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all appearance-none text-text-soft"
+                    value={formData.preferredField}
+                    onChange={(e) => setFormData({ ...formData, preferredField: e.target.value })}
+                  >
+                    <option value="General">General Category</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="General Knowledge">General Knowledge</option>
+                    <option value="Science">Science & Tech</option>
+                    <option value="History">History & Culture</option>
+                  </select>
+                </motion.div>
               </>
             )}
             
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
-              <input 
-                type="email" 
-                placeholder="Secure Email" 
-                className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
+            {!isForgotPass || resetStep !== 'otp' ? (
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
+                <input 
+                  type="email" 
+                  placeholder="Secure Email" 
+                  className={cn(
+                    "w-full bg-bg-soft/30 border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none transition-all",
+                    !isLogin && validation.email.status === 'taken' ? "border-red-500/50" : "border-white/10"
+                  )}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={isForgotPass && resetStep !== 'email'}
+                />
+                {!isLogin && validation.email.msg && (
+                  <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.email.status === 'available' ? "text-emerald-400" : "text-red-400")}>
+                    {validation.email.msg}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="relative group">
+                <Zap className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Enter 6-digit OTP" 
+                  className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all tracking-[0.5em] font-black text-center"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  required
+                />
+              </div>
+            )}
 
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft" size={16} />
-              <input 
-                type="password" 
-                placeholder="Encrypted Password" 
-                className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
-            </div>
+            {(!isForgotPass || resetStep === 'password') && (
+              <>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
+                  <input 
+                    type="password" 
+                    placeholder={isForgotPass ? "New Password" : "Encrypted Password"} 
+                    className="w-full bg-bg-soft/30 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-accent transition-all"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                  {!isLogin && formData.password && (
+                    <div className="mt-2 px-1 space-y-1">
+                      <div className="flex gap-1 h-1">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div 
+                            key={i} 
+                            className={cn(
+                              "flex-1 rounded-full transition-all duration-500",
+                              validation.passwordStrength >= i 
+                                ? (validation.passwordStrength <= 2 ? "bg-red-500" : validation.passwordStrength === 3 ? "bg-yellow-500" : "bg-emerald-500")
+                                : "bg-white/10"
+                            )} 
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-text-soft text-right">
+                        Strength: {validation.passwordStrength <= 1 ? 'Weak' : validation.passwordStrength === 2 ? 'Fair' : validation.passwordStrength === 3 ? 'Good' : 'Elite'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {!isLogin && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative group">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-text-soft group-focus-within:text-accent transition-colors" size={16} />
+                    <input 
+                      type="password" 
+                      placeholder="Confirm Password" 
+                      className={cn(
+                        "w-full bg-bg-soft/30 border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:outline-none transition-all",
+                        formData.confirmPassword && formData.password !== formData.confirmPassword ? "border-red-500/50" : "border-white/10"
+                      )}
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      required
+                    />
+                  </motion.div>
+                )}
+              </>
+            )}
+
+            {isLogin && !isForgotPass && (
+              <div className="flex justify-end px-1">
+                <button 
+                  type="button"
+                  onClick={() => { setIsForgotPass(true); setResetStep('email'); setStatus(null); }}
+                  className="text-[10px] font-bold text-accent hover:underline decoration-accent/30 underline-offset-4"
+                >
+                  Forgot your encryption key?
+                </button>
+              </div>
+            )}
 
             {status && (
-              <p className={`text-xs text-center font-bold py-1 ${status.type === 'error' ? 'text-red-400' : 'text-accent-alt'}`}>
+              <p className={cn(
+                "text-xs text-center font-bold py-2 px-4 rounded-xl",
+                status.type === 'error' ? 'text-red-400 bg-red-400/10' : 'text-accent-alt bg-accent-alt/10'
+              )}>
                 {status.msg}
               </p>
             )}
 
-            <Button isLoading={isLoading} type="submit" className="w-full py-3.5 rounded-2xl tracking-widest font-black text-sm">
+            <Button isLoading={isLoading} type="submit" className="w-full py-3.5 rounded-2xl tracking-widest font-black text-sm mt-2 shadow-xl shadow-accent/10 hover:shadow-accent/20 transition-all">
               {theme.button}
             </Button>
+
+            {isForgotPass && (
+              <button 
+                type="button"
+                onClick={() => { setIsForgotPass(false); setStatus(null); }}
+                className="w-full text-center text-[10px] font-black uppercase tracking-widest text-text-soft hover:text-white transition-colors"
+               >
+                 Back to Security Clearance
+               </button>
+            )}
           </form>
 
           <div className="relative mb-6 text-center">

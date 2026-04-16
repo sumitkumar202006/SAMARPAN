@@ -35,6 +35,7 @@ const { generateQuizQuestions } = require("./services/gptService");
 
 // Routes
 const aiQuizRoutes = require("./routes/aiQuiz");
+const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
 
@@ -82,80 +83,12 @@ app.get("/api/health", (_req, res) => {
 });
 
 // -------------------------------
-// Email/password auth (basic)
+// Authentication Routes (Signup, Login, OTP, etc.)
 // -------------------------------
-
-// Signup
-app.post("/api/signup", async (req, res) => {
-  try {
-    const { name, email, password, college, course, dob } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "All required fields must be filled" });
-    }
-
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        passwordHash: hash,
-        provider: "local",
-        college,
-        course,
-        dob: dob ? new Date(dob) : null
-      }
-    });
-
-    const token = createJwtForUser(user);
-
-    return res.json({
-      message: "Signup successful",
-      user: {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        globalRating: user.globalRating,
-        ratings: user.ratings,
-        xp: user.xp,
-      },
-      token,
-    });
-  } catch (err) {
-    console.error("Signup error:", err);
-    return res.status(500).json({ error: "Registrations are temporarily unavailable. Please try again later." });
-  }
-});
-
-// Login
-app.post("/api/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
-      return res.status(400).json({ error: "User not found" });
-    }
-
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ error: "Invalid password" });
-
-    const token = createJwtForUser(user);
-
-    return res.json({
-      message: "Login successful",
-      user: mapId(user),
-      token,
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    return res.status(500).json({ error: "Login failed" });
-  }
-});
+app.use("/api/auth", authRoutes);
+// Forward compatible legacy routes (optional, but good for stability)
+app.use("/api/signup", (req, res) => res.redirect(307, "/api/auth/signup"));
+app.use("/api/login", (req, res) => res.redirect(307, "/api/auth/login"));
 
 // -------------------------------
 // Quiz creation (manual)

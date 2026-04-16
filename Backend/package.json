@@ -10,6 +10,7 @@
     "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
+    "nodemailer": "^8.0.5",
     "openai": "^6.10.0",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",

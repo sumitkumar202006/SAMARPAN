@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Shield, Zap, X, Play, Edit3, Check, MoveRight, Trash2, Ban, Crown } from 'lucide-react';
@@ -39,9 +39,9 @@ const LobbySlot = React.memo(({
   socket, 
   pin, 
   team,
-  onClick
+  onClick,
+  occupantId
 }: any) => {
-  const occupantId = occupant?.id;
   const hasDuplicateIp = occupant && isHost && occupant.ipMatch;
 
   return (
@@ -140,6 +140,21 @@ function LobbyContent() {
     penaltyPoints: 50,
     maxPlayers: 200
   });
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const slotMap = useMemo(() => {
+    const map: Record<string, { id: string, player: Player }> = {};
+    Object.entries(players).forEach(([id, p]) => {
+      if (p.team && typeof p.slotIndex === 'number') {
+        map[`${p.team}_${p.slotIndex}`] = { id, player: p };
+      }
+    });
+    return map;
+  }, [players]);
 
   const joinedRef = React.useRef(false);
   useEffect(() => {
@@ -302,17 +317,16 @@ function LobbyContent() {
   const playerCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
-    const occupantId = Object.keys(players).find(id => {
-      const p = players[id];
-      return p.team === team && Number(p.slotIndex) === index;
-    });
-    const occupant = occupantId ? players[occupantId] : null;
+    const data = slotMap[`${team}_${index}`];
+    const occupant = data?.player || null;
+    const occupantId = data?.id || null;
 
     return (
       <LobbySlot 
         key={`${team}-${index}`}
         index={index}
         occupant={occupant}
+        occupantId={occupantId}
         isHost={isHost}
         socket={socket}
         pin={pin}
@@ -390,7 +404,11 @@ function LobbyContent() {
               </div>
 
               <div className="flex flex-wrap gap-x-3 gap-y-6 justify-center max-h-[600px] overflow-y-auto scrollbar-hide pr-2">
-                {Array.from({ length: 200 }).map((_, i) => renderSlot('Team A', i))}
+                {mounted ? (
+                  Array.from({ length: 200 }).map((_, i) => renderSlot('Team A', i))
+                ) : (
+                  <div className="text-[10px] uppercase font-black text-white/10 p-20">Initializing Arena Grid...</div>
+                )}
               </div>
             </div>
           </div>

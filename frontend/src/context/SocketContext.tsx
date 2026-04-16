@@ -18,6 +18,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
+      // Emit global identity for social features
+      if (user?.id) {
+        socket.emit('social_connect', { userId: user.id });
+      }
     }
 
     function onDisconnect() {
@@ -27,7 +31,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
 
-    // Only connect if the user is authenticated (optional, can also connect as guest)
+    // Initial check/emit if already connected
+    if (socket.connected && user?.id) {
+      socket.emit('social_connect', { userId: user.id });
+    }
+
     if (!socket.connected) {
       socket.connect();
     }

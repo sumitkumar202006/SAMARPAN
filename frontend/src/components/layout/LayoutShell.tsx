@@ -10,6 +10,7 @@ import { DynamicBackground } from "@/components/ui/DynamicBackground";
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FloatingChat } from '@/components/social/FloatingChat';
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -105,6 +106,11 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       
       {/* Tactical Center Line (Background) */}
       <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
+
+      {/* Global Social Hub (Conditional) */}
+      {!pathname?.includes('/play/') && !pathname?.includes('/host/live/') && (
+        <FloatingChat />
+      )}
     </>
   );
 }

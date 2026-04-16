@@ -26,6 +26,7 @@ const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
+const { generateUniqueUsername } = require("./services/identity");
 
 // Prisma Client Singleton
 const prisma = require("./services/db");
@@ -38,6 +39,7 @@ const aiQuizRoutes = require("./routes/aiQuiz");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
+const friendsRoutes = require("./routes/friends");
 
 // Basic middleware
 console.log("Registering global middleware...");
@@ -56,6 +58,10 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 app.use(passport.initialize());
 console.log("Passport initialized.");
+
+// Global maps for social and presence
+const globalOnlineUsers = new Map(); // Map<UserId, SocketId[]>
+const socketToUser = new Map(); // Map<SocketId, UserId>
 
 // ---------- PostgreSQL (Prisma) ----------
 // Database connection handled by startServer with retries
@@ -86,6 +92,7 @@ app.get("/api/health", (_req, res) => {
 // Authentication Routes (Signup, Login, OTP, etc.)
 // -------------------------------
 app.use("/api/auth", authRoutes);
+app.use("/api/friends", friendsRoutes);
 // Forward compatible legacy routes (optional, but good for stability)
 app.use("/api/signup", (req, res) => res.redirect(307, "/api/auth/signup"));
 app.use("/api/login", (req, res) => res.redirect(307, "/api/auth/login"));
@@ -553,12 +560,13 @@ passport.use(
         const avatar = profile.photos?.[0]?.value || null;
 
         if (!email) return done(new Error("No email from Google"), null);
-
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
+          const username = await generateUniqueUsername(name || email.split('@')[0]);
           user = await prisma.user.create({
             data: {
               name,
+              username,
               email,
               avatar,
               provider: "google",
@@ -571,6 +579,11 @@ passport.use(
           if (!user.provider) updateData.provider = "google";
           if (!user.googleId) updateData.googleId = profile.id;
           if (!user.avatar && avatar) updateData.avatar = avatar;
+          
+          // Backfill unique username for legacy users
+          if (!user.username) {
+            updateData.username = await generateUniqueUsername(user.name || user.email.split('@')[0]);
+          }
           
           if (Object.keys(updateData).length > 0) {
             user = await prisma.user.update({
@@ -609,9 +622,11 @@ passport.use(
 
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
+          const username = await generateUniqueUsername(name || email.split('@')[0]);
           user = await prisma.user.create({
             data: {
               name,
+              username,
               email,
               avatar,
               provider: "facebook",
@@ -624,6 +639,11 @@ passport.use(
           if (!user.facebookId) updateData.facebookId = profile.id;
           if (!user.avatar && avatar) updateData.avatar = avatar;
           
+          // Legacy backfill
+          if (!user.username) {
+            updateData.username = await generateUniqueUsername(user.name || user.email.split('@')[0]);
+          }
+
           if (Object.keys(updateData).length > 0) {
             user = await prisma.user.update({
               where: { id: user.id },
@@ -957,6 +977,103 @@ function advanceQuestion(pin) {
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
+
+  // --- Global Social & Presence ---
+  socket.on("social_connect", async (data) => {
+    const { userId } = data;
+    if (!userId) return;
+
+    socketToUser.set(socket.id, userId);
+    
+    if (!globalOnlineUsers.has(userId)) {
+      globalOnlineUsers.set(userId, []);
+    }
+    globalOnlineUsers.get(userId).push(socket.id);
+
+    // Notify friends this user is now online
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [{ userId }, { friendId: userId }],
+        status: "accepted"
+      }
+    });
+
+    friendships.forEach(f => {
+      const friendId = f.userId === userId ? f.friendId : f.userId;
+      const friendSockets = globalOnlineUsers.get(friendId);
+      if (friendSockets) {
+        friendSockets.forEach(sid => {
+          io.to(sid).emit("friend_status_change", { userId, status: "online" });
+        });
+      }
+    });
+  });
+
+  socket.on("private_message", async (data) => {
+    const { receiverId, content, type, metadata } = data;
+    const senderId = socketToUser.get(socket.id);
+    if (!senderId || !receiverId) return;
+
+    try {
+      // Persist to DB
+      const msg = await prisma.message.create({
+        data: {
+          senderId,
+          receiverId,
+          content,
+          type: type || "text",
+          metadata: metadata || null
+        }
+      });
+
+      // Deliver real-time if online
+      const receiverSockets = globalOnlineUsers.get(receiverId);
+      if (receiverSockets) {
+        receiverSockets.forEach(sid => {
+          io.to(sid).emit("new_private_message", msg);
+        });
+      }
+      
+      // Confirm to sender
+      socket.emit("message_sent", msg);
+    } catch (err) {
+      console.error("Failed to send private message", err);
+    }
+  });
+
+  socket.on("disconnect", async () => {
+    const userId = socketToUser.get(socket.id);
+    if (userId) {
+      const userSockets = globalOnlineUsers.get(userId);
+      if (userSockets) {
+        const index = userSockets.indexOf(socket.id);
+        if (index > -1) userSockets.splice(index, 1);
+        
+        if (userSockets.length === 0) {
+          globalOnlineUsers.delete(userId);
+          
+          // Notify friends this user is now offline
+          const friendships = await prisma.friendship.findMany({
+            where: {
+              OR: [{ userId }, { friendId: userId }],
+              status: "accepted"
+            }
+          });
+
+          friendships.forEach(f => {
+            const friendId = f.userId === userId ? f.friendId : f.userId;
+            const friendSockets = globalOnlineUsers.get(friendId);
+            if (friendSockets) {
+              friendSockets.forEach(sid => {
+                io.to(sid).emit("friend_status_change", { userId, status: "offline" });
+              });
+            }
+          });
+        }
+      }
+      socketToUser.delete(socket.id);
+    }
+  });
 
   socket.on("host_join", async (data) => {
     const { pin, password } = data;

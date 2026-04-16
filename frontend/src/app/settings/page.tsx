@@ -110,6 +110,7 @@ export default function SettingsPage() {
         college: formData.college,
         course: formData.course,
         dob: formData.dob || null,
+        username: formData.username,
         settings: {
           soundEnabled: formData.soundEnabled
         }
@@ -124,6 +125,8 @@ export default function SettingsPage() {
           customField: formData.customField,
           college: formData.college,
           course: formData.course,
+          username: formData.username,
+          lastUsernameChange: formData.username !== user.username ? new Date().toISOString() : user.lastUsernameChange,
           dob: formData.dob || undefined,
           settings: {
             soundEnabled: formData.soundEnabled
@@ -248,6 +251,42 @@ export default function SettingsPage() {
                 placeholder="Pilot Name..."
                 className="bg-background/20"
               />
+
+              <div className="space-y-2">
+                <Input 
+                  label="Unique Neural ID (Username)"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
+                  placeholder="unique_id..."
+                  className={cn(
+                    "bg-background/20",
+                    (() => {
+                      if (!user?.lastUsernameChange) return "";
+                      const diff = Date.now() - new Date(user.lastUsernameChange).getTime();
+                      return diff < 30 * 24 * 60 * 60 * 1000 ? "opacity-50 cursor-not-allowed" : "";
+                    })()
+                  )}
+                  disabled={(() => {
+                    if (!user?.lastUsernameChange) return false;
+                    const diff = Date.now() - new Date(user.lastUsernameChange).getTime();
+                    return diff < 30 * 24 * 60 * 60 * 1000;
+                  })()}
+                />
+                {(() => {
+                  if (!user?.lastUsernameChange) return null;
+                  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+                  const diff = Date.now() - new Date(user.lastUsernameChange).getTime();
+                  if (diff < thirtyDays) {
+                    const daysLeft = Math.ceil((thirtyDays - diff) / (24 * 60 * 60 * 1000));
+                    return (
+                      <p className="text-[9px] text-amber-500 font-bold px-1 italic">
+                        Neural ID locked. Available to recalibrate in {daysLeft} days.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
 
               <div className="space-y-3">
                 <p className="text-[9px] font-black uppercase tracking-widest text-text-soft flex items-center gap-2">

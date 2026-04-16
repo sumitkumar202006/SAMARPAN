@@ -1,20 +1,26 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield } from 'lucide-react';
+import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/axios';
+import { UserPlus, UserCheck } from 'lucide-react';
 
 export const Topbar = () => {
   const router = useRouter();
   const { user, logout, profileCompletion } = useAuth();
   const { isMuted, toggleMute, playAccelerate, playHorn } = useAudio();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -49,22 +55,81 @@ export const Topbar = () => {
           
           <div className="hidden lg:block h-6 w-px bg-white/5" />
           
-          {/* Desktop Search */}
-          <div className="hidden md:flex items-center max-w-xs w-full relative">
+          <div className="hidden md:flex items-center max-w-xs w-full relative" ref={searchRef}>
             <Search className="absolute left-3 text-text-soft" size={14} />
             <input 
               type="text" 
-              placeholder="Search vault..." 
+              placeholder="Search vault or @username..." 
+              value={searchQuery}
+              onChange={async (e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (val.trim().length > 2) {
+                  setIsSearching(true);
+                  try {
+                    const res = await api.get(`/api/friends/search?username=${val.replace('@', '')}`);
+                    setSearchResults(res.data);
+                  } catch (err) {
+                    console.error("Search failed", err);
+                  } finally {
+                    setIsSearching(false);
+                  }
+                } else {
+                  setSearchResults([]);
+                }
+              }}
               className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20 transition-all"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const target = e.target as HTMLInputElement;
-                  if (target.value.trim()) {
-                    router.push(`/explore?q=${encodeURIComponent(target.value.trim())}`);
-                  }
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
+                  setSearchResults([]);
                 }
               }}
             />
+            
+            {/* Search Results Dropdown */}
+            <AnimatePresence>
+              {searchResults.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="absolute top-full left-0 w-full mt-2 glass rounded-2xl p-2 shadow-2xl border border-white/5 z-50 overflow-hidden"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-text-soft px-3 py-2 border-b border-white/5 mb-1">Users Found</p>
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                    {searchResults.map((u) => (
+                      <div key={u.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group/user">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center overflow-hidden">
+                            {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <UserIcon size={12} />}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold leading-none">{u.name}</span>
+                            <span className="text-[10px] text-text-soft">@{u.username}</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              await api.post('/api/friends/request', { userId: user?.id, friendId: u.id });
+                              setSearchResults([]);
+                              setSearchQuery('');
+                            } catch (err) {
+                              console.error("Friend request failed", err);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all"
+                          title="Add Friend"
+                        >
+                          <UserPlus size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -78,6 +143,10 @@ export const Topbar = () => {
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           
+          <Link href="/friends" className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none" title="Friends Hub">
+            <Users size={18} />
+          </Link>
+
           <button className="hidden sm:flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none">
             <Bell size={18} />
             <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent rounded-full border-2 border-background" />

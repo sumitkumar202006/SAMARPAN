@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface User {
-  userId: string;
+  id: string; // Internal standard
+  userId: string; // Legacy compatibility
   name: string;
   email: string;
   avatar?: string;
@@ -19,6 +20,7 @@ interface User {
   customField?: string;
   dob?: string | Date;
   username?: string;
+  lastUsernameChange?: string;
   role?: string;
   status?: string;
 }
@@ -65,12 +67,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     if (token) {
+      const uId = params.get('userId') || '';
       const newUser: User = {
         token,
-        userId: params.get('userId') || '',
+        id: uId,
+        userId: uId,
         name: params.get('name') || '',
         email: params.get('email') || '',
         avatar: params.get('avatar') || '',
+        username: params.get('username') || '',
       };
       setUserState(newUser);
       localStorage.setItem('samarpanUser', JSON.stringify(newUser));

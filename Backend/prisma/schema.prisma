@@ -31,12 +31,18 @@ model User {
   role           String          @default("user")
   status         String          @default("active")
   dailyStreak    Int             @default(0)
-  lastPlayedAt   DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  hostedSessions GameSession[]   @relation("UserSessions")
-  quizzes        Quiz[]          @relation("UserQuizzes")
-  ratingHistory  RatingHistory[]
+  lastPlayedAt       DateTime?
+  lastUsernameChange DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  hostedSessions     GameSession[]   @relation("UserSessions")
+  quizzes            Quiz[]          @relation("UserQuizzes")
+  ratingHistory      RatingHistory[]
+  
+  friendshipsInitiated Friendship[] @relation("UserFriendships")
+  friendshipsReceived  Friendship[] @relation("FriendFriendships")
+  sentMessages         Message[]    @relation("SentMessages")
+  receivedMessages     Message[]    @relation("ReceivedMessages")
 
   @@index([email])
   @@index([globalRating(sort: Desc)])
@@ -115,4 +121,38 @@ model RatingHistory {
 
   @@index([userId])
   @@index([createdAt(sort: Desc)])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  status    String   @default("pending") // "pending", "accepted", "blocked"
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendFriendships", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  type       String   @default("text") // "text", "invite"
+  metadata   Json?    
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+  @@index([createdAt])
 }

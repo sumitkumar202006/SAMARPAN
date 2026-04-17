@@ -1513,7 +1513,7 @@ io.on("connection", (socket) => {
       // countdownRemaining tracked on session so late joiners get correct state.
       let cd = 5;
       session.countdownRemaining = cd;
-      let countdownInterval: ReturnType<typeof setInterval>;
+      let countdownInterval;
       countdownInterval = setInterval(() => {
         // Guard: stop if session was aborted during countdown
         const liveSession = liveSessions.get(pin);

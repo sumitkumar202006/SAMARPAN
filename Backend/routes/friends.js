@@ -162,8 +162,8 @@ router.get('/list/:userId', async (req, res) => {
         status: 'accepted'
       },
       include: {
-        user: { select: { id: true, name: true, username: true, avatar: true } },
-        friend: { select: { id: true, name: true, username: true, avatar: true } }
+        user: { select: { id: true, name: true, username: true, avatar: true, publicKey: true } },
+        friend: { select: { id: true, name: true, username: true, avatar: true, publicKey: true } }
       },
       orderBy: { isPinned: 'desc' }
     });

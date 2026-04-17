@@ -22,6 +22,7 @@ interface User {
   dob?: string | Date;
   username?: string;
   lastUsernameChange?: string;
+  publicKey?: string;
   role?: string;
   status?: string;
 }
@@ -123,6 +124,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     syncProfile();
   }, [user?.email, user?.token, isMounted]);
+
+  // E2EE Key Sync Logic
+  useEffect(() => {
+    if (!isMounted || !user?.email || !user?.token || user.publicKey) return;
+
+    const syncE2EE = async () => {
+      try {
+        const { getLocalKeys, generateChatKeyPair } = await import('@/lib/crypto');
+        let keys = getLocalKeys();
+        
+        if (!keys) {
+          console.log("[E2EE] No local keys found. Generating new neural pair...");
+          const newKeys = await generateChatKeyPair();
+          keys = newKeys;
+        }
+
+        // Always register public key with backend to ensure synchronization
+        console.log("[E2EE] Synchronizing neural public key with server...");
+        await api.put('/api/user/public-key', {
+          email: user.email,
+          publicKey: JSON.stringify(keys.publicKey)
+        });
+        
+        // Refresh local user state to reflect registration
+        setUserState(prev => prev ? { ...prev, publicKey: JSON.stringify(keys!.publicKey) } : null);
+      } catch (err) {
+        console.error("[E2EE] Sync failed", err);
+      }
+    };
+
+    syncE2EE();
+  }, [user?.email, user?.publicKey, isMounted]);
 
   const setUser = (user: User | null) => {
     setUserState(user);

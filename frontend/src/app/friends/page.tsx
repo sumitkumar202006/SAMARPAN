@@ -14,6 +14,7 @@ import { useSocket } from '@/context/SocketContext';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { encryptChatMessage, decryptChatMessage } from '@/lib/crypto';
 
 export default function FriendsPage() {
   const { user } = useAuth();
@@ -68,11 +69,16 @@ export default function FriendsPage() {
       });
     };
 
-    const handleNewMessage = (msg: any) => {
+    const handleNewMessage = async (msg: any) => {
       if (selectedFriend && (msg.senderId === selectedFriend.id || msg.receiverId === selectedFriend.id)) {
+        let processedMsg = { ...msg };
+        if (msg.isEncrypted) {
+          processedMsg.content = await decryptChatMessage(msg.content);
+        }
+        
         setMessages(prev => {
           if (prev.find(m => m.id === msg.id)) return prev;
-          return [...prev, msg];
+          return [...prev, processedMsg];
         });
       }
     };
@@ -107,7 +113,17 @@ export default function FriendsPage() {
   const loadMessages = async (friend: any) => {
     try {
       const res = await api.get(`/api/friends/messages/${user?.id}/${friend.id}`);
-      setMessages(res.data);
+      const rawMessages = res.data;
+      
+      // Batch Decrypt
+      const processedMessages = await Promise.all(rawMessages.map(async (m: any) => {
+        if (m.isEncrypted) {
+          return { ...m, content: await decryptChatMessage(m.content) };
+        }
+        return m;
+      }));
+
+      setMessages(processedMessages);
       setSelectedFriend(friend);
       setMobileView('chat');
     } catch (err) {
@@ -115,20 +131,36 @@ export default function FriendsPage() {
     }
   };
 
-  const sendMessage = (contentOverride?: string) => {
+  const sendMessage = async (contentOverride?: string) => {
     const textToSend = contentOverride || newMessage;
     if (!textToSend.trim() || !selectedFriend || isSending) return;
     
     setIsSending(true);
-    const msgData = {
-      receiverId: selectedFriend.id,
-      content: textToSend,
-      type: 'text'
-    };
+    try {
+      let finalContent = textToSend;
+      let isEncrypted = false;
 
-    socket.emit('private_message', msgData);
-    if (!contentOverride) setNewMessage('');
-    setTimeout(() => setIsSending(false), 300);
+      // Encrypt if friend has a public key registered
+      if (selectedFriend.publicKey) {
+        console.log("[E2EE] Encrypting for @", selectedFriend.username);
+        finalContent = await encryptChatMessage(textToSend, selectedFriend.publicKey);
+        isEncrypted = true;
+      }
+
+      const msgData = {
+        receiverId: selectedFriend.id,
+        content: finalContent,
+        isEncrypted,
+        type: 'text'
+      };
+
+      socket.emit('private_message', msgData);
+      if (!contentOverride) setNewMessage('');
+    } catch (err) {
+      console.error("Secure transmission failed", err);
+    } finally {
+      setTimeout(() => setIsSending(false), 300);
+    }
   };
 
   const sendInvite = () => {
@@ -405,15 +437,18 @@ export default function FriendsPage() {
                 messages.map((m) => (
                   <div key={m.id || Math.random()} className={cn("flex flex-col max-w-[85%] sm:max-w-[75%]", m.senderId === user?.id ? "ml-auto items-end" : "items-start")}>
                     <div className={cn(
-                      "p-4 rounded-2xl text-[13px] font-bold shadow-sm leading-relaxed border",
+                      "p-4 rounded-2xl text-[13px] font-bold shadow-sm leading-relaxed border relative",
                       m.senderId === user?.id 
                         ? "bg-accent/90 backdrop-blur-md text-white rounded-tr-none border-white/10" 
                         : "bg-zinc-900/80 backdrop-blur-md border-white/5 text-white/90 rounded-tl-none"
                     )}>
+                      {m.isEncrypted && (
+                        <ShieldAlert size={10} className="absolute top-2 right-2 opacity-30" title="Neural-Encrypted" />
+                      )}
                       {m.content}
                     </div>
                     <span className="text-[8px] text-text-soft mt-1.5 font-black uppercase tracking-widest flex items-center gap-1.5">
-                      {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {m.isEncrypted ? 'Neural-E2EE' : 'Legacy Link'} • {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       {m.senderId === user?.id && <Check size={8} className="text-accent" />}
                     </span>
                   </div>

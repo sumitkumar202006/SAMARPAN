@@ -151,4 +151,22 @@ router.put('/settings', async (req, res) => {
   }
 });
 
+// Register E2EE Public Key
+router.put('/public-key', async (req, res) => {
+  try {
+    const { email, publicKey } = req.body;
+    if (!email || !publicKey) return res.status(400).json({ error: 'Missing sync data' });
+
+    const user = await prisma.user.update({
+      where: { email: email.toLowerCase().trim() },
+      data: { publicKey }
+    });
+    
+    res.json({ success: true, publicKey: user.publicKey });
+  } catch (err) {
+    console.error("Public key registration failed", err);
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
 module.exports = router;

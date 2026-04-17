@@ -1076,7 +1076,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("private_message", async (data) => {
-    const { receiverId, content, type, metadata } = data;
+    const { receiverId, content, type, metadata, isEncrypted } = data;
     const senderId = socketToUser.get(socket.id);
     if (!senderId || !receiverId) return;
 
@@ -1087,6 +1087,7 @@ io.on("connection", (socket) => {
           senderId,
           receiverId,
           content,
+          isEncrypted: !!isEncrypted,
           type: type || "text",
           metadata: metadata || null
         }

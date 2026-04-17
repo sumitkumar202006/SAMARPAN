@@ -15,6 +15,8 @@ interface AudioContextType {
   playNavigate: () => void;
   playHover: () => void;
   playToggle: () => void;
+  playCountdown: () => void;
+  playUrgent: () => void;
   isMuted: boolean;
   toggleMute: () => void;
 }
@@ -119,13 +121,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playAccelerate = () => playNavigate();
   const playHorn = () => playError();
 
+  /** Single sharp tick — used for countdown 5..1 */
+  const playCountdown = () => synthSound({ freq: 1800, duration: 0.08, type: 'square', rampTo: 1200, volume: 0.18 });
+
+  /** Double low-pulse — used for critical timer < 5s */
+  const playUrgent = () => {
+    synthSound({ freq: 80, duration: 0.06, type: 'sawtooth', volume: 0.25 });
+    setTimeout(() => synthSound({ freq: 70, duration: 0.06, type: 'sawtooth', volume: 0.2 }), 100);
+  };
+
   const toggleMute = () => setIsMuted(!isMuted);
 
   return (
     <AudioContext.Provider value={{ 
       playAccelerate, playHorn, playClick, playSuccess, playGlitch,
       playInput, playEnter, playError, playNavigate, playHover,
-      playToggle, isMuted, toggleMute 
+      playToggle, playCountdown, playUrgent, isMuted, toggleMute 
     }}>
       {children}
     </AudioContext.Provider>

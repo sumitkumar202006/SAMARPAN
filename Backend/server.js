@@ -807,6 +807,273 @@ const liveSessions = new Map();
 const HOST_RECOVERY_WINDOW = 5 * 60 * 1000; // 5 mins
 const ARENA_GLOBAL_TTL = 2.5 * 60 * 60 * 1000; // 2.5 hrs
 
+// ============================================================
+// ⚔️ MATCHMAKING SYSTEM
+// ============================================================
+
+/**
+ * Matchmaking queues — in-memory only (fast, zero DB latency).
+ * Key format: "{category}:{difficulty}"  e.g. "Computer Science:medium"
+ * Value: Array<{ socketId, userId, name, category, difficulty, joinedAt }>
+ */
+const matchmakingQueues = new Map();
+
+/**
+ * Public room registry — rooms visible in the Live Arena browser.
+ * Only rooms explicitly marked isPublic=true appear here.
+ * Key: pin  Value: { pin, title, category, playerCount, maxPlayers, status, createdAt }
+ */
+const publicRooms = new Map();
+
+/** Broadcast updated room list to all clients watching the arena feed */
+function broadcastRoomList() {
+  const rooms = Array.from(publicRooms.values())
+    .filter(r => r.status === 'waiting')
+    .sort((a, b) => b.playerCount - a.playerCount);
+  io.to('rooms_feed').emit('room_list_update', { rooms });
+}
+
+/** Register a session in the public room registry */
+function registerPublicRoom(pin, session, quizTitle, category) {
+  publicRooms.set(pin, {
+    pin,
+    title: quizTitle || 'Quick Match Arena',
+    category: category || 'General Knowledge',
+    playerCount: 0,
+    maxPlayers: session.maxPlayers || 10,
+    status: 'waiting',
+    createdAt: Date.now()
+  });
+  broadcastRoomList();
+}
+
+/** Remove a room from the public registry */
+function unregisterPublicRoom(pin) {
+  if (publicRooms.has(pin)) {
+    publicRooms.delete(pin);
+    broadcastRoomList();
+  }
+}
+
+/** Update playerCount in public room registry */
+function updatePublicRoomCount(pin, delta) {
+  const room = publicRooms.get(pin);
+  if (!room) return;
+  room.playerCount = Math.max(0, room.playerCount + delta);
+  broadcastRoomList();
+}
+
+/** Generate a unique 6-char match PIN */
+function generateMatchPin() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let pin = '';
+  for (let i = 0; i < 6; i++) pin += chars[Math.floor(Math.random() * chars.length)];
+  return pin;
+}
+
+/**
+ * Core matchmaking processor — runs every 2 seconds.
+ * Matches queued players and creates sessions automatically.
+ */
+async function processQueues() {
+  for (const [key, queue] of matchmakingQueues.entries()) {
+    if (queue.length < 2) {
+      // Handle long-waiting solo players (> 60s) — create 1-player match
+      if (queue.length === 1 && Date.now() - queue[0].joinedAt > 60000) {
+        await createMatchFromQueue(key, queue.splice(0, 1));
+      }
+      // 30s: relax category, try to merge with adjacent difficulty
+      else if (queue.length === 1 && Date.now() - queue[0].joinedAt > 30000) {
+        const player = queue[0];
+        const relaxedKey = `${player.category}:any`;
+        const relaxedQueue = matchmakingQueues.get(relaxedKey) || [];
+        // Try opposite difficulty
+        const difficulties = ['easy', 'medium', 'hard'];
+        for (const diff of difficulties) {
+          if (diff === player.difficulty) continue;
+          const altKey = `${player.category}:${diff}`;
+          const altQueue = matchmakingQueues.get(altKey) || [];
+          if (altQueue.length > 0) {
+            // Merge: take this player + first from alt queue
+            queue.splice(0, 1);
+            const matched = [player, altQueue.splice(0, 1)[0]];
+            if (altQueue.length === 0) matchmakingQueues.delete(altKey);
+            await createMatchFromQueue(key, matched);
+            break;
+          }
+        }
+      }
+      continue;
+    }
+    // Standard: batch up to 6 players per match
+    const batch = queue.splice(0, Math.min(queue.length, 6));
+    if (queue.length === 0) matchmakingQueues.delete(key);
+    await createMatchFromQueue(key, batch);
+  }
+}
+
+/**
+ * Creates a real session from matched players.
+ * Picks a random quiz matching category, creates DB record, emits match_found.
+ */
+async function createMatchFromQueue(queueKey, players) {
+  if (!players || players.length === 0) return;
+
+  const [category, difficulty] = queueKey.split(':');
+  const pin = generateMatchPin();
+
+  try {
+    // Find a quiz matching category/topic
+    let quiz = null;
+    try {
+      const quizzes = await prisma.quiz.findMany({
+        where: {
+          OR: [
+            { topic: { contains: category, mode: 'insensitive' } },
+            { tags: { has: category.toLowerCase() } }
+          ]
+        },
+        take: 20
+      });
+      if (quizzes.length > 0) {
+        quiz = quizzes[Math.floor(Math.random() * quizzes.length)];
+      } else {
+        // Fallback: any quiz
+        const any = await prisma.quiz.findFirst({ orderBy: { createdAt: 'desc' } });
+        quiz = any;
+      }
+    } catch (dbErr) {
+      console.error('[Matchmaking] Quiz lookup failed:', dbErr.message);
+    }
+
+    if (!quiz) {
+      // No quiz available — send players back to searching state
+      players.forEach(p => {
+        const sock = io.sockets.sockets.get(p.socketId);
+        if (sock) sock.emit('matchmaking_no_quiz', { message: 'No quiz available for this category. Try another.' });
+      });
+      return;
+    }
+
+    // Create DB session
+    await prisma.gameSession.create({
+      data: {
+        pin,
+        quizId: quiz.id,
+        hostId: null, // Auto-match has no host user; first player acts as host
+        status: 'waiting',
+        rated: false, // Quick matches are unrated for now
+        timerSeconds: 30,
+        metadata: {
+          pointsPerQ: 100,
+          penaltyPoints: 0,
+          maxPlayers: 10,
+          matchmaking: true,
+          category,
+          difficulty
+        }
+      }
+    });
+
+    // Build in-memory session
+    const createdAt = new Date();
+    liveSessions.set(pin, {
+      pin,
+      hostSocketId: players[0].socketId, // First player becomes host
+      password: null,
+      players: {},
+      bannedNames: new Set(),
+      bannedIPs: new Set(),
+      quiz,
+      status: 'waiting',
+      currentQ: 0,
+      optionStats: [0, 0, 0, 0],
+      timerSeconds: 30,
+      timeLeft: 30,
+      timerHandle: null,
+      countdownHandle: null,
+      hostDisconnectTimer: null,
+      globalExpireTimer: setTimeout(() => terminateSession(pin, 'Matchmaking arena TTL expired.'), ARENA_GLOBAL_TTL),
+      createdAt,
+      rated: false,
+      pointsPerQ: 100,
+      penaltyPoints: 0,
+      maxPlayers: 10,
+      matchmade: true,
+      category,
+      difficulty,
+      examSettings: {
+        strictFocus: false,
+        allowBacktrack: false,
+        lockdownMode: false,
+        randomizeOrder: false,
+        randomizeOptions: false,
+        ipLock: false,
+        escalationMode: false
+      },
+      teamScores: null,
+      teamNames: null
+    });
+
+    // Register in public room list
+    registerPublicRoom(pin, liveSessions.get(pin), quiz.title, category);
+
+    // Notify all matched players
+    const playerNames = players.map(p => p.name);
+    players.forEach((p, idx) => {
+      const sock = io.sockets.sockets.get(p.socketId);
+      if (sock) {
+        sock.emit('match_found', {
+          pin,
+          quizTitle: quiz.title,
+          category,
+          difficulty,
+          players: playerNames,
+          isHost: idx === 0,
+          totalQuestions: quiz.questions ? quiz.questions.length : 0
+        });
+        // Automatically join the socket room so they receive lobby events
+        sock.join(pin);
+      }
+    });
+
+    console.log(`[Matchmaking] Created arena ${pin} for ${players.length} players. Category: ${category}`);
+  } catch (err) {
+    console.error('[Matchmaking] Session creation error:', err.message);
+    players.forEach(p => {
+      const sock = io.sockets.sockets.get(p.socketId);
+      if (sock) sock.emit('matchmaking_error', { message: 'Failed to create match. Please try again.' });
+    });
+  }
+}
+
+// Start matchmaking processor — 2s interval
+setInterval(processQueues, 2000);
+
+// ============================================================
+// 🏟️ LIVE ARENA REST ENDPOINT
+// ============================================================
+
+/** GET /api/rooms/active — list of public joinable rooms */
+app.get('/api/rooms/active', (_req, res) => {
+  const rooms = Array.from(publicRooms.values())
+    .filter(r => r.status === 'waiting')
+    .sort((a, b) => b.playerCount - a.playerCount)
+    .map(r => ({
+      pin: r.pin,
+      title: r.title,
+      category: r.category,
+      playerCount: r.playerCount,
+      maxPlayers: r.maxPlayers,
+      status: r.status,
+      spotsLeft: r.maxPlayers - r.playerCount,
+      createdAt: r.createdAt
+    }));
+  res.json({ rooms });
+});
+
+
+
 /**
  * Centralized Arena Termination Logic
  */
@@ -2043,12 +2310,135 @@ io.on("connection", (socket) => {
         if (!isHostSocket) {
            broadcastPlayerList(pin, session);
            io.in(pin).emit("player_left", { name: playerName });
+           // Update public room count on disconnect
+           updatePublicRoomCount(pin, -1);
         }
       }
     });
     console.log("Socket disconnected:", socket.id);
   });
+
+  // ============================================================
+  // ⚔️ MATCHMAKING SOCKET EVENTS
+  // ============================================================
+
+  /**
+   * quick_match — Add player to matchmaking queue.
+   * Emits: matchmaking_searching (position), match_found (on match), matchmaking_error
+   */
+  socket.on("quick_match", (data) => {
+    const { name, category, difficulty, userId } = data;
+    if (!name || !category || !difficulty) {
+      return socket.emit("matchmaking_error", { message: "Missing required fields: name, category, difficulty." });
+    }
+
+    const key = `${category}:${difficulty}`;
+
+    // Prevent duplicate queue entry for same socket
+    for (const [k, q] of matchmakingQueues.entries()) {
+      const existing = q.findIndex(p => p.socketId === socket.id);
+      if (existing !== -1) {
+        q.splice(existing, 1);
+        if (q.length === 0) matchmakingQueues.delete(k);
+      }
+    }
+
+    if (!matchmakingQueues.has(key)) matchmakingQueues.set(key, []);
+    const queue = matchmakingQueues.get(key);
+    queue.push({ socketId: socket.id, userId: userId || null, name, category, difficulty, joinedAt: Date.now() });
+
+    const position = queue.length;
+    socket.emit("matchmaking_searching", {
+      position,
+      category,
+      difficulty,
+      estimatedWait: position <= 1 ? 30 : 5 * position
+    });
+
+    console.log(`[Matchmaking] ${name} queued for ${key}. Queue size: ${queue.length}`);
+  });
+
+  /**
+   * cancel_matchmaking — Remove player from queue gracefully.
+   */
+  socket.on("cancel_matchmaking", () => {
+    for (const [k, q] of matchmakingQueues.entries()) {
+      const idx = q.findIndex(p => p.socketId === socket.id);
+      if (idx !== -1) {
+        q.splice(idx, 1);
+        if (q.length === 0) matchmakingQueues.delete(k);
+        socket.emit("matchmaking_cancelled", { message: "Removed from queue." });
+        console.log(`[Matchmaking] ${socket.id} cancelled.`);
+        return;
+      }
+    }
+  });
+
+  /**
+   * subscribe_rooms — Join the rooms_feed room to receive live arena updates.
+   */
+  socket.on("subscribe_rooms", () => {
+    socket.join("rooms_feed");
+    // Immediately send current room list
+    const rooms = Array.from(publicRooms.values())
+      .filter(r => r.status === 'waiting')
+      .sort((a, b) => b.playerCount - a.playerCount);
+    socket.emit("room_list_update", { rooms });
+  });
+
+  socket.on("unsubscribe_rooms", () => {
+    socket.leave("rooms_feed");
+  });
+
+  /**
+   * quick_join_room — Atomic slot claim. Prevents race conditions.
+   * Uses per-session joiningLock to serialize simultaneous joins.
+   */
+  socket.on("quick_join_room", async (data) => {
+    const { pin, name } = data;
+    if (!pin || !name) return socket.emit("join_error", { message: "PIN and name required." });
+
+    const session = await ensureSessionInMemory(pin);
+
+    if (!session) {
+      return socket.emit("join_error", { message: "Room not found or has expired." });
+    }
+    if (session.status !== 'waiting') {
+      return socket.emit("join_error", { message: "Match already in progress. Cannot join now." });
+    }
+
+    // Atomic lock — prevents race conditions on simultaneous joins
+    if (session.joiningLock) {
+      return socket.emit("join_error", { message: "Room is being updated. Try again in a moment." });
+    }
+    session.joiningLock = true;
+
+    try {
+      const currentPlayerCount = Object.values(session.players).filter(p => !p.isHost).length;
+      if (currentPlayerCount >= session.maxPlayers) {
+        return socket.emit("join_error", { message: "Room is full." });
+      }
+
+      // Check for duplicate join (same socket or same userId)
+      const alreadyJoined = Object.values(session.players).some(
+        p => p.socketId === socket.id || (data.userId && p.userId === data.userId)
+      );
+      if (alreadyJoined) {
+        return socket.emit("join_error", { message: "You are already in this room." });
+      }
+
+      // Add player — redirect to lobby through normal player_join flow
+      socket.join(pin);
+      socket.emit("quick_join_success", { pin, name, quizTitle: session.quiz?.title });
+      updatePublicRoomCount(pin, 1);
+
+    } finally {
+      session.joiningLock = false;
+    }
+  });
+
 });
+
 
 // ---------- Start server ----------
 async function startServer() {

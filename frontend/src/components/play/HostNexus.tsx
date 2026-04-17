@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause } from 'lucide-react';
+import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -96,6 +96,19 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       });
     });
 
+    // Live leaderboard: update scores by name
+    socket.on('leaderboard_update', (data: any) => {
+      const lb: Array<{ name: string; score: number }> = data.leaderboard || [];
+      setPlayers((prev: any) => {
+        const updated = { ...prev };
+        Object.entries(updated).forEach(([id, p]: any) => {
+          const entry = lb.find(e => e.name === p.name);
+          if (entry) updated[id] = { ...p, score: entry.score };
+        });
+        return updated;
+      });
+    });
+
     return () => {
       socket.off('host_player_list_update');
       socket.off('stats_update');
@@ -105,6 +118,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       socket.off('game_started');
       socket.off('next_question');
       socket.off('player_choice');
+      socket.off('leaderboard_update');
     };
   }, [socket, isMounted]);
 
@@ -157,6 +171,14 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   }));
 
   const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444'];
+
+  const playerList = Object.values(players).filter((p: any) => !p.isHost) as any[];
+  const answeredCount = playerList.filter((p: any) => p.answeredThisQ).length;
+  const leaderId = playerList.length > 0
+    ? Object.entries(players)
+        .filter(([, p]: any) => !p.isHost)
+        .sort(([, a]: any, [, b]: any) => b.score - a.score)[0]?.[0]
+    : null;
 
   return (
     <div className="flex flex-col gap-8 min-h-[80vh]">
@@ -236,29 +258,46 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
             <div className="flex items-center justify-between mb-8">
               <h3 className="flex items-center gap-3 font-bold text-lg italic">
                 <Users size={20} className="text-accent" />
-                Player Monitoring ({(Object.values(players).filter((p:any) => !p.isHost)).length})
+                Player Monitoring ({playerList.length})
               </h3>
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-text-soft">
-                <span className="w-2 h-2 rounded-full bg-accent-alt animate-pulse" /> Live Data Stream
+              <div className="flex items-center gap-3">
+                {/* Answered counter */}
+                {status === 'running' && (
+                  <span className={cn(
+                    'text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border',
+                    answeredCount === playerList.length && playerList.length > 0
+                      ? 'text-accent-alt border-accent-alt/30 bg-accent-alt/10'
+                      : 'text-text-soft border-white/10 bg-white/5'
+                  )}>
+                    {answeredCount}/{playerList.length} answered
+                  </span>
+                )}
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-text-soft">
+                  <span className="w-2 h-2 rounded-full bg-accent-alt animate-pulse" /> Live Data Stream
+                </div>
               </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
-              {Object.entries(players).filter(([, p]: any) => !p.isHost).map(([id, player]: any) => (
+              {Object.entries(players).filter(([, p]: any) => !p.isHost).map(([id, player]: any) => {
+                const isLeader = id === leaderId && status === 'running' && player.score > 0;
+                return (
                 <motion.div 
                   layout
                   key={id}
                   className={cn(
                     "bg-background/40 border p-4 rounded-2xl flex items-center justify-between group transition-all",
+                    isLeader ? "border-yellow-400/40 bg-yellow-400/5 shadow-[0_0_16px_rgba(250,204,21,0.15)]" :
                     player.ipMatch ? "border-amber-500/30 bg-amber-500/5 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : "border-white/5 hover:border-accent/30"
                   )}
                 >
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "w-10 h-10 rounded-xl flex items-center justify-center font-black relative",
+                      isLeader ? "bg-yellow-400/20 text-yellow-400" :
                       player.answeredThisQ ? "bg-accent-alt/20 text-accent-alt" : "bg-white/5 text-text-soft"
                     )}>
-                      {player.name.charAt(0).toUpperCase()}
+                      {isLeader ? <Crown size={16} /> : player.name.charAt(0).toUpperCase()}
                       {player.strikeCount > 0 && (
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[8px] flex items-center justify-center text-white border-2 border-background animate-pulse">
                           {player.strikeCount}
@@ -268,10 +307,19 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-sm">{player.name}</p>
+                        {isLeader && <span className="text-[7px] px-1 bg-yellow-400/20 text-yellow-400 border border-yellow-400/20 rounded font-black tracking-tighter">LEADER</span>}
                         {player.ipMatch && <span className="text-[7px] px-1 bg-amber-500/20 text-amber-500 border border-amber-500/20 rounded font-black tracking-tighter">SAME IP</span>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-accent">{player.score} PTS</span>
+                        <motion.span
+                          key={player.score}
+                          initial={{ scale: 1.3, color: '#22c55e' }}
+                          animate={{ scale: 1, color: '#6366f1' }}
+                          transition={{ duration: 0.4 }}
+                          className="text-[10px] font-bold"
+                        >
+                          {player.score} PTS
+                        </motion.span>
                         {player.answeredThisQ && (
                           <motion.span 
                             initial={{ scale: 0 }}
@@ -316,8 +364,9 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                     </button>
                   </div>
                 </motion.div>
-              ))}
-              {Object.values(players).filter((p:any)=>!p.isHost).length === 0 && (
+                );
+              })}
+              {playerList.length === 0 && (
                 <div className="sm:col-span-2 py-12 text-center text-text-soft border-2 border-dashed border-white/5 rounded-[32px]">
                   <p className="text-sm italic font-medium">Waiting for players to enter the terminal...</p>
                 </div>

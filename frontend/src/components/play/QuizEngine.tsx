@@ -13,6 +13,10 @@ import { useAudio } from '@/context/AudioContext';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { SecurityLockdown } from './SecurityLockdown';
+import { ScorePopToast, AnswerFlash } from './ScorePopToast';
+import { LiveLeaderboard } from './LiveLeaderboard';
+import { PlayerActivityFeed } from './PlayerActivityFeed';
+import { NetworkStatusWidget } from '@/components/ui/NetworkStatusWidget';
 
 import { ReviewAnswer } from './AnswerReview';
 
@@ -67,7 +71,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   // isSyncing: blocks rendering until first server state arrives (prevents stale-UI flicker on reconnect)
   const [isSyncing, setIsSyncing] = useState(isLive); // true only for live sessions until first sync
 
-  const { playNavigate, playClick, playSuccess, playError } = useAudio();
+  const { playNavigate, playClick, playSuccess, playError, playCountdown, playUrgent } = useAudio();
+
+  // --- Score pop and answer flash states ---
+  const [scorePopKey, setScorePopKey] = useState(0);
+  const [flashKey, setFlashKey] = useState(0);
+  const [lastFlashCorrect, setLastFlashCorrect] = useState(true);
+  // Track urgent ticks to avoid playing the sound every re-render
+  const urgentPlayedRef = useRef(false);
 
   // --- Refs for stable access inside event handlers (avoids stale closures) ---
   const selectedIdxRef = useRef<number | null>(null);
@@ -135,8 +146,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       const isCorrect = idx === q.correctIndex;
       if (isCorrect) {
         setScore(s => s + 1);
+        setScorePopKey(k => k + 1);
+        setLastFlashCorrect(true);
+        setFlashKey(k => k + 1);
         playSuccess();
       } else {
+        setLastFlashCorrect(false);
+        setFlashKey(k => k + 1);
         playError();
       }
       setCorrectIdx(q.correctIndex!);
@@ -152,6 +168,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       };
     }
   }, [isLive, socket, pin, playClick, playSuccess, playError, quiz.questions, timeLeft]);
+
+  // --- Timer urgency: shake animation + sound at < 5s ---
+  useEffect(() => {
+    if (timeLeft <= 5 && timeLeft > 0 && !isPaused) {
+      if (!urgentPlayedRef.current) {
+        urgentPlayedRef.current = true;
+        playUrgent();
+      }
+    } else {
+      urgentPlayedRef.current = false;
+    }
+  }, [timeLeft, isPaused, playUrgent]);
 
   // --- Auto-submit on timer expiry (server-driven for live, client for solo) ---
   useEffect(() => {
@@ -212,9 +240,17 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setExplanation(data.explanation || null);
       setIsLocked(true);
       isLockedRef.current = true;
-      // Compare against current selection at event time (stable ref)
-      if (selectedIdxRef.current === data.correctIndex) playSuccess();
-      else playError();
+      const wasCorrect = selectedIdxRef.current === data.correctIndex;
+      if (wasCorrect) {
+        setScorePopKey(k => k + 1);
+        setLastFlashCorrect(true);
+        setFlashKey(k => k + 1);
+        playSuccess();
+      } else {
+        setLastFlashCorrect(false);
+        setFlashKey(k => k + 1);
+        playError();
+      }
     };
 
     const onGameStarted = (data: any) => {
@@ -234,6 +270,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     // Countdown tick: 5, 4, 3, 2, 1, 0
     const onGameCountdown = (data: { secondsLeft: number }) => {
       setCountdown(data.secondsLeft);
+      // Play tick for each number except 0 ("GO!" is visual enough)
+      if (data.secondsLeft > 0) playCountdown();
     };
 
     // Host aborted countdown during STARTING → return to lobby
@@ -374,9 +412,26 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   }, [isLive, socket, pin]);
 
   const handleNext = () => {
+    // Skip confirmation: solo mode only — don't interrupt live server-driven flow
+    if (!isLive && selectedIdx === null && currentIndex < quiz.questions.length - 1) {
+      // Record as skipped before confirming
+      const q = quiz.questions[currentIndexRef.current];
+      if (!answersLogRef.current[currentIndexRef.current]) {
+        answersLogRef.current[currentIndexRef.current] = {
+          questionIndex: currentIndexRef.current,
+          question: q.question,
+          options: q.options,
+          selectedIdx: null,
+          correctIdx: q.correctIndex!,
+          explanation: q.explanation
+        };
+      }
+    }
     playNavigate();
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
+      // Reset monotonic guard for fresh question
+      lastTimerRef.current = 30;
       if (timerMode === 'per-question') setTimeLeft(30);
       setSelectedIdx(null);
       selectedIdxRef.current = null;
@@ -387,7 +442,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     } else {
       setIsFinished(true);
       setIsMatchActive(false);
-      onFinish(score, quiz.questions.length);
+      onFinish(score, quiz.questions.length, undefined, answersLogRef.current);
     }
   };
 
@@ -466,7 +521,19 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto w-full relative">
+    <>
+      {/* Full-screen answer feedback flash */}
+      <AnswerFlash flashKey={flashKey} isCorrect={lastFlashCorrect} />
+
+      {/* Network status corner badge */}
+      <NetworkStatusWidget isSyncing={isSyncing} />
+
+      {/* Live player activity feed (bottom-left) */}
+      <PlayerActivityFeed socket={socket} isLive={isLive} />
+
+      <div className="flex gap-6 items-start">
+        {/* Main quiz content */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 max-w-4xl mx-auto w-full relative">
       <AnimatePresence>
         {hudMessage && (
           <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4">
@@ -533,7 +600,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
               </div>
             </div>
 
-            <div className={cn("flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all", isPaused ? "text-accent" : (timeLeft < 10) ? "text-red-500" : "text-white")}>
+            <div className={cn(
+              "flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all relative",
+              isPaused ? "text-accent" : (timeLeft <= 5 && !isPaused) ? "text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" : (timeLeft < 10) ? "text-red-500" : "text-white",
+              timeLeft <= 5 && !isPaused && 'animate-[tremor_0.3s_ease-in-out_infinite]'
+            )}>
               <Clock size={20} className={timeLeft < 10 && !isPaused ? "animate-pulse" : ""} />
               <span className="text-2xl font-black tabular-nums">
                 {isPaused ? 'HALTED' : `${timeLeft}s`}
@@ -599,6 +670,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
           </div>
         </div>
       </SecurityLockdown>
-    </motion.div>
+        </motion.div>
+
+        {/* Live leaderboard sidebar — visible on xl screens during live matches */}
+        <LiveLeaderboard socket={socket} pin={pin} isLive={isLive} />
+      </div>
+    </>
   );
 };

@@ -11,6 +11,9 @@ import { Trophy, ArrowLeft, BarChart3, RefreshCw, ClipboardList } from 'lucide-r
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+import { ShareResultCard } from '@/components/ui/ShareResultCard';
+import { ChallengeInvite } from '@/components/ui/ChallengeInvite';
 
 // Session state persisted to localStorage so refresh doesn't wipe progress
 const SESSION_KEY = 'samarpan_solo_session';
@@ -19,6 +22,7 @@ function SoloPlayContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const quizId = searchParams.get('quiz');
+  const { user } = useAuth();
 
   const [quiz, setQuiz] = useState<any>(null);
   const [isFinished, setIsFinished] = useState(false);
@@ -60,6 +64,41 @@ function SoloPlayContent() {
   useEffect(() => {
     fetchQuiz();
   }, [fetchQuiz]);
+
+  // ── Restore persisted session on mount (survives refresh) ──────────
+  useEffect(() => {
+    if (!quizId || loading || !quiz) return;
+    try {
+      const raw = localStorage.getItem(`${SESSION_KEY}_${quizId}`);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      // Only restore if quiz matches and session isn't finished
+      if (saved.quizId === quizId && !saved.finished) {
+        if (saved.score !== undefined) setScore(saved.score);
+        if (saved.totalQuestions !== undefined) setTotalQuestions(saved.totalQuestions);
+        if (saved.reviewAnswers?.length > 0) setReviewAnswers(saved.reviewAnswers);
+        // Skip intro if they were already in the quiz
+        if (saved.started) setShowIntro(false);
+      }
+    } catch { /* ignore corrupt storage */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz, quizId]);
+
+  // ── Persist session state on every change ─────────────────────────
+  useEffect(() => {
+    if (!quizId || !quiz || showIntro) return;
+    try {
+      localStorage.setItem(`${SESSION_KEY}_${quizId}`, JSON.stringify({
+        quizId,
+        score,
+        totalQuestions,
+        reviewAnswers,
+        started: true,
+        finished: isFinished,
+        savedAt: Date.now()
+      }));
+    } catch { /* quota exceeded — non-critical */ }
+  }, [quizId, score, totalQuestions, reviewAnswers, isFinished, quiz, showIntro]);
 
   // ── Loading ──────────────────────────────────────────
   if (loading) {
@@ -167,6 +206,7 @@ function SoloPlayContent() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   onClick={() => {
+                    if (quizId) localStorage.removeItem(`${SESSION_KEY}_${quizId}`);
                     setIsFinished(false);
                     setShowIntro(true);
                     setScore(0);
@@ -175,7 +215,7 @@ function SoloPlayContent() {
                   }}
                   className="px-8 flex items-center gap-2"
                 >
-                  <RefreshCw size={16} /> Try Again
+                  <RefreshCw size={16} /> Play Again
                 </Button>
                 {reviewAnswers.length > 0 && (
                   <Button
@@ -189,6 +229,25 @@ function SoloPlayContent() {
                 <Button onClick={() => router.push('/dashboard')} variant="outline" className="px-8 border-white/10 flex items-center gap-2">
                   <ArrowLeft size={18} /> Dashboard
                 </Button>
+              </div>
+
+              {/* Growth: Share + Challenge */}
+              <div className="mt-8 grid sm:grid-cols-2 gap-4 text-left">
+                <ShareResultCard
+                  quizTitle={quiz.title}
+                  score={score}
+                  totalQuestions={totalQuestions}
+                  accuracy={accuracy}
+                  mode="Solo Practice"
+                  quizId={quizId || ''}
+                />
+                <ChallengeInvite
+                  quizId={quizId || ''}
+                  quizTitle={quiz.title}
+                  challengerName={user?.name || 'Player'}
+                  score={score}
+                  accuracy={accuracy}
+                />
               </div>
             </motion.div>
           )}

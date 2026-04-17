@@ -14,6 +14,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { HostNexus } from '@/components/play/HostNexus';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { QuizIntro } from '@/components/play/QuizIntro';
+import { ShareResultCard } from '@/components/ui/ShareResultCard';
 
 function LivePlayContent() {
   const { user } = useAuth(); // Added for AuthGuard
@@ -30,6 +32,8 @@ function LivePlayContent() {
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
   const [examSettings, setExamSettings] = useState<any>(null);
+  // Intro screen for players — dismissed when they click ready OR when the game is already running
+  const [showIntro, setShowIntro] = useState(true);
 
   const fetchSession = useCallback(async () => {
     if (!pin) return;
@@ -60,15 +64,17 @@ function LivePlayContent() {
       playEnter();
       setQuiz(data.quiz);
       if (data.examSettings) setExamSettings(data.examSettings);
+      // Game is now live — bypass intro since the countdown already showed
+      setShowIntro(false);
     });
 
     // Reconnection to a running game: server sends full current state
     socket.on('game_state_sync', (data: any) => {
-      if (data.quiz) {
-        setQuiz(data.quiz);
-      }
+      if (data.quiz) setQuiz(data.quiz);
       if (data.examSettings) setExamSettings(data.examSettings);
       setLoading(false);
+      // Player is mid-game on reconnect — skip intro
+      setShowIntro(false);
     });
 
     socket.on('settings_updated', (data: any) => {
@@ -114,6 +120,9 @@ function LivePlayContent() {
       </div>
     );
   }
+
+  // Hosts skip the player intro screen entirely
+  const resolvedShowIntro = showIntro && !isHost;
 
   if (isFinished) {
     return (
@@ -230,6 +239,22 @@ function LivePlayContent() {
             Review Arena Performance
           </Button>
         </div>
+
+        {/* Social share */}
+        {quiz && (
+          <div className="mt-6 max-w-sm mx-auto">
+            <ShareResultCard
+              quizTitle={quiz.title}
+              score={leaderboard.find((p: any) => p.name === user?.name)?.score || 0}
+              totalQuestions={quiz.questions?.length || 0}
+              accuracy={quiz.questions?.length
+                ? Math.round(((leaderboard.find((p: any) => p.name === user?.name)?.score || 0) / quiz.questions.length) * 100)
+                : 0
+              }
+              mode="Live Arena"
+            />
+          </div>
+        )}
       </motion.div>
     );
   }
@@ -241,6 +266,16 @@ function LivePlayContent() {
           quiz={quiz} 
           socket={socket} 
           pin={pin || ''} 
+        />
+      ) : resolvedShowIntro ? (
+        // Player sees quiz info while waiting for host to start
+        <QuizIntro
+          quiz={quiz}
+          timerSeconds={examSettings?.timerSeconds || 30}
+          timerMode={examSettings?.timerMode || 'per-question'}
+          isLive={true}
+          examSettings={examSettings}
+          onStart={() => setShowIntro(false)}
         />
       ) : (
         <ErrorBoundary>

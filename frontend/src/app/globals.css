@@ -95,6 +95,38 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
+
+  @keyframes tremor {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    20% { transform: translateX(-2px) rotate(-0.5deg); }
+    40% { transform: translateX(2px) rotate(0.5deg); }
+    60% { transform: translateX(-2px) rotate(-0.5deg); }
+    80% { transform: translateX(2px) rotate(0.5deg); }
+  }
+
+  @keyframes screen-flash-correct {
+    0% { opacity: 0; }
+    20% { opacity: 0.08; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes screen-flash-wrong {
+    0% { opacity: 0; }
+    20% { opacity: 0.12; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes score-pop {
+    0% { opacity: 0; transform: translateY(0px) scale(0.5); }
+    30% { opacity: 1; transform: translateY(-20px) scale(1.2); }
+    70% { opacity: 1; transform: translateY(-40px) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(0.8); }
+  }
+
+  @keyframes rank-slide {
+    0% { opacity: 0; transform: translateX(-10px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
 }
 
 @utility animate-shimmer {

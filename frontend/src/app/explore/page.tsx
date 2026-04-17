@@ -11,6 +11,7 @@ import api from '@/lib/axios';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 function ExploreContent() {
   const searchParams = useSearchParams();
@@ -60,10 +61,61 @@ function ExploreContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-black uppercase tracking-[0.3em] text-text-soft text-[10px] animate-pulse">Scanning Neural Network...</p>
-      </div>
+      <AuthGuard>
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-12">
+          {/* Header skeleton */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-72" />
+              <Skeleton className="h-4 w-56" />
+            </div>
+          </div>
+          {/* 3-column grid skeleton */}
+          <div className="grid lg:grid-cols-3 gap-8 items-start">
+            {/* Trending column */}
+            <div className="space-y-6">
+              <Skeleton className="h-4 w-24" />
+              <div className="glass p-8 rounded-[40px] space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-3xl bg-white/5">
+                    <Skeleton className="w-10 h-10 rounded-2xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-2 w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Recommended column */}
+            <div className="space-y-6">
+              <Skeleton className="h-4 w-28" />
+              <div className="space-y-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="glass p-6 rounded-[32px] space-y-3">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Events column */}
+            <div className="space-y-6">
+              <Skeleton className="h-4 w-24" />
+              <div className="space-y-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="glass p-6 rounded-[32px] space-y-3">
+                    <Skeleton className="h-5 w-32 rounded-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </AuthGuard>
     );
   }
 

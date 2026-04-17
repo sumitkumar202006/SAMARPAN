@@ -1060,15 +1060,19 @@ io.on("connection", (socket) => {
       }
     });
 
+    const onlineFriendIds = [];
     friendships.forEach(f => {
       const friendId = f.userId === userId ? f.friendId : f.userId;
       const friendSockets = globalOnlineUsers.get(friendId);
       if (friendSockets) {
+        onlineFriendIds.push(friendId);
         friendSockets.forEach(sid => {
           io.to(sid).emit("friend_status_change", { userId, status: "online" });
         });
       }
     });
+
+    socket.emit("initial_online_friends", onlineFriendIds);
   });
 
   socket.on("private_message", async (data) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare } from 'lucide-react';
+import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare, X } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
   const { socket } = useSocket();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [currentToast, setCurrentToast] = useState<any | null>(null);
@@ -102,6 +103,23 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
     setUnreadNotifications(0);
     // Logic to clear on backend if we had a notifications table, 
     // but for now we just handle pending friendships individually.
+  };
+
+  const handleSearch = async (val: string) => {
+    setSearchQuery(val);
+    if (val.trim().length > 2) {
+      setIsSearching(true);
+      try {
+        const res = await api.get(`/api/friends/search?username=${val.replace('@', '')}&userId=${user?.id}`);
+        setSearchResults(res.data);
+      } catch (err) {
+        console.error("Search failed", err);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setSearchResults([]);
+    }
   };
 
   return (
@@ -202,23 +220,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
               type="text" 
               placeholder="Search vault or @username..." 
               value={searchQuery}
-              onChange={async (e) => {
-                const val = e.target.value;
-                setSearchQuery(val);
-                if (val.trim().length > 2) {
-                  setIsSearching(true);
-                  try {
-                    const res = await api.get(`/api/friends/search?username=${val.replace('@', '')}&userId=${user?.id}`);
-                    setSearchResults(res.data);
-                  } catch (err) {
-                    console.error("Search failed", err);
-                  } finally {
-                    setIsSearching(false);
-                  }
-                } else {
-                  setSearchResults([]);
-                }
-              }}
+              onChange={(e) => handleSearch(e.target.value)}
               className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-xs focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20 transition-all"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && searchQuery.trim()) {
@@ -296,8 +298,89 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
           </div>
         </div>
 
+        {/* Mobile Search Overlay */}
+        <AnimatePresence>
+          {isMobileSearchOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute inset-x-0 top-0 h-16 bg-background z-[110] flex items-center px-4 gap-3 lg:hidden"
+            >
+               <button onClick={() => { setIsMobileSearchOpen(false); setSearchResults([]); }} className="p-2 -ml-2 text-text-soft">
+                  <ChevronLeft size={20} />
+               </button>
+               <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-soft" size={14} />
+                  <input 
+                    autoFocus
+                    type="text" 
+                    placeholder="Search vault or @username..." 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs focus:outline-none focus:border-accent/40 transition-all font-bold"
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchQuery.trim()) {
+                        router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
+                        setIsMobileSearchOpen(false);
+                        setSearchResults([]);
+                      }
+                    }}
+                  />
+                  {/* Results list... */}
+                  <AnimatePresence>
+                    {searchResults.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute top-full left-0 w-full mt-2 glass rounded-2xl p-2 shadow-2xl border border-white/5 z-50 max-h-[60vh] overflow-y-auto"
+                      >
+                         {searchResults.map((u) => (
+                           <div key={u.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-all">
+                              <div className="flex items-center gap-3" onClick={() => { router.push(`/profile/${u.username}`); setIsMobileSearchOpen(false); }}>
+                                <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center overflow-hidden">
+                                  {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" /> : <UserIcon size={14} />}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold leading-none">{u.name}</span>
+                                  <span className="text-[10px] text-text-soft">@{u.username}</span>
+                                </div>
+                              </div>
+                              {/* Actions copy-pasted from desktop search for consistency */}
+                              {u.status === 'accepted' ? (
+                                <CheckCircle2 size={16} className="text-emerald-500 mr-2" />
+                              ) : u.status === 'pending' ? (
+                                <UserCheck size={16} className="text-accent mr-2" />
+                              ) : (
+                                <button className="p-2 bg-accent/10 rounded-lg text-accent" onClick={async () => {
+                                  await api.post('/api/friends/request', { userId: user?.id, friendId: u.id });
+                                  if (socket) socket.emit('friend_request', { senderId: user?.id, receiverId: u.id, senderName: user?.name });
+                                  setIsMobileSearchOpen(false);
+                                }}>
+                                  <UserPlus size={16} />
+                                </button>
+                              )}
+                           </div>
+                         ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Right: Actions & Identity */}
-        <div className="flex items-center gap-2 lg:gap-4">
+        <div className="flex items-center gap-2 lg:gap-4 font-bold uppercase tracking-tighter">
+          {/* Mobile Search Trigger */}
+          <button 
+            onClick={() => setIsMobileSearchOpen(true)}
+            className="md:hidden p-2 rounded-lg bg-white/5 hover:bg-white/10 text-text-soft transition-all"
+            title="Search"
+          >
+            <Search size={18} />
+          </button>
+
           <button 
             onClick={toggleMute}
             className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all outline-none"
@@ -316,7 +399,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                 setIsNotificationsOpen(!isNotificationsOpen);
                 if (!isNotificationsOpen) setUnreadNotifications(0);
               }}
-              className="hidden sm:flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none"
+              className="flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none"
             >
               <Bell size={18} />
               {unreadNotifications > 0 && (
@@ -390,7 +473,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
             </AnimatePresence>
           </div>
 
-          <div className="h-6 w-px bg-white/5 hidden sm:block" />
+          <div className="h-6 w-px bg-white/5" />
 
           {/* User Profile Hook */}
           <div className="relative" ref={dropdownRef}>

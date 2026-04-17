@@ -63,7 +63,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const profileCompletion = React.useMemo(() => calculateCompletion(user), [user]);
 
+  const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
+    setIsMounted(true);
     // 1. Check URL for social login tokens
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -103,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Profile Sync Logic (Keep localStorage and State fresh)
   useEffect(() => {
-    if (!user?.email || !user?.token) return;
+    if (!isMounted || !user?.email || !user?.token) return;
 
     const syncProfile = async () => {
       try {
@@ -119,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     syncProfile();
-  }, [user?.email, user?.token]);
+  }, [user?.email, user?.token, isMounted]);
 
   const setUser = (user: User | null) => {
     setUserState(user);
@@ -133,6 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
   };
+
+  if (!isMounted) return null;
 
   return (
     <AuthContext.Provider value={{ user, setUser, isLoading, logout, profileCompletion }}>

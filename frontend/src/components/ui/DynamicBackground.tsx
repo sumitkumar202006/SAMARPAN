@@ -22,6 +22,11 @@ export const DynamicBackground = () => {
   const smoothX = useSpring(0, { damping: 50, stiffness: 200 });
   const smoothY = useSpring(0, { damping: 50, stiffness: 200 });
 
+  // Pre-computed transforms to avoid calling hooks inside JSX or after early returns
+  const reverseXTransform = useTransform(smoothX, x => x * -1.5);
+  const smallXTransform = useTransform(smoothX, x => x * 0.8);
+  const halfSecondaryY = useTransform(secondaryY, y => y * 0.5);
+
   useEffect(() => {
     if (isMatchOrLobby) return; // Don't bind listeners if we're disabled
 
@@ -82,7 +87,7 @@ export const DynamicBackground = () => {
       />
 
       <motion.div
-        style={{ x: useTransform(smoothX, x => x * -1.5), y: secondaryY }}
+        style={{ x: reverseXTransform, y: secondaryY }}
         className="hidden sm:block absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent-alt/10 blur-[100px]"
         animate={{
           scale: [1, 1.2, 1],
@@ -92,7 +97,7 @@ export const DynamicBackground = () => {
       />
 
       <motion.div
-        style={{ x: useTransform(smoothX, x => x * 0.8), y: useTransform(secondaryY, y => y * 0.5) }}
+        style={{ x: smallXTransform, y: halfSecondaryY }}
         className="hidden sm:block absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-indigo-500/10 blur-[90px]"
         animate={{
           scale: [1, 1.3, 1],

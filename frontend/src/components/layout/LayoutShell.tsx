@@ -38,7 +38,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   const isAdminPath = pathname?.startsWith('/admin');
 
-  // SERVER-SIDE RENDERER (Minimal consistency shell)
+  // Force override the sidebar visually during tactical engagements
+  const effectiveSidebarCollapsed = isMatchOrLobby ? true : isSidebarCollapsed;
+
+  // 1. Loading State (SSR-safe)
   if (!mounted) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
@@ -54,6 +57,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // 2. Admin Interface
   if (isAdminPath) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -70,9 +74,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Force override the sidebar visually during tactical engagements
-  const effectiveSidebarCollapsed = isMatchOrLobby ? true : isSidebarCollapsed;
-
+  // 3. Primary Shell (Dashboard, Explore, etc.)
   return (
     <>
       <DynamicBackground />
@@ -104,7 +106,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
               </Suspense>
             </div>
 
-            {/* Footer Toggle Interface - Hidden in matched */}
             {!isMatchOrLobby && (
               <div className="flex flex-col items-center py-8">
                  <button 
@@ -135,7 +136,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
             </AnimatePresence>
           </main>
           
-          {/* Hide MobileNav during Match/Lobby */}
           {!isMatchOrLobby && <MobileNav />}
         </div>
       </div>
@@ -143,17 +143,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <div className="hidden lg:block fixed top-16 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent/30 to-transparent opacity-20 pointer-events-none z-[100]" />
       <div className="hidden lg:block fixed bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-accent/20 to-transparent opacity-10 pointer-events-none z-[100]" />
       
-      {/* Tactical Center Line (Background) */}
       <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
 
-      {/* Global Social Hub (Conditional) - Only for Desk/Tab */}
       <Suspense fallback={null}>
         {!isMatchOrLobby && (
           <FloatingChat />
         )}
       </Suspense>
 
-      {/* Mobile Interaction Layer */}
       <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
     </>
   );

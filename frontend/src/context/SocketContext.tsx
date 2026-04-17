@@ -16,20 +16,28 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useAuth();
 
   useEffect(() => {
+    if (!socket) return;
+
     function onConnect() {
       setIsConnected(true);
-      // Emit global identity for social features
+      console.log("[Socket] Connected to Arena Server");
       if (user?.id) {
         socket.emit('social_connect', { userId: user.id });
       }
     }
 
     function onDisconnect() {
+      console.log("[Socket] Disconnected from Arena Server");
       setIsConnected(false);
+    }
+
+    function onConnectError(err: any) {
+      console.error("[Socket] Connection error:", err.message);
     }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
 
     // Initial check/emit if already connected
     if (socket.connected && user?.id) {
@@ -43,8 +51,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
     };
-  }, [user]);
+  }, [user, socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

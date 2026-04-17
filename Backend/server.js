@@ -17,7 +17,8 @@ const io = new Server(server, {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  transports: ['websocket', 'polling']
 });
 console.log("Middleware setup start...");
 
@@ -369,13 +370,14 @@ app.post("/api/host/start", async (req, res) => {
       }
     });
 
+    console.log(`[Host-Orchestration] Initializing arena for ${hostEmail}. Mode: ${mode}, Rated: ${rated}`);
     return res.json({
       message: "Arena ready",
       gameId: game.id,
       pin: game.pin,
     });
   } catch (err) {
-    console.error("CRITICAL Host start error:", err);
+    console.error("CRITICAL Host start error:", err.stack || err);
     return res.status(500).json({ error: "Could not start game", details: err.message });
   }
 });

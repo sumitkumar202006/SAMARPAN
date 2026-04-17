@@ -315,8 +315,8 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         {user && (
           <button
             onClick={() => {
-              playNavigate?.();
-              logout();
+              try { playNavigate?.(); } catch(e) {}
+              try { logout(); } catch(e) { console.error("Logout failed", e); }
             }}
             className={cn(
               "group flex items-center gap-4 px-4 py-3 rounded-xl bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[11.5px] uppercase tracking-[0.2em] shadow-sm",

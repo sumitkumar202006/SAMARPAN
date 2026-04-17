@@ -102,9 +102,13 @@ function HostContent() {
       return;
     }
     
-    playEnter(); 
-    setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Arena..." : "Synthesizing Arena via AI...");
     try {
+      if (playEnter) {
+        try { playEnter(); } catch (e) { console.warn("Audio failed", e); }
+      }
+      
+      setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Arena..." : "Synthesizing Arena via AI...");
+      
       const res = await api.post('/api/host/start', {
         quizId: quizQueue.length > 0 ? quizQueue[0]._id : (selectedQuiz || null),
         quizQueue: quizQueue.length > 1 ? quizQueue.slice(1).map(q => q._id) : [],
@@ -131,7 +135,8 @@ function HostContent() {
       router.push(`/lobby/${res.data.pin}?role=host${playAsHost ? '&playAsHost=true' : ''}`);
     } catch (err: any) {
       console.error("Failed to host quiz", err);
-      setStatus(err.response?.data?.error || "Error initializing session.");
+      setStatus(null); // Clear status so button is clickable again
+      alert(err.response?.data?.error || "Error initializing session. Please check your connection.");
     }
   };
 

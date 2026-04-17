@@ -62,6 +62,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [broadcastText, setBroadcastText] = useState('');
   const [isMatchActive, setIsMatchActive] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // Pre-game countdown overlay
+  // isSyncing: blocks rendering until first server state arrives (prevents stale-UI flicker on reconnect)
+  const [isSyncing, setIsSyncing] = useState(isLive); // true only for live sessions until first sync
 
   const { playNavigate, playClick, playSuccess, playError } = useAudio();
 
@@ -72,6 +74,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const currentIndexRef = useRef(0);
   const isFinishedRef = useRef(false);
   const autoSubmittedRef = useRef(false); // Guards against double auto-submit
+  const lastTimerRef = useRef<number>(999); // Monotonic timer: tracks highest seen value to prevent backward jumps
 
   // Keep refs in sync with state
   useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
@@ -157,17 +160,20 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     const onTimerTick = (data: { timeLeft: number | null, mode?: string, serverTs?: number }) => {
       if (data.mode === 'total' || data.timeLeft === null) {
         setTimeLeft(0);
+        lastTimerRef.current = 0;
       } else {
-        // Drift correction: subtract the round-trip latency half from the displayed time
-        // serverTs is the server's Date.now() when it emitted — if the packet took 200ms to arrive,
-        // the displayed time should already be 200ms closer to 0
+        // Drift correction: subtract transit latency from displayed time
         let corrected = data.timeLeft;
         if (data.serverTs) {
-          const latencyMs = Date.now() - data.serverTs;
+          const latencyMs = Math.max(0, Date.now() - data.serverTs);
           const latencySeconds = Math.round(latencyMs / 1000);
           corrected = Math.max(0, data.timeLeft - latencySeconds);
         }
-        setTimeLeft(corrected);
+        // Monotonic guard: timer must only decrease, never jump forward
+        // This prevents visual jitter when packets arrive out of order
+        const monotonic = Math.min(corrected, lastTimerRef.current);
+        lastTimerRef.current = monotonic;
+        setTimeLeft(monotonic);
       }
     };
 
@@ -205,17 +211,26 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       if (data.examSettings) setExamSettings(data.examSettings);
       setCountdown(null); // Clear countdown overlay
       setIsMatchActive(true);
+      setIsSyncing(false); // First authoritative state received — unblock rendering
     };
 
     // Pre-game: server sends quiz data + triggers countdown UI
     const onGameStarting = (data: any) => {
       if (data.examSettings) setExamSettings(data.examSettings);
-      // Quiz is pre-loaded — client is ready before countdown hits 0
+      setIsSyncing(false); // Starting phase is valid state — unblock
     };
 
     // Countdown tick: 5, 4, 3, 2, 1, 0
     const onGameCountdown = (data: { secondsLeft: number }) => {
       setCountdown(data.secondsLeft);
+    };
+
+    // Host aborted countdown during STARTING → return to lobby
+    const onCountdownAborted = (data: { message: string }) => {
+      setCountdown(null);
+      setIsSyncing(false);
+      setHudMessage({ text: data.message, type: 'warning' });
+      setTimeout(() => setHudMessage(null), 4000);
     };
 
     const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
@@ -248,10 +263,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       timerMode: 'per-question' | 'total',
       question: string,
       options: string[],
-      examSettings: any 
+      examSettings: any ,
+      quiz?: any
     }) => {
+      // Note: quiz data update is handled by parent page via its own game_state_sync listener
       setCurrentIndex(data.questionIndex);
       currentIndexRef.current = data.questionIndex;
+      // Reset monotonic guard when question changes via sync
+      lastTimerRef.current = data.timerSeconds;
       setTimeLeft(data.timerSeconds);
       setTimerMode(data.timerMode || 'per-question');
       if (data.examSettings) setExamSettings(data.examSettings);
@@ -260,6 +279,25 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setIsLocked(false);
       isLockedRef.current = false;
       setIsMatchActive(true);
+      setIsSyncing(false); // Hydration complete — unblock rendering
+    };
+
+    // Periodic state snapshot: self-heal if questionIndex is out of sync
+    const onStateSnapshot = (data: { questionIndex: number, timeLeft: number, status: string, serverTs: number }) => {
+      if (data.status !== 'running') return;
+      // Only force-sync if we're on the wrong question
+      if (data.questionIndex !== currentIndexRef.current) {
+        console.warn(`[QuizEngine] State mismatch detected. Server: Q${data.questionIndex}, Client: Q${currentIndexRef.current}. Force-syncing.`);
+        setCurrentIndex(data.questionIndex);
+        currentIndexRef.current = data.questionIndex;
+        lastTimerRef.current = data.timeLeft;
+        setTimeLeft(data.timeLeft);
+        setSelectedIdx(null);
+        selectedIdxRef.current = null;
+        setIsLocked(false);
+        isLockedRef.current = false;
+        autoSubmittedRef.current = false;
+      }
     };
 
     const onHostBroadcast = (data: { message: string, type: string }) => {
@@ -276,10 +314,17 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     socket.on('game_started', onGameStarted);
     socket.on('game_starting', onGameStarting);
     socket.on('game_countdown', onGameCountdown);
+    socket.on('game_countdown_aborted', onCountdownAborted);
     socket.on('next_question', onNextQuestion);
     socket.on('quiz_finished', onQuizFinished);
     socket.on('game_state_sync', onGameStateSync);
+    socket.on('state_snapshot', onStateSnapshot);
     socket.on('host_broadcast_to_player', onHostBroadcast);
+
+    // Heartbeat: update lastSeen on server every 5s
+    const heartbeatTimer = setInterval(() => {
+      if (pin) socket.emit('client_heartbeat', { pin });
+    }, 5000);
 
     return () => {
       socket.off('timer_tick', onTimerTick);
@@ -291,10 +336,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket.off('game_started', onGameStarted);
       socket.off('game_starting', onGameStarting);
       socket.off('game_countdown', onGameCountdown);
+      socket.off('game_countdown_aborted', onCountdownAborted);
       socket.off('next_question', onNextQuestion);
       socket.off('quiz_finished', onQuizFinished);
       socket.off('game_state_sync', onGameStateSync);
+      socket.off('state_snapshot', onStateSnapshot);
       socket.off('host_broadcast_to_player', onHostBroadcast);
+      clearInterval(heartbeatTimer);
     };
   }, [isLive, socket, onFinish, quiz.questions.length, playSuccess, playError]);
   // NOTE: Removed score, selectedIdx from deps — they are now accessed via refs
@@ -350,6 +398,23 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   };
 
   if (isFinished) return null;
+
+  // Reconnect loading gate: block rendering until server has sent current state
+  // Prevents stale-UI flicker during the sync window
+  if (isSyncing && isLive) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-accent/20" />
+          <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-[11px] font-black uppercase tracking-[0.4em] text-accent-alt animate-pulse">Synchronizing Arena State</p>
+          <p className="text-[9px] text-text-soft uppercase tracking-widest">Connecting to server...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Pre-game countdown overlay — shown between game_starting and game_started
   if (countdown !== null) {

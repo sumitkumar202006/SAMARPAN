@@ -245,6 +245,10 @@ function LobbyContent() {
       setLobbyCountdown(data.secondsLeft);
     });
 
+    socket.on('game_countdown_aborted', (data: { message: string }) => {
+      setLobbyCountdown(null); // Dismiss countdown overlay
+    });
+
     socket.on('game_started', (data) => {
       const playAsHost = searchParams.get('playAsHost') === 'true';
       // Navigate after a brief moment to show "GO!" state
@@ -280,6 +284,7 @@ function LobbyContent() {
       socket.off('host_left');
       socket.off('game_starting');
       socket.off('game_countdown');
+      socket.off('game_countdown_aborted');
       socket.off('game_started');
       socket.off('error_msg');
       socket.off('join_success');

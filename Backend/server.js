@@ -816,11 +816,14 @@ function terminateSession(pin, reason) {
 
   console.log(`[TERMINATION] Purging arena ${pin}. Reason: ${reason}`);
 
-  // Clear all associated timers
+  // Clear all associated timers (including STARTING phase countdown interval)
   if (session.timerHandle) clearTimeout(session.timerHandle);
   if (session.countdownHandle) clearInterval(session.countdownHandle);
+  if (session.countdownIntervalHandle) clearInterval(session.countdownIntervalHandle); // pre-game countdown
   if (session.hostDisconnectTimer) clearTimeout(session.hostDisconnectTimer);
   if (session.globalExpireTimer) clearTimeout(session.globalExpireTimer);
+  if (session.heartbeatInterval) clearInterval(session.heartbeatInterval);
+  if (session.stateSnapshotInterval) clearInterval(session.stateSnapshotInterval);
 
   // Notify all participants
   io.in(pin).emit("host_left", { message: reason });
@@ -1322,12 +1325,15 @@ io.on("connection", (socket) => {
       socket.emit("join_error", { message: "You are banned from this room." }); 
       return; 
     }
-    // Single-session enforcement: if game is running and same userId is ALREADY on an active socket, reject.
-    // This prevents 2-tab exploits during active gameplay.
-    if (session.status === 'running' && data.userId) {
+    // Single-session enforcement: reject 2nd active join during gameplay.
+    // Use lastSeen heartbeat (< 30s) to distinguish live vs. zombie connections.
+    if ((session.status === 'running' || session.status === 'starting') && data.userId) {
       const existingActiveSocket = Object.keys(session.players).find(sid => {
         const p = session.players[sid];
-        return p.userId === data.userId && !p.isHost && io.sockets.sockets.has(sid) && sid !== socket.id;
+        if (p.userId !== data.userId || p.isHost || sid === socket.id) return false;
+        const socketAlive = io.sockets.sockets.has(sid);
+        const heartbeatFresh = p.lastSeen && (Date.now() - p.lastSeen < 30000); // 30s window
+        return socketAlive && heartbeatFresh;
       });
       if (existingActiveSocket) {
         socket.emit("join_error", { message: "You already have an active session in this arena from another device or tab." });
@@ -1335,7 +1341,6 @@ io.on("connection", (socket) => {
       }
     }
     
-    if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }
     if (session.status === 'finished') { socket.emit("join_error", { message: "This session has ended." }); return; }
     if (Object.keys(session.players).length >= (session.maxPlayers || 200)) { socket.emit("join_error", { message: "Room is full." }); return; }
     
@@ -1373,6 +1378,22 @@ io.on("connection", (socket) => {
       strikeCount: existingStats.strikeCount || 0
     };
     socket.emit("join_success", { pin, name, playAsHost: session.playAsHost });
+    
+    // --- STARTING PHASE SYNC: Late joiners get countdown state immediately ---
+    if (session.status === 'starting') {
+      const questionsForAll = (session.quiz?.questions || []).map(q => ({ question: q.question, options: q.options }));
+      socket.emit("game_starting", {
+        quiz: { title: session.quiz?.title, questions: questionsForAll, totalQuestions: questionsForAll.length },
+        timerSeconds: session.timerSeconds,
+        timerMode: session.timerMode || 'per-question',
+        examSettings: session.examSettings,
+        countdownSeconds: session.countdownRemaining ?? 5
+      });
+      // Also immediately emit the current countdown tick so client shows correct number
+      if (session.countdownRemaining !== undefined) {
+        socket.emit("game_countdown", { secondsLeft: session.countdownRemaining });
+      }
+    }
     
     // --- RECONNECT TO RUNNING GAME: Sync state for late joiners or refreshers ---
     if (session.status === 'running') {
@@ -1488,13 +1509,25 @@ io.on("connection", (socket) => {
         countdownSeconds: 5
       });
 
-      // 5-second countdown: emit game_countdown 5→0, then launch
+      // 5-second countdown: emit game_countdown 5→0, then launch.
+      // countdownRemaining tracked on session so late joiners get correct state.
       let cd = 5;
-      const countdownInterval = setInterval(() => {
+      session.countdownRemaining = cd;
+      let countdownInterval: ReturnType<typeof setInterval>;
+      countdownInterval = setInterval(() => {
+        // Guard: stop if session was aborted during countdown
+        const liveSession = liveSessions.get(pin);
+        if (!liveSession || liveSession.status === 'waiting' || liveSession.status === 'finished') {
+          clearInterval(countdownInterval);
+          return;
+        }
         io.in(pin).emit("game_countdown", { secondsLeft: cd });
+        liveSession.countdownRemaining = cd;
         cd--;
         if (cd < 0) {
           clearInterval(countdownInterval);
+          session.countdownIntervalHandle = null;
+          delete session.countdownRemaining;
           // Transition to fully running
           session.status = 'running';
           io.in(pin).emit("game_started", {
@@ -1510,6 +1543,18 @@ io.on("connection", (socket) => {
             rated: session.rated,
             examSettings: session.examSettings
           });
+
+          // Periodic state snapshot every 10s for self-healing desynced clients
+          session.stateSnapshotInterval = setInterval(() => {
+            const s = liveSessions.get(pin);
+            if (!s || s.status !== 'running') { clearInterval(session.stateSnapshotInterval); return; }
+            io.in(pin).emit("state_snapshot", {
+              questionIndex: s.currentQ,
+              timeLeft: s.timeLeft,
+              status: s.status,
+              serverTs: Date.now()
+            });
+          }, 10000);
 
           // Global Session Timer (Fixed termination)
           if (session.timerMode === 'total') {
@@ -1527,6 +1572,7 @@ io.on("connection", (socket) => {
           startCountdown(pin);
         }
       }, 1000);
+      session.countdownIntervalHandle = countdownInterval;
     } catch (err) {
       console.error("start_game error:", err);
       socket.emit("error_msg", { message: "Failed to initialize arena." });
@@ -1621,6 +1667,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host_cancel", (pin) => {
+    const session = liveSessions.get(pin);
+    // If cancelling during STARTING: immediately clear countdown so game_started never fires
+    if (session && session.countdownIntervalHandle) {
+      clearInterval(session.countdownIntervalHandle);
+      session.countdownIntervalHandle = null;
+      delete session.countdownRemaining;
+    }
     terminateSession(pin, "Host chose to terminate the arena session.");
   });
 
@@ -1754,9 +1807,35 @@ io.on("connection", (socket) => {
     io.in(pin).emit("quiz_updated", { title: session.quiz.title });
   });
 
+  // Heartbeat: client pings every 5s to prove it's still alive.
+  // Used for zombie connection detection in single-session enforcement.
+  socket.on("client_heartbeat", (data) => {
+    const { pin } = data || {};
+    if (!pin) return;
+    const session = liveSessions.get(pin);
+    if (!session) return;
+    const player = session.players[socket.id];
+    if (player) {
+      player.lastSeen = Date.now();
+    }
+  });
+
   socket.on("host_pause", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    
+    // If paused during STARTING phase: abort countdown, revert to WAITING
+    if (session.status === 'starting') {
+      if (session.countdownIntervalHandle) {
+        clearInterval(session.countdownIntervalHandle);
+        session.countdownIntervalHandle = null;
+      }
+      delete session.countdownRemaining;
+      session.status = 'waiting';
+      io.in(pin).emit("game_countdown_aborted", { message: "Host aborted the countdown. Returning to lobby." });
+      return;
+    }
+    
     session.isPaused = true;
     if (session.timerHandle) clearTimeout(session.timerHandle);
     if (session.countdownHandle) clearInterval(session.countdownHandle);

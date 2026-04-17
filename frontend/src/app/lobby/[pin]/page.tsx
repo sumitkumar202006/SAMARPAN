@@ -171,6 +171,13 @@ function LobbyContent() {
         const res = await api.get(`/api/host/session/${pin}`);
         setBattleType(res.data.battleType || null);
         if (res.data.playAsHost !== undefined) setPlayAsHost(res.data.playAsHost);
+        
+        // Auto-reclaim host logic: If user is the owner but entering as a player
+        if (res.data.hostId === user?.id && role !== 'host') {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set('role', 'host');
+          router.replace(`${window.location.pathname}?${params.toString()}`);
+        }
       } catch (err) {
         console.warn("Failed to fetch session type");
       }
@@ -184,7 +191,7 @@ function LobbyContent() {
         password,
         name: user?.name,
         avatar: user?.avatar,
-        userId: user?.userId
+        userId: user?.id || user?.userId
       });
     } else {
       socket.emit('join_room', {

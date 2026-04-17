@@ -61,6 +61,19 @@ function LivePlayContent() {
       if (data.examSettings) setExamSettings(data.examSettings);
     });
 
+    // Reconnection to a running game: server sends full current state
+    socket.on('game_state_sync', (data: any) => {
+      if (data.quiz) {
+        setQuiz(data.quiz);
+      }
+      if (data.examSettings) setExamSettings(data.examSettings);
+      setLoading(false);
+    });
+
+    socket.on('settings_updated', (data: any) => {
+      if (data.examSettings) setExamSettings(data.examSettings);
+    });
+
     socket.on('quiz_finished', (data: any) => {
       setIsFinished(true);
       if (data.leaderboard) {
@@ -73,6 +86,8 @@ function LivePlayContent() {
 
     return () => {
       socket.off('game_started');
+      socket.off('game_state_sync');
+      socket.off('settings_updated');
       socket.off('quiz_finished');
     };
   }, [isConnected, socket, pin, fetchSession]);

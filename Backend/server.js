@@ -714,6 +714,7 @@ app.get("/api/host/session/:pin", async (req, res) => {
     });
     if (!session) return res.status(404).json({ error: "Session not found" });
     const mapped = mapId(session);
+    mapped.hostId = session.hostId;
     if (session.metadata) {
       mapped.playAsHost = session.metadata.playAsHost !== false;
     }
@@ -721,6 +722,51 @@ app.get("/api/host/session/:pin", async (req, res) => {
   } catch (err) {
     console.error("Session fetch error:", err);
     return res.status(500).json({ error: "Failed to fetch session" });
+  }
+});
+
+app.get("/api/host/active-sessions/:email", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { email: req.params.email.toLowerCase().trim() } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const activeSessions = await prisma.gameSession.findMany({
+      where: {
+        hostId: user.id,
+        status: { in: ['waiting', 'running'] },
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24h
+      },
+      include: { quiz: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.json({ sessions: mapId(activeSessions) });
+  } catch (err) {
+    console.error("Active sessions fetch error:", err);
+    return res.status(500).json({ error: "Failed to fetch active sessions" });
+  }
+});
+
+app.delete("/api/host/session/:pin", async (req, res) => {
+  const { pin } = req.params;
+  try {
+    // Terminate in memory
+    const session = liveSessions.get(pin);
+    if (session) {
+      io.in(pin).emit("kicked", { message: "Arena terminated by Host Hub command." });
+      liveSessions.delete(pin);
+    }
+    
+    // Update DB status
+    await prisma.gameSession.update({
+      where: { pin },
+      data: { status: 'finished' }
+    });
+
+    return res.json({ message: "Session terminated and pruned." });
+  } catch (err) {
+    console.error("Session termination error:", err);
+    return res.status(500).json({ error: "Failed to terminate session" });
   }
 });
 
@@ -918,8 +964,16 @@ function broadcastStats(pin, session) {
   // Asynchronous Navigation: In 'total' (self-paced) mode, we NEVER force global question advancement.
   if (session.timerMode === 'total') return;
 
-  // Synchronized Navigation: Auto-advance if everyone answered the current global question.
-  if (responded === players.length && players.length > 0 && session.status === 'running') {
+  // Synchronized Navigation: Auto-advance if ALL PRESENT (non-disconnected) players answered.
+  // We filter to players who are still connected (have an active socket) to avoid deadlock
+  // when a player disconnects mid-question.
+  const allPresent = players.filter(p => {
+    const sock = io.sockets.sockets.get(Object.keys(session.players).find(sid => session.players[sid] === p) || '');
+    return !!sock; // Only count connected players
+  });
+  const respondedPresent = allPresent.filter(p => p.answeredThisQ).length;
+  
+  if (respondedPresent === allPresent.length && allPresent.length > 0 && session.status === 'running') {
     if (session.timerHandle) clearTimeout(session.timerHandle);
     if (session.countdownHandle) clearInterval(session.countdownHandle);
     setTimeout(() => advanceQuestion(pin), 1500);
@@ -1306,6 +1360,26 @@ io.on("connection", (socket) => {
     };
     socket.emit("join_success", { pin, name, playAsHost: session.playAsHost });
     
+    // --- RECONNECT TO RUNNING GAME: Sync state for late joiners or refreshers ---
+    if (session.status === 'running') {
+      const currentQ = session.quiz.questions[session.currentQ];
+      if (currentQ) {
+        socket.emit("game_state_sync", {
+          questionIndex: session.currentQ,
+          timerSeconds: session.timeLeft || 0,
+          timerMode: session.timerMode || 'per-question',
+          question: currentQ.question,
+          options: currentQ.options,
+          examSettings: session.examSettings,
+          quiz: {
+            title: session.quiz.title,
+            questions: (session.quiz.questions || []).map(q => ({ question: q.question, options: q.options })),
+            totalQuestions: session.quiz.questions.length
+          }
+        });
+      }
+    }
+    
     // Auto-assign slot for Grand Arena (Standard/Rapid)
     if (!session.battleType || session.battleType === 'Standard' || session.battleType === 'rapid') {
       const takenSlots = Object.values(session.players)
@@ -1430,6 +1504,12 @@ io.on("connection", (socket) => {
     const q = session.quiz.questions[qIndex];
     if (!q) return;
 
+    // Stale answer guard: reject if client is answering a past question
+    if (qIndex !== session.currentQ) {
+      socket.emit("error_msg", { message: "Answer rejected: question already closed." });
+      return;
+    }
+    
     if (player.answeredThisQ && player.optionIdx >= 0 && player.optionIdx < session.optionStats.length) {
       session.optionStats[player.optionIdx] = Math.max(0, session.optionStats[player.optionIdx] - 1);
     }
@@ -1585,7 +1665,20 @@ io.on("connection", (socket) => {
     if (settings.penaltyPoints) session.penaltyPoints = settings.penaltyPoints;
     if (settings.maxPlayers) session.maxPlayers = settings.maxPlayers;
 
+    // Persist settings to DB so they survive a server restart
+    prisma.gameSession.update({
+      where: { pin },
+      data: { metadata: { 
+        ...((session.metadata) || {}),
+        examSettings: session.examSettings,
+        pointsPerQ: session.pointsPerQ,
+        penaltyPoints: session.penaltyPoints
+      }}
+    }).catch(err => console.error('[Settings Persist Error]', err));
+
     io.in(pin).emit("broadcast_message", { message: "Host updated arena configuration parameters.", type: "info" });
+    // Sync new settings to all players so their SecurityLockdown etc. updates
+    io.in(pin).emit("settings_updated", { examSettings: session.examSettings });
   });
 
   socket.on("host_reduce_score", (data) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { 
@@ -60,8 +60,27 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [hudMessage, setHudMessage] = useState<{ text: string; type: string } | null>(null);
   const [isHostToolsOpen, setIsHostToolsOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState('');
+  const [isMatchActive, setIsMatchActive] = useState(false);
 
   const { playNavigate, playClick, playSuccess, playError } = useAudio();
+
+  // --- Refs for stable access inside event handlers (avoids stale closures) ---
+  const selectedIdxRef = useRef<number | null>(null);
+  const isLockedRef = useRef(false);
+  const isPausedRef = useRef(false);
+  const currentIndexRef = useRef(0);
+  const isFinishedRef = useRef(false);
+  const autoSubmittedRef = useRef(false); // Guards against double auto-submit
+
+  // Keep refs in sync with state
+  useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
+  useEffect(() => { isLockedRef.current = isLocked; }, [isLocked]);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { isFinishedRef.current = isFinished; }, [isFinished]);
+
+  // Reset auto-submit guard when question changes
+  useEffect(() => { autoSubmittedRef.current = false; }, [currentIndex]);
 
   // SAFETY GUARD: Prevent crash during rapid state transitions
   if (!quiz || !quiz.questions || quiz.questions.length === 0) {
@@ -75,117 +94,197 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
   const currentQuestion = quiz.questions[currentIndex];
 
+  // --- Navigation Guard: prevent accidental exit during match ---
   useEffect(() => {
-    if (!isLive || !socket) return;
-
-    socket.on('timer_tick', (data: { timeLeft: number | null, mode?: string }) => {
-      if (data.mode === 'total' || data.timeLeft === null) {
-        setTimeLeft(0);
-      } else {
-        setTimeLeft(data.timeLeft);
-      }
-    });
-
-    socket.on('global_timer_tick', (data: { timeLeft: number }) => {
-      setSessionTimeLeft(data.timeLeft);
-    });
-
-    socket.on('game_paused', () => setIsPaused(true));
-    socket.on('game_resumed', () => setIsPaused(false));
-
-    socket.on('broadcast_message', (data: { message: string, type: string }) => {
-      setHudMessage({ text: data.message, type: data.type });
-      setTimeout(() => setHudMessage(null), 5000);
-    });
-
-    socket.on('question_result', (data: { correctIndex: number, explanation?: string }) => {
-      setCorrectIdx(data.correctIndex);
-      setExplanation(data.explanation || null);
-      setIsLocked(true);
-      if (selectedIdx === data.correctIndex) playSuccess();
-      else playError();
-    });
-
-    socket.on('game_started', (data: any) => {
-      setHudMessage({ text: "ARENA DEPLOYED. GOOD LUCK.", type: 'info' });
-      if (data.examSettings) setExamSettings(data.examSettings);
-    });
-
-    socket.on('next_question', (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
-      setCurrentIndex(data.index);
-      setTimeLeft(data.timerSeconds);
-      if (data.timerMode) setTimerMode(data.timerMode);
-      setSelectedIdx(null);
-      setIsLocked(false);
-      setCorrectIdx(null);
-      setExplanation(null);
-      setIsPaused(false);
-    });
-
-    socket.on('quiz_finished', (data: { leaderboard: any }) => {
-      setIsFinished(true);
-      onFinish(score, quiz.questions.length, data.leaderboard);
-    });
-
-    socket.on('host_broadcast_to_player', (data: { message: string, type: string }) => {
-       setHudMessage({ text: data.message, type: data.type });
-       setTimeout(() => setHudMessage(null), 5000);
-    });
-
-    return () => {
-      socket.off('timer_tick');
-      socket.off('game_paused');
-      socket.off('game_resumed');
-      socket.off('broadcast_message');
-      socket.off('question_result');
-      socket.off('next_question');
-      socket.off('quiz_finished');
-      socket.off('host_broadcast_to_player');
+    if (!isLive || !isMatchActive) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
     };
-  }, [isLive, socket, onFinish, quiz.questions.length, score, selectedIdx, playSuccess, playError]);
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isLive, isMatchActive]);
 
-  const handleAbort = () => {
-    if (confirm("⚠️ CAUTION: Aborting the arena will forfeit all progress. Are you sure?")) {
-      router.push('/dashboard');
-    }
-  };
-
-  const handleViolation = (type: string) => {
-    if (isLive && socket) {
-      socket.emit('anti_cheat_violation', { pin, type: `lockdown_${type}` });
-    }
-  };
-
-  useEffect(() => {
-    if (!isLive || isFinished || isPaused || timeLeft > 0) return;
-    if (selectedIdx !== null && !isLocked) {
-       handleSelect(selectedIdx);
-    } else if (selectedIdx === null && !isLocked) {
-       handleSelect(-1);
-    }
-  }, [timeLeft, isLive, isFinished, isPaused, selectedIdx, isLocked]);
-
-  const handleSelect = (idx: number) => {
-    if (isLocked || isPaused) return;
+  // --- Stable answer submission handler (used by both click and auto-submit) ---
+  const handleSelect = useCallback((idx: number) => {
+    if (isLockedRef.current || isPausedRef.current) return;
     setSelectedIdx(idx);
-    
+    selectedIdxRef.current = idx;
+
     if (isLive) {
       playClick();
-      const timeTaken = 30 - timeLeft; 
-      socket.emit('submit_answer', { pin, optionIdx: idx, timeTaken, questionIndex: currentIndex });
+      // timeTaken calculated from the rendered timeLeft, but we need a stable value
+      // Server trusts its own timer; we send best-effort client time
+      socket?.emit('submit_answer', { 
+        pin, 
+        optionIdx: idx, 
+        timeTaken: 30 - timeLeft, // Note: this captures current timeLeft at call time
+        questionIndex: currentIndexRef.current 
+      });
     } else {
+      // Solo mode: resolve immediately
       setIsLocked(true);
-      const isCorrect = idx === currentQuestion.correctIndex;
+      isLockedRef.current = true;
+      const q = quiz.questions[currentIndexRef.current];
+      const isCorrect = idx === q.correctIndex;
       if (isCorrect) {
         setScore(s => s + 1);
         playSuccess();
       } else {
         playError();
       }
-      setCorrectIdx(currentQuestion.correctIndex!);
-      setExplanation(currentQuestion.explanation || null);
+      setCorrectIdx(q.correctIndex!);
+      setExplanation(q.explanation || null);
+    }
+  }, [isLive, socket, pin, playClick, playSuccess, playError, quiz.questions, timeLeft]);
+
+  // --- Auto-submit on timer expiry (server-driven for live, client for solo) ---
+  useEffect(() => {
+    if (!isLive || isFinished || isPaused || timeLeft > 0) return;
+    if (isLockedRef.current || autoSubmittedRef.current) return;
+    
+    autoSubmittedRef.current = true;
+    // Submit -1 (no answer) or current selection
+    const answerIdx = selectedIdxRef.current !== null ? selectedIdxRef.current : -1;
+    handleSelect(answerIdx);
+  }, [timeLeft, isLive, isFinished, isPaused, handleSelect]);
+
+  // --- Socket event handlers (stable, no stale closures) ---
+  useEffect(() => {
+    if (!isLive || !socket) return;
+
+    const onTimerTick = (data: { timeLeft: number | null, mode?: string }) => {
+      if (data.mode === 'total' || data.timeLeft === null) {
+        setTimeLeft(0);
+      } else {
+        setTimeLeft(data.timeLeft);
+      }
+    };
+
+    const onGlobalTimerTick = (data: { timeLeft: number }) => {
+      setSessionTimeLeft(data.timeLeft);
+    };
+
+    const onGamePaused = () => {
+      setIsPaused(true);
+      isPausedRef.current = true;
+    };
+
+    const onGameResumed = () => {
+      setIsPaused(false);
+      isPausedRef.current = false;
+    };
+
+    const onBroadcastMessage = (data: { message: string, type: string }) => {
+      setHudMessage({ text: data.message, type: data.type });
+      setTimeout(() => setHudMessage(null), 5000);
+    };
+
+    const onQuestionResult = (data: { correctIndex: number, explanation?: string }) => {
+      setCorrectIdx(data.correctIndex);
+      setExplanation(data.explanation || null);
+      setIsLocked(true);
+      isLockedRef.current = true;
+      // Compare against current selection at event time (stable ref)
+      if (selectedIdxRef.current === data.correctIndex) playSuccess();
+      else playError();
+    };
+
+    const onGameStarted = (data: any) => {
+      setHudMessage({ text: "ARENA DEPLOYED. GOOD LUCK.", type: 'info' });
+      if (data.examSettings) setExamSettings(data.examSettings);
+      setIsMatchActive(true);
+    };
+
+    const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
+      setCurrentIndex(data.index);
+      currentIndexRef.current = data.index;
+      setTimeLeft(data.timerSeconds);
+      if (data.timerMode) setTimerMode(data.timerMode);
+      setSelectedIdx(null);
+      selectedIdxRef.current = null;
+      setIsLocked(false);
+      isLockedRef.current = false;
+      setCorrectIdx(null);
+      setExplanation(null);
+      setIsPaused(false);
+      isPausedRef.current = false;
+    };
+
+    // Server sends the leaderboard with authoritative scores — use that, not local score
+    const onQuizFinished = (data: { leaderboard: any }) => {
+      setIsFinished(true);
+      isFinishedRef.current = true;
+      setIsMatchActive(false);
+      onFinish(0, quiz.questions.length, data.leaderboard);
+    };
+
+    // Reconnection sync: server sends current state when a player rejoins a running game
+    const onGameStateSync = (data: { 
+      questionIndex: number, 
+      timerSeconds: number,
+      timerMode: 'per-question' | 'total',
+      question: string,
+      options: string[],
+      examSettings: any 
+    }) => {
+      setCurrentIndex(data.questionIndex);
+      currentIndexRef.current = data.questionIndex;
+      setTimeLeft(data.timerSeconds);
+      setTimerMode(data.timerMode || 'per-question');
+      if (data.examSettings) setExamSettings(data.examSettings);
+      setSelectedIdx(null);
+      selectedIdxRef.current = null;
+      setIsLocked(false);
+      isLockedRef.current = false;
+      setIsMatchActive(true);
+    };
+
+    const onHostBroadcast = (data: { message: string, type: string }) => {
+      setHudMessage({ text: data.message, type: data.type });
+      setTimeout(() => setHudMessage(null), 5000);
+    };
+
+    socket.on('timer_tick', onTimerTick);
+    socket.on('global_timer_tick', onGlobalTimerTick);
+    socket.on('game_paused', onGamePaused);
+    socket.on('game_resumed', onGameResumed);
+    socket.on('broadcast_message', onBroadcastMessage);
+    socket.on('question_result', onQuestionResult);
+    socket.on('game_started', onGameStarted);
+    socket.on('next_question', onNextQuestion);
+    socket.on('quiz_finished', onQuizFinished);
+    socket.on('game_state_sync', onGameStateSync);
+    socket.on('host_broadcast_to_player', onHostBroadcast);
+
+    return () => {
+      socket.off('timer_tick', onTimerTick);
+      socket.off('global_timer_tick', onGlobalTimerTick);
+      socket.off('game_paused', onGamePaused);
+      socket.off('game_resumed', onGameResumed);
+      socket.off('broadcast_message', onBroadcastMessage);
+      socket.off('question_result', onQuestionResult);
+      socket.off('game_started', onGameStarted);
+      socket.off('next_question', onNextQuestion);
+      socket.off('quiz_finished', onQuizFinished);
+      socket.off('game_state_sync', onGameStateSync);
+      socket.off('host_broadcast_to_player', onHostBroadcast);
+    };
+  }, [isLive, socket, onFinish, quiz.questions.length, playSuccess, playError]);
+  // NOTE: Removed score, selectedIdx from deps — they are now accessed via refs
+
+  const handleAbort = () => {
+    if (confirm("⚠️ CAUTION: Aborting the arena will forfeit all progress. Are you sure?")) {
+      setIsMatchActive(false);
+      router.push('/dashboard');
     }
   };
+
+  const handleViolation = useCallback((type: string) => {
+    if (isLive && socket) {
+      socket.emit('anti_cheat_violation', { pin, type: type === 'right_click' || type === 'clipboard_usage' ? `lockdown_${type}` : type });
+    }
+  }, [isLive, socket, pin]);
 
   const handleNext = () => {
     playNavigate();
@@ -193,11 +292,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setCurrentIndex(prev => prev + 1);
       if (timerMode === 'per-question') setTimeLeft(30);
       setSelectedIdx(null);
+      selectedIdxRef.current = null;
       setIsLocked(false);
+      isLockedRef.current = false;
       setCorrectIdx(null);
       setExplanation(null);
     } else {
       setIsFinished(true);
+      setIsMatchActive(false);
       onFinish(score, quiz.questions.length);
     }
   };
@@ -207,7 +309,9 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       playNavigate();
       setCurrentIndex(prev => prev - 1);
       setSelectedIdx(null);
+      selectedIdxRef.current = null;
       setIsLocked(false);
+      isLockedRef.current = false;
       setCorrectIdx(null);
       setExplanation(null);
     }
@@ -215,7 +319,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
   const sendBroadcast = () => {
     if (!broadcastText.trim()) return;
-    socket.emit('host_broadcast', { pin, message: broadcastText, type: 'alert' });
+    socket?.emit('host_broadcast', { pin, message: broadcastText, type: 'alert' });
     setBroadcastText('');
   };
 
@@ -228,7 +332,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
           <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4">
             <div className="bg-[#080d20] p-8 rounded-[40px] border border-accent/50 text-center shadow-[0_0_50px_rgba(99,102,241,0.4)]">
               <ShieldAlert size={48} className="text-accent-alt mx-auto mb-4" />
-              <p className="text-2xl font-black italic text-white">“{hudMessage.text}”</p>
+              <p className="text-2xl font-black italic text-white">"{hudMessage.text}"</p>
             </div>
           </motion.div>
         )}
@@ -240,7 +344,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         </Button>
       </div>
 
-      <SecurityLockdown enabled={examSettings?.lockdownMode} onViolation={handleViolation}>
+      <SecurityLockdown enabled={!!examSettings?.lockdownMode} isMatchActive={isMatchActive} onViolation={handleViolation}>
         <div className="relative">
           {isHostOverride && (
             <div className="fixed bottom-8 right-8 z-[120]">
@@ -254,10 +358,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
                           <span className="font-black text-xs uppercase tracking-widest text-white/50">Host Overdrive</span>
                         </div>
                         <div className="flex flex-col gap-3">
-                          <Button className={cn("w-full py-3 rounded-2xl gap-2", isPaused ? "bg-amber-500 text-black" : "bg-white/5")} onClick={() => socket.emit(isPaused ? 'host_resume' : 'host_pause', pin)}>
+                          <Button className={cn("w-full py-3 rounded-2xl gap-2", isPaused ? "bg-amber-500 text-black" : "bg-white/5")} onClick={() => socket?.emit(isPaused ? 'host_resume' : 'host_pause', pin)}>
                             {isPaused ? <Play size={14} /> : <Pause size={14} />} {isPaused ? 'Resume' : 'Pause'}
                           </Button>
-                          <Button variant="outline" className="w-full py-3 border-white/10" onClick={() => socket.emit('host_next', pin)}>
+                          <Button variant="outline" className="w-full py-3 border-white/10" onClick={() => socket?.emit('host_next', pin)}>
                             <SkipForward size={14} /> Skip
                           </Button>
                         </div>

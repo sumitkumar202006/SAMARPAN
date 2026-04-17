@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Input, Select } from '@/components/ui/Input';
-import { Target, Shield, Clock, TrendingUp, X, Search } from 'lucide-react';
+import { Target, Shield, Clock, TrendingUp, X, Search, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
@@ -51,6 +51,10 @@ function HostContent() {
   const [strictFocus, setStrictFocus] = useState(false);
   const [allowBacktrack, setAllowBacktrack] = useState(true);
 
+  // Active Tactics (Room Hub)
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [activeLoading, setActiveLoading] = useState(false);
+
   const isFriendly = searchParams.get('friendly') === 'true';
 
   useEffect(() => {
@@ -91,6 +95,21 @@ function HostContent() {
     } else {
       setPlayAsHost(false);
     }
+
+    const fetchActiveSessions = async () => {
+      if (!user?.email) return;
+      setActiveLoading(true);
+      try {
+        const res = await api.get(`/api/host/active-sessions/${user.email}`);
+        setActiveSessions(res.data.sessions || []);
+      } catch (err) {
+        console.error("Failed to fetch active sessions", err);
+      } finally {
+        setActiveLoading(false);
+      }
+    };
+    if (!authLoading) fetchActiveSessions();
+
     return () => clearTimeout(timer);
   }, [user, authLoading, searchParams, isCompetition, searchQuery, repoTab]);
 
@@ -136,6 +155,17 @@ function HostContent() {
       console.error("Failed to host quiz", err);
       setStatus(null); // Clear status so button is clickable again
       alert(err.response?.data?.error || "Error initializing session. Please check your connection.");
+    }
+  };
+
+  const handleTerminateSession = async (pin: string) => {
+    if (!confirm(`Terminate session ${pin}? All tactical data for this live arena will be purged.`)) return;
+    try {
+      await api.delete(`/api/host/session/${pin}`);
+      setActiveSessions(prev => prev.filter(s => s.pin !== pin));
+    } catch (err) {
+      console.error("Termination failed", err);
+      alert("Failed to terminate session. It may have already expired.");
     }
   };
 
@@ -424,7 +454,7 @@ function HostContent() {
                 </button>
              </div>
 
-             <div className="p-8 rounded-[40px] bg-white/5 border border-white/5 space-y-4">
+              <div className="p-8 rounded-[40px] bg-white/5 border border-white/5 space-y-4">
                 <div className="flex items-center gap-3">
                    <Shield className="text-accent" size={18} />
                    <h4 className="text-[10px] font-black uppercase tracking-widest italic">Host Privileges</h4>
@@ -432,10 +462,74 @@ function HostContent() {
                 <p className="text-[9px] text-text-soft leading-relaxed italic border-l-2 border-white/10 pl-4">
                    As host, you maintain supreme authority over the lobby. Use the "Neural Command" terminal post-launch to monitor and manage participants.
                 </p>
-             </div>
-          </div>
-
+              </div>
+           </div>
         </div>
+
+        {/* Active Tactics (Room Hub) Section */}
+        {activeSessions.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6 pt-10"
+          >
+            <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-3">
+                  <Activity className="text-emerald-400" size={20} />
+                  <h2 className="text-xl font-black tracking-widest uppercase italic text-white flex items-center gap-4">
+                    Active tactics <span className="text-emerald-400 opacity-50">•</span> <span className="text-[10px] font-bold text-text-soft">Mission Control</span>
+                  </h2>
+               </div>
+               <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">
+                  Surveillance Active
+               </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {activeSessions.map((session) => (
+                 <div key={session.pin} className="glass p-6 rounded-[32px] border-white/5 flex flex-col gap-6 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-[40px] rounded-full pointer-events-none" />
+                    
+                    <div className="flex items-start justify-between">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black text-accent uppercase tracking-widest italic">PIN: {session.pin}</p>
+                          <h4 className="text-sm font-black text-white uppercase italic truncate pr-4">{session.quiz?.title || 'Nexus Session'}</h4>
+                       </div>
+                       <div className="shrink-0 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[8px] font-black text-text-soft uppercase">
+                          {session.mode === 'rapid' ? 'Nexus' : (session.mode === 'battle' ? 'Battle' : 'Blitz')}
+                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                       <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-text-soft uppercase tracking-tighter">Status</span>
+                          <span className="text-[10px] font-black text-emerald-400 uppercase italic animate-pulse">{session.status}</span>
+                       </div>
+                       <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-text-soft uppercase tracking-tighter">Deployed</span>
+                          <span className="text-[10px] font-black text-white italic">{new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+                       <button 
+                         onClick={() => router.push(`/lobby/${session.pin}?role=host`)}
+                         className="py-3 rounded-xl bg-accent text-white font-black text-[9px] uppercase tracking-widest shadow-lg hover:scale-[1.05] active:scale-95 transition-all"
+                       >
+                         Reconnect
+                       </button>
+                       <button 
+                         onClick={() => handleTerminateSession(session.pin)}
+                         className="py-3 rounded-xl bg-white/5 border border-white/10 text-red-500 font-black text-[9px] uppercase tracking-widest hover:bg-red-500/10 hover:border-red-500/30 transition-all"
+                       >
+                         Terminate
+                       </button>
+                    </div>
+                 </div>
+               ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </AuthGuard>
   );

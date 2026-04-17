@@ -43,6 +43,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   // Force override the sidebar visually during tactical engagements
   const perfClass = user?.settings?.performanceMode ? `perf-${user.settings.performanceMode}` : 'perf-high';
 
+  // Force override the sidebar visually during tactical engagements
+  const effectiveSidebarCollapsed = isMatchOrLobby ? true : isSidebarCollapsed;
+
   // 1. Loading State (SSR-safe)
   if (!mounted) {
     return (

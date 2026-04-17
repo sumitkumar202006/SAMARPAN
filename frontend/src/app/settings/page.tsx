@@ -488,7 +488,7 @@ export default function SettingsPage() {
                 )} />
               </button>
             </div>
-            </div>
+          </div>
 
             {/* Action Matrix */}
             <motion.div 
@@ -536,7 +536,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </div>
     </AuthGuard>
   );
 }

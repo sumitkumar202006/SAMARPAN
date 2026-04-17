@@ -172,20 +172,54 @@ export default function SettingsPage() {
         </div>
 
         {/* Completion Matrix */}
-        <div className="w-full lg:w-80 space-y-2">
-           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-text-soft">
-              <span>Synchronization Level</span>
-              <span className={cn(completion === 100 ? "text-emerald-400" : "text-accent")}>{completion}%</span>
+        <div className="w-full lg:w-96 flex flex-col sm:flex-row items-center gap-6">
+           <div className="flex-1 w-full space-y-2">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-text-soft">
+                 <span>Synchronization Level</span>
+                 <span className={cn(completion === 100 ? "text-emerald-400" : "text-accent")}>{completion}%</span>
+              </div>
+              <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                 <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: `${completion}%` }}
+                   className={cn(
+                     "h-full rounded-full transition-all duration-1000",
+                     completion === 100 ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+                   )}
+                 />
+              </div>
            </div>
-           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${completion}%` }}
+
+           <div className="shrink-0 w-full sm:w-auto flex flex-col items-center">
+              <Button 
+                onClick={handleSave}
+                isLoading={isSaving}
                 className={cn(
-                  "h-full rounded-full transition-all duration-1000",
-                  completion === 100 ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+                  "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95",
+                  completion === 100 ? "bg-emerald-600 shadow-emerald-600/20" : "bg-accent shadow-accent/20"
                 )}
-              />
+              >
+                <div className="flex items-center gap-2">
+                  <Save size={14} />
+                  <span>Commit Sync</span>
+                </div>
+              </Button>
+              
+              <AnimatePresence>
+                {status && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={cn(
+                      "text-[8px] font-black uppercase tracking-widest mt-2 italic absolute -bottom-4 whitespace-nowrap",
+                      status.type === 'success' ? "text-accent-alt" : "text-red-400"
+                    )}
+                  >
+                    {status.msg}
+                  </motion.p>
+                )}
+              </AnimatePresence>
            </div>
         </div>
       </div>
@@ -512,48 +546,6 @@ export default function SettingsPage() {
           </div>
 
             {/* Action Matrix */}
-            <motion.div 
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="relative"
-            >
-              <Button 
-                 className={cn(
-                   "w-full py-6 rounded-[28px] text-xs font-black relative overflow-hidden transition-all duration-500 h-20 shadow-2xl",
-                   completion === 100 ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20" : "bg-accent shadow-accent/20"
-                 )}
-                 isLoading={isSaving}
-                 onClick={handleSave}
-              >
-                <div className="relative z-10 flex flex-col items-center gap-1">
-                   <div className="flex items-center gap-2">
-                      <Save size={18} />
-                      <span className="uppercase tracking-widest">Commit Core Sync</span>
-                   </div>
-                   <span className="text-[8px] opacity-60 uppercase">{completion}% Ready</span>
-                </div>
-                <div 
-                   className="absolute inset-x-0 bottom-0 h-1 bg-white/20 transition-all duration-500 opacity-40" 
-                   style={{ width: `${completion}%` }}
-                />
-              </Button>
-              
-              <AnimatePresence>
-                {status && (
-                  <motion.p 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className={cn(
-                      "text-[10px] font-black uppercase tracking-widest mt-3 text-center animate-pulse italic",
-                      status.type === 'success' ? "text-accent-alt" : "text-red-400"
-                    )}
-                  >
-                    {status.msg}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </motion.div>
           </div>
         </div>
       </div>

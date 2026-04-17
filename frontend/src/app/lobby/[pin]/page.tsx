@@ -143,6 +143,8 @@ function LobbyContent() {
   });
   const [playAsHost, setPlayAsHost] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [lobbyCountdown, setLobbyCountdown] = useState<number | null>(null); // Pre-game countdown
+  const lobbyCountdownRef = React.useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -234,15 +236,27 @@ function LobbyContent() {
       router.push('/dashboard');
     });
 
+    socket.on('game_starting', (data: any) => {
+      // Pre-load — game is about to begin. Show countdown overlay.
+      setLobbyCountdown(5);
+    });
+
+    socket.on('game_countdown', (data: { secondsLeft: number }) => {
+      setLobbyCountdown(data.secondsLeft);
+    });
+
     socket.on('game_started', (data) => {
       const playAsHost = searchParams.get('playAsHost') === 'true';
-      if (role === 'host' && data.rated !== false && !playAsHost) {
-        router.push(`/host/live/${pin}`);
-      } else {
-        const roleParam = role === 'host' ? '&role=host' : '';
-        const playParam = playAsHost ? '&playAsHost=true' : '';
-        router.push(`/play/live?pin=${pin}${roleParam}${playParam}`);
-      }
+      // Navigate after a brief moment to show "GO!" state
+      setTimeout(() => {
+        if (role === 'host' && data.rated !== false && !playAsHost) {
+          router.push(`/host/live/${pin}`);
+        } else {
+          const roleParam = role === 'host' ? '&role=host' : '';
+          const playParam = playAsHost ? '&playAsHost=true' : '';
+          router.push(`/play/live?pin=${pin}${roleParam}${playParam}`);
+        }
+      }, 600);
     });
 
     socket.on('error_msg', (data) => {
@@ -264,6 +278,8 @@ function LobbyContent() {
       socket.off('join_error');
       socket.off('kicked');
       socket.off('host_left');
+      socket.off('game_starting');
+      socket.off('game_countdown');
       socket.off('game_started');
       socket.off('error_msg');
       socket.off('join_success');
@@ -392,6 +408,40 @@ function LobbyContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 lg:py-16">
+      {/* Pre-game countdown overlay — synchronized with server game_countdown events */}
+      <AnimatePresence>
+        {lobbyCountdown !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-background/98 backdrop-blur-3xl"
+          >
+            <div className="text-center space-y-8">
+              <p className="text-[11px] font-black uppercase tracking-[0.5em] text-accent-alt animate-pulse">Arena Deploying</p>
+              <motion.div
+                key={lobbyCountdown}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                className="text-[120px] font-black text-white leading-none tabular-nums"
+                style={{ textShadow: '0 0 80px rgba(99,102,241,0.9)' }}
+              >
+                {lobbyCountdown === 0 ? 'GO!' : lobbyCountdown}
+              </motion.div>
+              <p className="text-xs font-bold text-text-soft uppercase tracking-widest">Entering Arena...</p>
+              <div className="flex gap-2 justify-center">
+                {[5,4,3,2,1,0].map(n => (
+                  <div key={n} className={cn(
+                    "w-2 h-2 rounded-full transition-all duration-300",
+                    n >= (lobbyCountdown ?? 6) ? 'bg-accent scale-125' : 'bg-white/10'
+                  )} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-4 mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-widest animate-pulse">

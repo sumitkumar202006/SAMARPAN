@@ -61,6 +61,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [isHostToolsOpen, setIsHostToolsOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState('');
   const [isMatchActive, setIsMatchActive] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null); // Pre-game countdown overlay
 
   const { playNavigate, playClick, playSuccess, playError } = useAudio();
 
@@ -153,11 +154,20 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   useEffect(() => {
     if (!isLive || !socket) return;
 
-    const onTimerTick = (data: { timeLeft: number | null, mode?: string }) => {
+    const onTimerTick = (data: { timeLeft: number | null, mode?: string, serverTs?: number }) => {
       if (data.mode === 'total' || data.timeLeft === null) {
         setTimeLeft(0);
       } else {
-        setTimeLeft(data.timeLeft);
+        // Drift correction: subtract the round-trip latency half from the displayed time
+        // serverTs is the server's Date.now() when it emitted — if the packet took 200ms to arrive,
+        // the displayed time should already be 200ms closer to 0
+        let corrected = data.timeLeft;
+        if (data.serverTs) {
+          const latencyMs = Date.now() - data.serverTs;
+          const latencySeconds = Math.round(latencyMs / 1000);
+          corrected = Math.max(0, data.timeLeft - latencySeconds);
+        }
+        setTimeLeft(corrected);
       }
     };
 
@@ -193,7 +203,19 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     const onGameStarted = (data: any) => {
       setHudMessage({ text: "ARENA DEPLOYED. GOOD LUCK.", type: 'info' });
       if (data.examSettings) setExamSettings(data.examSettings);
+      setCountdown(null); // Clear countdown overlay
       setIsMatchActive(true);
+    };
+
+    // Pre-game: server sends quiz data + triggers countdown UI
+    const onGameStarting = (data: any) => {
+      if (data.examSettings) setExamSettings(data.examSettings);
+      // Quiz is pre-loaded — client is ready before countdown hits 0
+    };
+
+    // Countdown tick: 5, 4, 3, 2, 1, 0
+    const onGameCountdown = (data: { secondsLeft: number }) => {
+      setCountdown(data.secondsLeft);
     };
 
     const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
@@ -252,6 +274,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     socket.on('broadcast_message', onBroadcastMessage);
     socket.on('question_result', onQuestionResult);
     socket.on('game_started', onGameStarted);
+    socket.on('game_starting', onGameStarting);
+    socket.on('game_countdown', onGameCountdown);
     socket.on('next_question', onNextQuestion);
     socket.on('quiz_finished', onQuizFinished);
     socket.on('game_state_sync', onGameStateSync);
@@ -265,6 +289,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket.off('broadcast_message', onBroadcastMessage);
       socket.off('question_result', onQuestionResult);
       socket.off('game_started', onGameStarted);
+      socket.off('game_starting', onGameStarting);
+      socket.off('game_countdown', onGameCountdown);
       socket.off('next_question', onNextQuestion);
       socket.off('quiz_finished', onQuizFinished);
       socket.off('game_state_sync', onGameStateSync);
@@ -324,6 +350,42 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   };
 
   if (isFinished) return null;
+
+  // Pre-game countdown overlay — shown between game_starting and game_started
+  if (countdown !== null) {
+    return (
+      <motion.div
+        key="countdown-overlay"
+        initial={{ opacity: 0, scale: 1.2 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background/95 backdrop-blur-3xl"
+      >
+        <div className="text-center space-y-8">
+          <p className="text-[11px] font-black uppercase tracking-[0.5em] text-accent-alt animate-pulse">Arena Initializing</p>
+          <motion.div
+            key={countdown}
+            initial={{ scale: 1.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="text-[120px] font-black text-white leading-none tabular-nums"
+            style={{ textShadow: '0 0 60px rgba(99,102,241,0.8)' }}
+          >
+            {countdown === 0 ? 'GO!' : countdown}
+          </motion.div>
+          <p className="text-xs font-bold text-text-soft uppercase tracking-widest">{quiz?.title}</p>
+          <div className="flex gap-2 justify-center">
+            {[5,4,3,2,1,0].map(n => (
+              <div key={n} className={cn(
+                "w-2 h-2 rounded-full transition-all duration-300",
+                n >= countdown ? 'bg-accent scale-125' : 'bg-white/10'
+              )} />
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto w-full relative">

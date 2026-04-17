@@ -82,7 +82,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   // 3. Primary Shell (Dashboard, Explore, etc.)
   return (
     <div className={perfClass}>
-      <DynamicBackground />
+      {/* Only render heavy animated background when NOT in a match — saves GPU during gameplay */}
+      {!isMatchOrLobby && <DynamicBackground />}
       <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
       <div className="min-h-screen relative z-10 transition-all duration-300">

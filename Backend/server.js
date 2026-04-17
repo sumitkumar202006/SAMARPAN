@@ -996,7 +996,8 @@ function startCountdown(pin) {
   session.countdownHandle = setInterval(() => {
     if (!liveSessions.has(pin)) { clearInterval(session.countdownHandle); return; }
     session.timeLeft--;
-    io.in(pin).emit("timer_tick", { timeLeft: session.timeLeft });
+    // Include serverTs so clients can correct for network latency drift
+    io.in(pin).emit("timer_tick", { timeLeft: session.timeLeft, serverTs: Date.now() });
     if (session.timeLeft <= 0) clearInterval(session.countdownHandle);
   }, 1000);
 
@@ -1321,6 +1322,19 @@ io.on("connection", (socket) => {
       socket.emit("join_error", { message: "You are banned from this room." }); 
       return; 
     }
+    // Single-session enforcement: if game is running and same userId is ALREADY on an active socket, reject.
+    // This prevents 2-tab exploits during active gameplay.
+    if (session.status === 'running' && data.userId) {
+      const existingActiveSocket = Object.keys(session.players).find(sid => {
+        const p = session.players[sid];
+        return p.userId === data.userId && !p.isHost && io.sockets.sockets.has(sid) && sid !== socket.id;
+      });
+      if (existingActiveSocket) {
+        socket.emit("join_error", { message: "You already have an active session in this arena from another device or tab." });
+        return;
+      }
+    }
+    
     if (session.status === 'running') { socket.emit("join_error", { message: "Game already started. Wait for next session." }); return; }
     if (session.status === 'finished') { socket.emit("join_error", { message: "This session has ended." }); return; }
     if (Object.keys(session.players).length >= (session.maxPlayers || 200)) { socket.emit("join_error", { message: "Room is full." }); return; }
@@ -1450,7 +1464,7 @@ io.on("connection", (socket) => {
         });
       }
 
-      session.status = 'running';
+      session.status = 'starting'; // STARTING phase — pre-game countdown
       session.currentQ = 0;
       
       const questionsForAll = (session.quiz.questions || []).map(q => ({
@@ -1458,7 +1472,8 @@ io.on("connection", (socket) => {
         options: q.options
       }));
 
-      io.in(pin).emit("game_started", {
+      // Broadcast that the game is beginning — send quiz data now so clients can prepare
+      io.in(pin).emit("game_starting", {
         quiz: { 
           id: session.quiz.id, 
           title: session.quiz.title, 
@@ -1469,24 +1484,49 @@ io.on("connection", (socket) => {
         timerMode: session.timerMode,
         totalSessionTime: session.totalSessionTime,
         rated: session.rated,
-        examSettings: session.examSettings
+        examSettings: session.examSettings,
+        countdownSeconds: 5
       });
 
-      // Global Session Timer (Fixed termination)
-      if (session.timerMode === 'total') {
-        session.globalTimerHandle = setInterval(() => {
-          if (!liveSessions.has(pin)) { clearInterval(session.globalTimerHandle); return; }
-          session.sessionTimeLeft--;
-          io.in(pin).emit("global_timer_tick", { timeLeft: session.sessionTimeLeft });
-          
-          if (session.sessionTimeLeft <= 0) {
-            clearInterval(session.globalTimerHandle);
-            endSessionImmediately(pin, "SESSION_TIME_EXPIRED");
-          }
-        }, 1000);
-      }
+      // 5-second countdown: emit game_countdown 5→0, then launch
+      let cd = 5;
+      const countdownInterval = setInterval(() => {
+        io.in(pin).emit("game_countdown", { secondsLeft: cd });
+        cd--;
+        if (cd < 0) {
+          clearInterval(countdownInterval);
+          // Transition to fully running
+          session.status = 'running';
+          io.in(pin).emit("game_started", {
+            quiz: { 
+              id: session.quiz.id, 
+              title: session.quiz.title, 
+              questions: questionsForAll, 
+              totalQuestions: (session.quiz.questions || []).length 
+            },
+            timerSeconds: session.timerSeconds,
+            timerMode: session.timerMode,
+            totalSessionTime: session.totalSessionTime,
+            rated: session.rated,
+            examSettings: session.examSettings
+          });
 
-      startCountdown(pin);
+          // Global Session Timer (Fixed termination)
+          if (session.timerMode === 'total') {
+            session.globalTimerHandle = setInterval(() => {
+              if (!liveSessions.has(pin)) { clearInterval(session.globalTimerHandle); return; }
+              session.sessionTimeLeft--;
+              io.in(pin).emit("global_timer_tick", { timeLeft: session.sessionTimeLeft });
+              if (session.sessionTimeLeft <= 0) {
+                clearInterval(session.globalTimerHandle);
+                endSessionImmediately(pin, "SESSION_TIME_EXPIRED");
+              }
+            }, 1000);
+          }
+
+          startCountdown(pin);
+        }
+      }, 1000);
     } catch (err) {
       console.error("start_game error:", err);
       socket.emit("error_msg", { message: "Failed to initialize arena." });

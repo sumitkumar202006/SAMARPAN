@@ -713,7 +713,11 @@ app.get("/api/host/session/:pin", async (req, res) => {
       include: { quiz: true }
     });
     if (!session) return res.status(404).json({ error: "Session not found" });
-    return res.json(mapId(session));
+    const mapped = mapId(session);
+    if (session.metadata) {
+      mapped.playAsHost = session.metadata.playAsHost !== false;
+    }
+    return res.json(mapped);
   } catch (err) {
     console.error("Session fetch error:", err);
     return res.status(500).json({ error: "Failed to fetch session" });
@@ -865,6 +869,7 @@ async function ensureSessionInMemory(pin) {
         battleType: dbSession.battleType || null,
         teamScores: metadata.teamScores || null,
         teamNames: metadata.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' },
+        playAsHost: metadata.playAsHost !== false,
         examSettings: metadata.examSettings || { 
           strictFocus: true, 
           allowBacktrack: false,
@@ -1244,7 +1249,7 @@ io.on("connection", (socket) => {
         penaltyScore: 0,
         strikeCount: 0
       };
-    socket.emit("host_ready", { pin });
+    socket.emit("host_ready", { pin, playAsHost: session.playAsHost });
     console.log(`Host joined/created room ${pin}`);
   });
 
@@ -1299,7 +1304,7 @@ io.on("connection", (socket) => {
       penaltyScore: existingStats.penaltyScore || 0,
       strikeCount: existingStats.strikeCount || 0
     };
-    socket.emit("join_success", { pin, name });
+    socket.emit("join_success", { pin, name, playAsHost: session.playAsHost });
     
     // Auto-assign slot for Grand Arena (Standard/Rapid)
     if (!session.battleType || session.battleType === 'Standard' || session.battleType === 'rapid') {
@@ -1328,11 +1333,11 @@ io.on("connection", (socket) => {
     if (!session || session.hostSocketId !== socket.id) return;
     if (session.status !== 'waiting') { socket.emit("error_msg", { message: "Game already started." }); return; }
     
-    // Friendly Participation: Count host as player if Friendly session
+    // Friendly Participation: Count host as player if they have joined a slot
     const playersAsParticipants = Object.values(session.players);
-    const playerCount = playersAsParticipants.filter(p => !p.isHost).length;
+    const playerCount = playersAsParticipants.filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
     
-    if (playerCount < 2 && !session.players[socket.id].isHost) { 
+    if (playerCount < 2) { 
       socket.emit("error_msg", { message: "Arena requires at least 2 players to initiate." }); 
       return; 
     }
@@ -1686,8 +1691,8 @@ io.on("connection", (socket) => {
     const player = session.players[socket.id];
     if (!player) return;
 
-    if (player.isHost) {
-      socket.emit("error_msg", { message: "Hosts are restricted to the command center and cannot join play slots." });
+    if (player.isHost && session.playAsHost === false) {
+      socket.emit("error_msg", { message: "Hosts are restricted to the command center and cannot join play slots in this session." });
       return;
     }
 

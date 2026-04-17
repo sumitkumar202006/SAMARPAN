@@ -28,13 +28,51 @@ import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 
-// Avatar Presets Matrix (DiceBear Collections)
-const AVATAR_STUFF = [
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=nexus-${i}`),
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=gamer-${i}`),
-  ...Array.from({ length: 15 }, (_, i) => `https://api.dicebear.com/7.x/adventurer/svg?seed=hero-${i}`),
-  ...Array.from({ length: 10 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=human-${i}`),
+// Avatar Database Configuration
+const AVATAR_COLLECTIONS = [
+  {
+    id: 'starter',
+    name: 'Neural Pilots',
+    style: 'bottts',
+    description: 'Standard issue neural shells for baseline synchronization.',
+    requirement: { xp: 0, rating: 0 },
+    count: 50,
+  },
+  {
+    id: 'cyber',
+    name: 'Cybernetic Bots',
+    style: 'bottts-neutral',
+    description: 'Advanced silicon-based entities with enhanced processing.',
+    requirement: { xp: 500, rating: 1200 },
+    count: 50,
+  },
+  {
+    id: 'retro',
+    name: 'Retro Glitch',
+    style: 'pixel-art',
+    description: 'Legacy-tier shells from the pre-nexus era.',
+    requirement: { xp: 1500, rating: 1500 },
+    count: 50,
+  },
+  {
+    id: 'guardian',
+    name: 'Artistic Guardians',
+    style: 'lorelei',
+    description: 'Ethereal entities forged in the artistic forge.',
+    requirement: { xp: 5000, rating: 2000 },
+    count: 50,
+  },
+  {
+    id: 'elite',
+    name: 'Protocol Elites',
+    style: 'notionists',
+    description: 'High-ranking nexus administrators and protocol masters.',
+    requirement: { xp: 15000, rating: 2500 },
+    count: 50,
+  }
 ];
+
+import { Lock, Info } from 'lucide-react';
 export default function SettingsPage() {
   const { user, setUser, profileCompletion: completion } = useAuth();
   const { isMuted, toggleMute, playSuccess } = useAudio();
@@ -54,9 +92,17 @@ export default function SettingsPage() {
     performanceMode: user?.settings?.performanceMode || 'high'
   });
   
+  const [activeCollection, setActiveCollection] = useState(AVATAR_COLLECTIONS[0].id);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+
+  const checkIsLocked = (req: { xp: number, rating: number }) => {
+    if (!user) return true;
+    const userXp = user.xp || 0;
+    const userRating = user.globalRating || 0;
+    return userXp < req.xp && userRating < req.rating;
+  };
 
   useEffect(() => {
     if (!user?.email) return;
@@ -284,6 +330,92 @@ export default function SettingsPage() {
                   <Upload size={18} />
                   <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
                 </label>
+              </div>
+
+              {/* Avatar Collection Matrix */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-text-soft flex items-center gap-2">
+                    <Activity size={10} /> Identity Collections
+                  </p>
+                  <p className="text-[8px] font-black text-accent-alt uppercase italic">250+ Neutral Matrix Shells</p>
+                </div>
+
+                {/* Categories Tab Scroll */}
+                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+                   {AVATAR_COLLECTIONS.map(col => {
+                     const isLocked = checkIsLocked(col.requirement);
+                     return (
+                        <button
+                          key={col.id}
+                          onClick={() => setActiveCollection(col.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border shrink-0",
+                            activeCollection === col.id 
+                              ? "bg-accent border-accent text-white shadow-lg" 
+                              : "bg-white/5 border-white/5 text-text-soft hover:bg-white/10"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isLocked && <Lock size={10} />}
+                            {col.name}
+                          </div>
+                        </button>
+                     );
+                   })}
+                </div>
+
+                {/* Selected Collection Info */}
+                {(() => {
+                  const col = AVATAR_COLLECTIONS.find(c => c.id === activeCollection)!;
+                  const isLocked = checkIsLocked(col.requirement);
+                  return (
+                    <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-4">
+                      <div className="flex-1 space-y-1">
+                        <p className="text-[9px] font-black text-white uppercase italic">{col.name}</p>
+                        <p className="text-[8px] text-text-soft leading-relaxed">{col.description}</p>
+                      </div>
+                      {isLocked && (
+                        <div className="text-right space-y-1 shrink-0">
+                          <p className="text-[8px] font-black text-red-400 uppercase tracking-tighter">[LOCKED]</p>
+                          <p className="text-[7px] text-text-soft uppercase font-bold">REQ: {col.requirement.xp} XP / {col.requirement.rating} RTG</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Grid of Avatars */}
+                <div className="grid grid-cols-5 gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                   {(() => {
+                      const col = AVATAR_COLLECTIONS.find(c => c.id === activeCollection)!;
+                      const isLocked = checkIsLocked(col.requirement);
+                      return Array.from({ length: col.count }).map((_, i) => {
+                        const url = `https://api.dicebear.com/7.x/${col.style}/svg?seed=${col.id}-${i}`;
+                        return (
+                          <button
+                            key={i}
+                            disabled={isLocked}
+                            onClick={() => !isLocked && setFormData({...formData, avatar: url})}
+                            className={cn(
+                              "aspect-square rounded-xl border-2 transition-all p-1 relative overflow-hidden",
+                              formData.avatar === url 
+                                ? "border-accent bg-accent/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]" 
+                                : "border-transparent bg-white/5 hover:border-white/20",
+                              isLocked && "opacity-20 grayscale cursor-not-allowed"
+                            )}
+                          >
+                            <img src={url} alt={`${col.id}-${i}`} className="w-full h-full object-cover rounded-lg" />
+                            {isLocked && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <Lock size={12} className="text-white/40" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      });
+                   })()}
+                </div>
               </div>
 
               <Input 

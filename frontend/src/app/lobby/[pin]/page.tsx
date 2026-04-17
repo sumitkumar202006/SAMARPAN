@@ -32,25 +32,26 @@ interface TeamNames {
   'Team B': string;
 }
 
-const LobbySlot = React.memo(({ 
-  index, 
-  occupant, 
-  isHost, 
-  socket, 
-  pin, 
+const LobbySlot = React.memo(({
+  index,
+  occupant,
+  isHost,
+  socket,
+  pin,
   team,
   onClick,
-  occupantId
+  occupantId,
+  isPressable
 }: any) => {
   const hasDuplicateIp = occupant && isHost && occupant.ipMatch;
 
   return (
-    <div 
+    <div
       className={cn(
         "relative group flex flex-col items-center gap-1.5",
-        !occupant && "cursor-pointer"
+        isPressable && !occupant && "cursor-pointer"
       )}
-      onClick={onClick}
+      onClick={isPressable ? onClick : undefined}
     >
       <div className={cn(
         "w-10 h-10 rounded-full border-2 transition-all duration-300 flex items-center justify-center overflow-hidden",
@@ -86,16 +87,16 @@ const LobbySlot = React.memo(({
       )}>
         {occupant ? occupant.name : ""}
       </span>
-      
+
       {occupant && isHost && !occupant.isHost && (
         <div className="absolute -top-1 -right-1 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all scale-[0.6]">
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); socket.emit('host_kick', { pin, playerId: occupantId }); }}
             className="p-1 rounded-full bg-orange-500 text-white" title="Kick Player"
           >
             <X size={10} />
           </button>
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); socket.emit('host_ban', { pin, playerId: occupantId, name: occupant.name, ip: occupant.ip }); }}
             className="p-1 rounded-full bg-red-500 text-white" title="Ban Player (IP & Name)"
           >
@@ -113,13 +114,13 @@ function LobbyContent() {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
   const { user } = useAuth();
-  
+
   const [players, setPlayers] = useState<Record<string, Player>>({});
   const [teamNames, setTeamNames] = useState<TeamNames>({ 'Team A': 'Team A', 'Team B': 'Team B' });
   const [isHost, setIsHost] = useState(false);
   const [battleType, setBattleType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [pendingSlot, setPendingSlot] = useState<{ team: 'Team A' | 'Team B', index: number } | null>(null);
   const [editingTeam, setEditingTeam] = useState<'Team A' | 'Team B' | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -140,6 +141,7 @@ function LobbyContent() {
     penaltyPoints: 50,
     maxPlayers: 200
   });
+  const [playAsHost, setPlayAsHost] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -168,6 +170,7 @@ function LobbyContent() {
       try {
         const res = await api.get(`/api/host/session/${pin}`);
         setBattleType(res.data.battleType || null);
+        if (res.data.playAsHost !== undefined) setPlayAsHost(res.data.playAsHost);
       } catch (err) {
         console.warn("Failed to fetch session type");
       }
@@ -176,24 +179,24 @@ function LobbyContent() {
 
     if (role === 'host') {
       setIsHost(true);
-      socket.emit('host_join', { 
-        pin, 
+      socket.emit('host_join', {
+        pin,
         password,
         name: user?.name,
         avatar: user?.avatar,
         userId: user?.userId
       });
     } else {
-      socket.emit('join_room', { 
-        pin, 
-        name, 
-        password, 
-        userId: user?.userId || user?.email, 
+      socket.emit('join_room', {
+        pin,
+        name,
+        password,
+        userId: user?.userId || user?.email,
         email: user?.email,
         avatar: user?.avatar
       });
     }
-    
+
     joinedRef.current = true;
 
     socket.on('player_list_update', (data) => {
@@ -239,6 +242,14 @@ function LobbyContent() {
       alert(data.message);
     });
 
+    socket.on('join_success', (data) => {
+      if (data.playAsHost !== undefined) setPlayAsHost(data.playAsHost);
+    });
+
+    socket.on('host_ready', (data) => {
+      if (data.playAsHost !== undefined) setPlayAsHost(data.playAsHost);
+    });
+
     return () => {
       socket.off('player_list_update');
       socket.off('host_player_list_update');
@@ -248,6 +259,8 @@ function LobbyContent() {
       socket.off('host_left');
       socket.off('game_started');
       socket.off('error_msg');
+      socket.off('join_success');
+      socket.off('host_ready');
       joinedRef.current = false;
     };
   }, [isConnected, pin, socket, user?.userId, user?.name, router, searchParams]);
@@ -270,10 +283,10 @@ function LobbyContent() {
 
   const confirmJoin = () => {
     if (!pendingSlot || !socket || !isConnected) return;
-    socket.emit('join_team_slot', { 
-      pin, 
-      team: pendingSlot.team, 
-      slotIndex: pendingSlot.index 
+    socket.emit('join_team_slot', {
+      pin,
+      team: pendingSlot.team,
+      slotIndex: pendingSlot.index
     });
     setPendingSlot(null);
   };
@@ -314,7 +327,7 @@ function LobbyContent() {
   };
 
   const slotCount = getSlotCount(battleType);
-  const playerCount = Object.values(players).filter(p => !p.isHost).length;
+  const playerCount = Object.values(players).filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
     const data = slotMap[`${team}_${index}`];
@@ -322,7 +335,7 @@ function LobbyContent() {
     const occupantId = data?.id || null;
 
     return (
-      <LobbySlot 
+      <LobbySlot
         key={`${team}-${index}`}
         index={index}
         occupant={occupant}
@@ -331,7 +344,8 @@ function LobbyContent() {
         socket={socket}
         pin={pin}
         team={team}
-        onClick={() => !occupant && !isHost && handleJoinSlot(team, index)}
+        isPressable={!occupant && (!isHost || playAsHost)}
+        onClick={() => handleJoinSlot(team, index)}
       />
     );
   };
@@ -346,18 +360,18 @@ function LobbyContent() {
       </div>
       <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
         {chatMessages.length === 0 ? (
-           <p className="text-[9px] text-white/20 uppercase text-center italic m-auto">No tactical comms recorded.</p>
+          <p className="text-[9px] text-white/20 uppercase text-center italic m-auto">No tactical comms recorded.</p>
         ) : (
-           chatMessages.map(m => (
-             <div key={m.id} className={cn("text-[10px] leading-relaxed p-2.5 rounded-lg border w-fit max-w-[90%]", m.isHost ? "bg-amber-500/10 border-amber-500/20 text-text-soft" : "bg-white/5 border-white/5 text-text-soft")}>
-               <span className={cn("font-black mb-1 block", m.isHost ? "text-amber-400" : "text-accent")}>{m.sender} {m.isHost && '👑'}</span>
-               {m.message}
-             </div>
-           ))
+          chatMessages.map(m => (
+            <div key={m.id} className={cn("text-[10px] leading-relaxed p-2.5 rounded-lg border w-fit max-w-[90%]", m.isHost ? "bg-amber-500/10 border-amber-500/20 text-text-soft" : "bg-white/5 border-white/5 text-text-soft")}>
+              <span className={cn("font-black mb-1 block", m.isHost ? "text-amber-400" : "text-accent")}>{m.sender} {m.isHost && '👑'}</span>
+              {m.message}
+            </div>
+          ))
         )}
       </div>
       <form onSubmit={sendChatMessage} className="p-3 bg-black/20 border-t border-white/5 relative">
-        <input 
+        <input
           value={chatInput} onChange={e => setChatInput(e.target.value)}
           placeholder="Transmit comms..."
           className="w-full bg-transparent text-[10px] uppercase font-bold tracking-widest text-white outline-none pl-2 pr-8 placeholder:text-white/20"
@@ -374,9 +388,9 @@ function LobbyContent() {
       {/* Header */}
       <div className="flex flex-col items-center text-center gap-4 mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-soft border border-accent/30 text-accent font-bold text-[10px] uppercase tracking-widest animate-pulse">
-           Live Arena • {battleType || 'Grand Arena'}
+          Live Arena • {battleType || 'Grand Arena'}
         </div>
-        
+
         <div className="flex flex-col items-center gap-2">
           <p className="text-text-soft text-[10px] uppercase font-black tracking-[0.4em]">Arena PIN</p>
           <div className="text-6xl lg:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-accent to-accent-alt drop-shadow-[0_0_30px_rgba(99,102,241,0.5)] leading-none">
@@ -430,19 +444,19 @@ function LobbyContent() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
-                    <p className="text-[9px] font-black uppercase text-white/40 mb-1">Players</p>
-                    <p className="text-xl font-black text-accent">{playerCount}</p>
-                 </div>
-                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
-                    <p className="text-[9px] font-black uppercase text-white/40 mb-1">Slots Left</p>
-                    <p className="text-xl font-black text-accent-alt">{200 - playerCount}</p>
-                 </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                  <p className="text-[9px] font-black uppercase text-white/40 mb-1">Players</p>
+                  <p className="text-xl font-black text-accent">{playerCount}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                  <p className="text-[9px] font-black uppercase text-white/40 mb-1">Slots Left</p>
+                  <p className="text-xl font-black text-accent-alt">{200 - playerCount}</p>
+                </div>
               </div>
 
               <div className="space-y-3">
                 {isHost && (
-                  <Button 
+                  <Button
                     onClick={handleStartGame}
                     disabled={playerCount < 2}
                     className="w-full h-14 bg-gradient-to-tr from-accent to-accent-alt text-lg font-black italic shadow-2xl hover:scale-[1.02] transition-transform"
@@ -453,8 +467,8 @@ function LobbyContent() {
                 )}
                 <div className="flex gap-2">
                   {isHost && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setIsSettingsOpen(true)}
                       className="h-14 aspect-square border-amber-400/30 hover:bg-amber-400/10 text-amber-400 p-0"
                       title="Advanced Settings"
@@ -462,8 +476,8 @@ function LobbyContent() {
                       <Zap size={20} />
                     </Button>
                   )}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleCancel}
                     className="flex-1 h-14 border-white/10 hover:bg-white/5 text-xs font-black uppercase tracking-[0.2em]"
                   >
@@ -473,14 +487,14 @@ function LobbyContent() {
               </div>
 
               <div className="space-y-4">
-                 <hr className="border-white/5" />
-                 <div className="flex items-center gap-3 text-white/30">
-                    <Shield size={16} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Anti-Cheat Matrix Active</span>
-                 </div>
+                <hr className="border-white/5" />
+                <div className="flex items-center gap-3 text-white/30">
+                  <Shield size={16} />
+                  <span className="text-[10px] uppercase font-black tracking-widest">Anti-Cheat Matrix Active</span>
+                </div>
               </div>
             </div>
-            
+
             {/* Massive Lobby Chat Widget */}
             {renderChatWidget()}
           </div>
@@ -502,7 +516,7 @@ function LobbyContent() {
                   <div className="flex items-center justify-between mb-6">
                     {editingTeam === 'Team A' ? (
                       <div className="flex items-center gap-2 flex-1 mr-4">
-                        <input 
+                        <input
                           autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
@@ -529,7 +543,7 @@ function LobbyContent() {
                   <div className="flex items-center justify-between mb-6">
                     {editingTeam === 'Team B' ? (
                       <div className="flex items-center gap-2 flex-1 mr-4">
-                        <input 
+                        <input
                           autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
@@ -573,9 +587,9 @@ function LobbyContent() {
                         )}
                         <span className="text-[10px] font-bold truncate w-full text-center">{p.name}</span>
                         {isHost && (
-                           <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-500 hover:scale-110 transition-all">
-                             <X size={14} />
-                           </button>
+                          <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-500 hover:scale-110 transition-all">
+                            <X size={14} />
+                          </button>
                         )}
                       </div>
                     );
@@ -595,8 +609,8 @@ function LobbyContent() {
                   {Object.entries(players).map(([id, p]) => {
                     if (p.isHost || p.team) return null;
                     return (
-                      <motion.div 
-                        key={id} 
+                      <motion.div
+                        key={id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5"
@@ -610,9 +624,9 @@ function LobbyContent() {
                         )}
                         <span className="text-[10px] font-bold">{p.name}</span>
                         {isHost && (
-                           <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="text-red-500 hover:text-red-400">
-                             <X size={12} />
-                           </button>
+                          <button onClick={() => socket.emit('host_kick', { pin, playerId: id })} className="text-red-500 hover:text-red-400">
+                            <X size={12} />
+                          </button>
                         )}
                       </motion.div>
                     );
@@ -648,7 +662,7 @@ function LobbyContent() {
 
               <div className="space-y-3">
                 {isHost && (
-                  <Button 
+                  <Button
                     onClick={handleStartGame}
                     disabled={playerCount < 2}
                     className="w-full bg-gradient-to-tr from-accent to-accent-alt shadow-[0_0_20px_rgba(99,102,241,0.2)]"
@@ -659,8 +673,8 @@ function LobbyContent() {
                 )}
                 <div className="flex gap-2">
                   {isHost && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setIsSettingsOpen(true)}
                       className="aspect-square border-amber-400/30 hover:bg-amber-400/10 text-amber-400 p-0 px-3"
                       title="Advanced Settings"
@@ -668,8 +682,8 @@ function LobbyContent() {
                       <Zap size={16} />
                     </Button>
                   )}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleCancel}
                     className="flex-1 border-white/10 hover:bg-white/5"
                   >
@@ -695,14 +709,14 @@ function LobbyContent() {
           const isMassive = !battleType || battleType === 'Standard' || battleType === 'rapid';
           return (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setPendingSlot(null)}
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               />
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -710,8 +724,8 @@ function LobbyContent() {
               >
                 <div className={cn(
                   "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-3",
-                  isMassive ? "bg-accent shadow-[0_0_20px_rgba(99,102,241,0.4)]" : 
-                  (pendingSlot.team === 'Team A' ? "bg-indigo-500" : "bg-rose-500")
+                  isMassive ? "bg-accent shadow-[0_0_20px_rgba(99,102,241,0.4)]" :
+                    (pendingSlot.team === 'Team A' ? "bg-indigo-500" : "bg-rose-500")
                 )}>
                   <MoveRight size={32} />
                 </div>
@@ -719,8 +733,8 @@ function LobbyContent() {
                   {isMassive ? "Sync Position?" : `Join ${teamNames[pendingSlot.team]}?`}
                 </h3>
                 <p className="text-text-soft text-sm mb-8 leading-relaxed">
-                  {isMassive 
-                    ? `Synchronize your identity to slot ${pendingSlot.index + 1} of the arena grid.` 
+                  {isMassive
+                    ? `Synchronize your identity to slot ${pendingSlot.index + 1} of the arena grid.`
                     : `You will be assigned to slot ${pendingSlot.index + 1}. Are you ready to represent this squad?`}
                 </p>
                 <div className="flex gap-4">
@@ -739,107 +753,107 @@ function LobbyContent() {
       <AnimatePresence>
         {isSettingsOpen && isHost && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsSettingsOpen(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative w-full max-w-lg glass p-8 rounded-[32px] border-amber-400/30 overflow-y-auto max-h-[90vh] custom-scrollbar"
             >
               <h3 className="text-xl font-black mb-6 uppercase italic text-amber-400">Tactical Arena Parameters</h3>
-              
+
               <div className="space-y-3 mb-8">
-                 {/* Integrity Layer */}
-                 <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mb-2 border-b border-white/5 pb-1">Integrity & Surveillance</p>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, strictFocus: !s.strictFocus }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.strictFocus ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Strict Focus</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.strictFocus ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-white/10")} />
-                   </button>
+                {/* Integrity Layer */}
+                <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mb-2 border-b border-white/5 pb-1">Integrity & Surveillance</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, strictFocus: !s.strictFocus }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.strictFocus ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Strict Focus</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.strictFocus ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-white/10")} />
+                  </button>
 
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, escalationMode: !s.escalationMode }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.escalationMode ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Strike System</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.escalationMode ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-white/10")} />
-                   </button>
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, escalationMode: !s.escalationMode }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.escalationMode ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Strike System</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.escalationMode ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" : "bg-white/10")} />
+                  </button>
 
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, lockdownMode: !s.lockdownMode }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.lockdownMode ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Lockdown Mode</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.lockdownMode ? "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-white/10")} />
-                   </button>
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, lockdownMode: !s.lockdownMode }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.lockdownMode ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Lockdown Mode</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.lockdownMode ? "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.5)]" : "bg-white/10")} />
+                  </button>
 
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, ipLock: !s.ipLock }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.ipLock ? "bg-white/10 border-white/30 text-white" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Flag Same IP</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.ipLock ? "bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "bg-white/10")} />
-                   </button>
-                 </div>
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, ipLock: !s.ipLock }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.ipLock ? "bg-white/10 border-white/30 text-white" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Flag Same IP</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.ipLock ? "bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "bg-white/10")} />
+                  </button>
+                </div>
 
-                 {/* Gameplay Layer */}
-                 <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mt-6 mb-2 border-b border-white/5 pb-1">Arena Mechanics</p>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, allowBacktrack: !s.allowBacktrack }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.allowBacktrack ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Nav-Previous</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.allowBacktrack ? "bg-emerald-500" : "bg-white/10")} />
-                   </button>
+                {/* Gameplay Layer */}
+                <p className="text-[9px] text-text-soft uppercase font-black tracking-[0.3em] mt-6 mb-2 border-b border-white/5 pb-1">Arena Mechanics</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, allowBacktrack: !s.allowBacktrack }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.allowBacktrack ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Nav-Previous</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.allowBacktrack ? "bg-emerald-500" : "bg-white/10")} />
+                  </button>
 
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, randomizeOrder: !s.randomizeOrder }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOrder ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Questions</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOrder ? "bg-accent-alt" : "bg-white/10")} />
-                   </button>
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, randomizeOrder: !s.randomizeOrder }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOrder ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Questions</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOrder ? "bg-accent-alt" : "bg-white/10")} />
+                  </button>
 
-                   <button 
-                     onClick={() => setExamSettings(s => ({ ...s, randomizeOptions: !s.randomizeOptions }))}
-                     className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOptions ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
-                   >
-                     <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Options</span>
-                     <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOptions ? "bg-accent-alt" : "bg-white/10")} />
-                   </button>
-                 </div>
-                 
-                 <div className="pt-4 mt-4 border-t border-white/5">
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                     <div>
-                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Points/Q</label>
-                       <input 
-                         type="number" value={examSettings.pointsPerQ} onChange={e => setExamSettings(s => ({...s, pointsPerQ: Number(e.target.value)}))}
-                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-amber-400" 
-                       />
-                     </div>
-                     <div>
-                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Penalty</label>
-                       <input 
-                         type="number" value={examSettings.penaltyPoints} onChange={e => setExamSettings(s => ({...s, penaltyPoints: Number(e.target.value)}))}
-                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-red-400 outline-none focus:border-red-400" 
-                       />
-                     </div>
-                     <div>
-                       <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Max Pool</label>
-                       <input 
-                         type="number" value={examSettings.maxPlayers} onChange={e => setExamSettings(s => ({...s, maxPlayers: Number(e.target.value)}))}
-                         className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-accent-alt outline-none focus:border-accent-alt" 
-                       />
-                     </div>
-                   </div>
-                 </div>
+                  <button
+                    onClick={() => setExamSettings(s => ({ ...s, randomizeOptions: !s.randomizeOptions }))}
+                    className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", examSettings.randomizeOptions ? "bg-accent-alt/10 border-accent-alt/30 text-accent-alt" : "bg-white/5 border-white/5 text-text-soft")}
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider">Shuffle Options</span>
+                    <div className={cn("w-3 h-3 rounded-full transition-all", examSettings.randomizeOptions ? "bg-accent-alt" : "bg-white/10")} />
+                  </button>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-white/5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Points/Q</label>
+                      <input
+                        type="number" value={examSettings.pointsPerQ} onChange={e => setExamSettings(s => ({ ...s, pointsPerQ: Number(e.target.value) }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Penalty</label>
+                      <input
+                        type="number" value={examSettings.penaltyPoints} onChange={e => setExamSettings(s => ({ ...s, penaltyPoints: Number(e.target.value) }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-red-400 outline-none focus:border-red-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1 block">Max Pool</label>
+                      <input
+                        type="number" value={examSettings.maxPlayers} onChange={e => setExamSettings(s => ({ ...s, maxPlayers: Number(e.target.value) }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-accent-alt outline-none focus:border-accent-alt"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-4">

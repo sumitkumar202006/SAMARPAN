@@ -56,13 +56,25 @@ export function getLocalKeys() {
  */
 export async function encryptChatMessage(content: string, recipientPublicKeyJWK: string) {
   try {
-    const publicKey = await window.crypto.subtle.importKey(
+    const recipientKey = await window.crypto.subtle.importKey(
       "jwk",
       JSON.parse(recipientPublicKeyJWK),
       KEY_ALGO,
       true,
       ["encrypt"]
     );
+
+    const localKeys = getLocalKeys();
+    let senderKey = null;
+    if (localKeys) {
+      senderKey = await window.crypto.subtle.importKey(
+        "jwk",
+        localKeys.publicKey,
+        KEY_ALGO,
+        true,
+        ["encrypt"]
+      );
+    }
 
     // 1. Generate a one-time AES key
     const aesKey = await window.crypto.subtle.generateKey(
@@ -80,20 +92,34 @@ export async function encryptChatMessage(content: string, recipientPublicKeyJWK:
       encodedContent
     );
 
-    // 3. Encrypt AES key with Recipient's RSA Public Key
+    // 3. Encrypt AES key for BOTH parties
     const exportedAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
-    const encryptedAesKey = await window.crypto.subtle.encrypt(
+    
+    // Encrypt for Recipient
+    const encryptedAesKeyRec = await window.crypto.subtle.encrypt(
       { name: "RSA-OAEP" },
-      publicKey,
+      recipientKey,
       exportedAesKey
     );
 
+    // Encrypt for Sender (Self-Decryption)
+    let encryptedAesKeySen = "";
+    if (senderKey) {
+      const encryptedRaw = await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        senderKey,
+        exportedAesKey
+      );
+      encryptedAesKeySen = btoa(String.fromCharCode(...new Uint8Array(encryptedRaw)));
+    }
+
     // 4. Return the bundle
     return JSON.stringify({
-      eak: btoa(String.fromCharCode(...new Uint8Array(encryptedAesKey))), // Encrypted AES Key
-      iv: btoa(String.fromCharCode(...iv)), // Initialization Vector
-      ct: btoa(String.fromCharCode(...new Uint8Array(encryptedContent))), // Ciphertext
-      v: 1 // version
+      eak: btoa(String.fromCharCode(...new Uint8Array(encryptedAesKeyRec))), // Primary (Recipient)
+      seak: encryptedAesKeySen, // Secondary (Sender/Self)
+      iv: btoa(String.fromCharCode(...iv)),
+      ct: btoa(String.fromCharCode(...new Uint8Array(encryptedContent))),
+      v: 2
     });
   } catch (err) {
     console.error("Encryption failed", err);
@@ -119,17 +145,34 @@ export async function decryptChatMessage(bundleBase64: string) {
 
     const bundle = JSON.parse(bundleBase64);
     
-    // Decode from Base64
-    const encryptedAesKey = new Uint8Array(atob(bundle.eak).split("").map(c => c.charCodeAt(0)));
+    // Choose which encrypted key to use (Recipient or Sender)
+    // We try the primary (eak) first, then the self-recovery key (seak)
+    const possibleKeys = [bundle.eak, bundle.seak].filter(Boolean);
+    
+    let decryptedAesKeyRaw = null;
+    let lastError = null;
+
+    for (const encKeyStr of possibleKeys) {
+      try {
+        const encryptedAesKey = new Uint8Array(atob(encKeyStr).split("").map(c => c.charCodeAt(0)));
+        decryptedAesKeyRaw = await window.crypto.subtle.decrypt(
+          { name: "RSA-OAEP" },
+          privateKey,
+          encryptedAesKey
+        );
+        if (decryptedAesKeyRaw) break;
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+
+    if (!decryptedAesKeyRaw) {
+      throw lastError || new Error("No usable key found in bundle");
+    }
+
     const iv = new Uint8Array(atob(bundle.iv).split("").map(c => c.charCodeAt(0)));
     const ciphertext = new Uint8Array(atob(bundle.ct).split("").map(c => c.charCodeAt(0)));
-
-    // 1. Decrypt AES Key using RSA Private Key
-    const decryptedAesKeyRaw = await window.crypto.subtle.decrypt(
-      { name: "RSA-OAEP" },
-      privateKey,
-      encryptedAesKey
-    );
 
     const aesKey = await window.crypto.subtle.importKey(
       "raw",

@@ -462,25 +462,7 @@ export default function SettingsPage() {
                 })()}
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-text-soft flex items-center gap-2">
-                  <Activity size={10} /> Neural Matrix Presets
-                </p>
-                <div className="grid grid-cols-4 gap-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
-                   {AVATAR_STUFF.map((url, i) => (
-                     <button
-                        key={i}
-                        onClick={() => setFormData({...formData, avatar: url})}
-                        className={cn(
-                          "aspect-square rounded-lg border-2 transition-all p-0.5 bg-white/5",
-                          formData.avatar === url ? "border-accent" : "border-transparent opacity-60 hover:opacity-100"
-                        )}
-                     >
-                       <img src={url} alt={`preset-${i}`} className="w-full h-full object-cover rounded-md" />
-                     </button>
-                   ))}
-                </div>
-              </div>
+
             </div>
           </motion.div>
         </div>

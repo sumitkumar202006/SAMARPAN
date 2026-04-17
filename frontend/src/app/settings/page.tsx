@@ -403,6 +403,45 @@ export default function SettingsPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* Performance Optimization Tier */}
+          <div className="space-y-6 mt-6">
+            <div className="glass rounded-[32px] p-6 lg:p-8 border-white/5 space-y-6">
+              <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                <Activity className="text-accent" size={18} />
+                <h2 className="text-[10px] font-black uppercase tracking-widest italic">Neural Optimization Mode</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
+                  {(['low', 'medium', 'high'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setFormData({...formData, performanceMode: mode})}
+                      className={cn(
+                        "flex-1 py-3 text-[10px] font-black uppercase tracking-tighter rounded-xl transition-all relative overflow-hidden",
+                        formData.performanceMode === mode 
+                          ? mode === 'low' ? "bg-emerald-500 text-white shadow-lg" 
+                            : mode === 'medium' ? "bg-accent text-white shadow-lg"
+                            : "bg-indigo-600 text-white shadow-lg"
+                          : "text-text-soft hover:text-white"
+                      )}
+                    >
+                      {mode === 'low' ? 'Efficiency' : mode === 'medium' ? 'Balanced' : 'High Fidelity'}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 italic text-center lg:text-left">
+                  <p className="text-[10px] text-text-soft leading-relaxed">
+                    {formData.performanceMode === 'low' && "🔄 [MAX PERFORMANCE] Neural blurs deactivated. Animations throttled for maximum frame rate on mobile/legacy systems."}
+                    {formData.performanceMode === 'medium' && "⚖️ [BALANCED] Optimized blur intensity and subtle animation smoothing for a stable experience."}
+                    {formData.performanceMode === 'high' && "✨ [HIGH FIDELITY] Maximum visual sensory input. Full neural blurs and fluid atmospheric effects active."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Track 3: Neural Forge & System */}
@@ -479,43 +518,6 @@ export default function SettingsPage() {
           </motion.div>
 
           <div className="space-y-6 mt-6">
-            {/* Performance Optimization Tier */}
-            <div className="glass rounded-[32px] p-6 lg:p-8 border-white/5 space-y-6">
-              <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                <Activity className="text-accent" size={18} />
-                <h2 className="text-[10px] font-black uppercase tracking-widest italic">Neural Optimization Mode</h2>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
-                  {(['low', 'medium', 'high'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setFormData({...formData, performanceMode: mode})}
-                      className={cn(
-                        "flex-1 py-3 text-[10px] font-black uppercase tracking-tighter rounded-xl transition-all relative overflow-hidden",
-                        formData.performanceMode === mode 
-                          ? mode === 'low' ? "bg-emerald-500 text-white shadow-lg" 
-                            : mode === 'medium' ? "bg-accent text-white shadow-lg"
-                            : "bg-indigo-600 text-white shadow-lg"
-                          : "text-text-soft hover:text-white"
-                      )}
-                    >
-                      {mode === 'low' ? 'Efficiency' : mode === 'medium' ? 'Balanced' : 'High Fidelity'}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 italic text-center lg:text-left">
-                  <p className="text-[10px] text-text-soft leading-relaxed">
-                    {formData.performanceMode === 'low' && "🔄 [MAX PERFORMANCE] Neural blurs deactivated. Animations throttled for maximum frame rate on mobile/legacy systems."}
-                    {formData.performanceMode === 'medium' && "⚖️ [BALANCED] Optimized blur intensity and subtle animation smoothing for a stable experience."}
-                    {formData.performanceMode === 'high' && "✨ [HIGH FIDELITY] Maximum visual sensory input. Full neural blurs and fluid atmospheric effects active."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {/* Audio Settings */}
             <div className="glass rounded-[28px] p-5 border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-3">

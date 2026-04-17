@@ -143,36 +143,41 @@ function HostContent() {
   return (
     <AuthGuard>
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-10">
+         {/* High-Fidelity Mode Switcher - Top Center */}
+         <div className="flex justify-center mb-12">
+            <div className="flex bg-white/5 p-1.5 rounded-[24px] border border-white/10 backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] relative group">
+               <div className="absolute inset-0 bg-accent/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+               <button 
+                 onClick={() => setIsCompetition(false)}
+                 className={cn(
+                   "px-10 py-4 rounded-[20px] text-xs font-black uppercase tracking-[0.2em] transition-all relative z-10",
+                   !isCompetition 
+                    ? "bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-105" 
+                    : "text-text-soft hover:text-white"
+                 )}
+               >
+                 Casual Play
+               </button>
+               <button 
+                 onClick={() => setIsCompetition(true)}
+                 className={cn(
+                   "px-10 py-4 rounded-[20px] text-xs font-black uppercase tracking-[0.2em] transition-all relative z-10",
+                   isCompetition 
+                    ? "bg-gradient-to-tr from-accent to-accent-alt text-white shadow-[0_0_30px_rgba(99,102,241,0.3)] scale-105" 
+                    : "text-text-soft hover:text-white"
+                 )}
+               >
+                 Competition
+               </button>
+            </div>
+         </div>
+
          <div className="flex flex-col gap-6 px-2">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                 <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic text-white flex items-center gap-4">
-                   <Target className="text-accent" />
-                   Operation Hub
-                 </h2>
-               </div>
-               
-               {/* Styled Mode Switcher */}
-               <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-xl">
-                  <button 
-                    onClick={() => setIsCompetition(false)}
-                    className={cn(
-                      "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      !isCompetition ? "bg-emerald-500 text-white shadow-lg" : "text-text-soft hover:text-white"
-                    )}
-                  >
-                    Casual
-                  </button>
-                  <button 
-                    onClick={() => setIsCompetition(true)}
-                    className={cn(
-                      "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      isCompetition ? "bg-accent text-white shadow-lg" : "text-text-soft hover:text-white"
-                    )}
-                  >
-                    Competition
-                  </button>
-               </div>
+            <div className="flex items-center gap-3">
+               <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic text-white flex items-center gap-4">
+                 <Target className="text-accent" />
+                 Operation Hub
+               </h2>
             </div>
             <p className="text-text-soft text-xs lg:text-sm">
               {isCompetition 

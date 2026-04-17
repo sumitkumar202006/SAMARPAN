@@ -15,6 +15,7 @@ interface User {
   preferredField?: string;
   settings?: {
     soundEnabled: boolean;
+    performanceMode?: 'high' | 'medium' | 'low';
   };
   college?: string;
   course?: string;

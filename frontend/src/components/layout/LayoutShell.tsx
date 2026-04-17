@@ -12,8 +12,10 @@ import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FloatingChat } from '@/components/social/FloatingChat';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
+import { useAuth } from '@/context/AuthContext';
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const pathname = usePathname();
   const [showFooter, setShowFooter] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -39,12 +41,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const isAdminPath = pathname?.startsWith('/admin');
 
   // Force override the sidebar visually during tactical engagements
-  const effectiveSidebarCollapsed = isMatchOrLobby ? true : isSidebarCollapsed;
+  const perfClass = user?.settings?.performanceMode ? `perf-${user.settings.performanceMode}` : 'perf-high';
 
   // 1. Loading State (SSR-safe)
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className={cn("min-h-screen bg-background relative overflow-hidden", perfClass)}>
         <DynamicBackground />
         <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
         <div className="flex flex-col min-h-screen">
@@ -60,7 +62,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   // 2. Admin Interface
   if (isAdminPath) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className={cn("flex flex-col min-h-screen", perfClass)}>
         <Topbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} isMatchOrLobby={false} />
         <DynamicBackground />
         <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
@@ -76,7 +78,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   // 3. Primary Shell (Dashboard, Explore, etc.)
   return (
-    <>
+    <div className={perfClass}>
       <DynamicBackground />
       <div className="fixed inset-0 pointer-events-none z-[9999] opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
 
@@ -152,6 +154,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       </Suspense>
 
       <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
-    </>
+    </div>
   );
 }

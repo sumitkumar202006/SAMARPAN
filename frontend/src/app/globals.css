@@ -3,7 +3,48 @@
 :root {
   --background: #020617;
   --foreground: #f9fafb;
+  --blur-xl: 48px;
+  --blur-3xl: 64px;
+  --glass-blur: 20px;
+  --pulse-duration: 2s;
+  --float-duration: 3s;
 }
+
+/* 🏎️ Performance Tiers */
+.perf-medium {
+  --blur-xl: 12px;
+  --blur-3xl: 16px;
+  --glass-blur: 8px;
+  --pulse-duration: 4s;
+  --float-duration: 6s;
+}
+
+.perf-low {
+  --blur-xl: 0px;
+  --blur-3xl: 0px;
+  --glass-blur: 2px;
+  --pulse-duration: 0s;
+  --float-duration: 0s;
+}
+
+/* Force override standard Tailwind blurs when tiers are active */
+.perf-medium .backdrop-blur-xl,
+.perf-medium .backdrop-blur-2xl,
+.perf-medium .backdrop-blur-3xl,
+.perf-low .backdrop-blur-xl,
+.perf-low .backdrop-blur-2xl,
+.perf-low .backdrop-blur-3xl {
+  backdrop-filter: blur(var(--blur-3xl)) !important;
+}
+
+.perf-low .animate-pulse,
+.perf-low .animate-float,
+.perf-low .animate-spin-slow {
+  animation: none !important;
+}
+
+.animate-pulse { animation-duration: var(--pulse-duration) !important; }
+.animate-float { animation-duration: var(--float-duration) !important; }
 
 @theme inline {
   --color-background: var(--background);
@@ -108,11 +149,12 @@ body::after {
 /* Glassmorphism utility */
 .glass {
   background: rgba(8, 12, 24, 0.6);
-  backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
   border: 1px solid rgba(148, 163, 184, 0.08);
   box-shadow: 
     0 10px 40px -10px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px rgba(255, 255, 255, 0.02);
+  will-change: transform, opacity;
   /* Ensure cursor is hidden on glass elements too */
   @media (pointer: fine) {
     cursor: none !important;

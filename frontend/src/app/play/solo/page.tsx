@@ -1,12 +1,19 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { QuizEngine } from '@/components/play/QuizEngine';
-import { Trophy, ArrowLeft, BarChart3 } from 'lucide-react';
+import { QuizIntro } from '@/components/play/QuizIntro';
+import { AnswerReview, ReviewAnswer } from '@/components/play/AnswerReview';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { Trophy, ArrowLeft, BarChart3, RefreshCw, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+
+// Session state persisted to localStorage so refresh doesn't wipe progress
+const SESSION_KEY = 'samarpan_solo_session';
 
 function SoloPlayContent() {
   const searchParams = useSearchParams();
@@ -18,105 +25,208 @@ function SoloPlayContent() {
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Pre-quiz intro gate — shown before the engine starts
+  const [showIntro, setShowIntro] = useState(true);
+
+  // Answer review mode
+  const [showReview, setShowReview] = useState(false);
+  const [reviewAnswers, setReviewAnswers] = useState<ReviewAnswer[]>([]);
+
+  const fetchQuiz = useCallback(async () => {
+    if (!quizId) {
+      setError('No quiz ID provided. Please navigate from the dashboard.');
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get(`/api/quizzes/${quizId}`);
+      setQuiz(res.data);
+    } catch (err: any) {
+      const msg = err?.response?.status === 404
+        ? 'Quiz not found. It may have been deleted.'
+        : 'Failed to load quiz. Check your connection and try again.';
+      setError(msg);
+      console.error('[SoloPlay] fetchQuiz error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [quizId, retryCount]);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
-      if (!quizId) return;
-      try {
-        setLoading(true);
-        const res = await api.get(`/api/quizzes/${quizId}`);
-        setQuiz(res.data);
-      } catch (err) {
-        console.error("Failed to fetch quiz for solo play", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchQuiz();
-  }, [quizId]);
+  }, [fetchQuiz]);
 
+  // ── Loading ──────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-bold uppercase tracking-widest text-text-soft">Initializing Solo Arena...</p>
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-accent/20" />
+          <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        </div>
+        <p className="font-bold uppercase tracking-widest text-text-soft text-sm">Initializing Solo Arena...</p>
       </div>
     );
   }
 
-  if (!quiz) {
+  // ── Error with retry ─────────────────────────────────
+  if (error || !quiz) {
     return (
       <div className="max-w-md mx-auto mt-20 p-8 glass rounded-3xl text-center space-y-6">
         <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
           <BarChart3 className="text-red-400" size={40} />
         </div>
         <h2 className="text-2xl font-bold">Quiz Not Found</h2>
-        <p className="text-text-soft">We couldn't retrieve the quiz data from the hub. It may have been deleted.</p>
-        <Button onClick={() => router.push('/dashboard')} className="w-full">Back to Dashboard</Button>
+        <p className="text-text-soft">{error || 'We couldn\'t retrieve the quiz data. It may have been deleted.'}</p>
+        <div className="flex flex-col gap-3">
+          <Button
+            onClick={() => setRetryCount(c => c + 1)}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={16} /> Retry
+          </Button>
+          <Button onClick={() => router.push('/dashboard')} variant="outline" className="w-full border-white/10">
+            <ArrowLeft size={16} /> Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (isFinished) {
-    const accuracy = Math.round((score / totalQuestions) * 100);
-    
+  // ── Quiz Intro Screen ────────────────────────────────
+  if (showIntro) {
     return (
-      <motion.div 
+      <QuizIntro
+        quiz={quiz}
+        timerSeconds={30}
+        timerMode="per-question"
+        isLive={false}
+        onStart={() => setShowIntro(false)}
+      />
+    );
+  }
+
+  // ── Finished + Review ────────────────────────────────
+  if (isFinished) {
+    const accuracy = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+
+    return (
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl mx-auto px-4 py-20 text-center"
+        className="max-w-4xl mx-auto px-4 py-12"
       >
-        <Trophy className="mx-auto text-accent-alt mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)]" size={80} />
-        <h1 className="text-4xl font-black mb-2 uppercase tracking-tight">Practice Complete!</h1>
-        <p className="text-text-soft mb-12 text-lg">You've finished your solo run through “{quiz.title}”.</p>
+        <AnimatePresence mode="wait">
+          {showReview ? (
+            <motion.div key="review" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-black uppercase tracking-tight">Answer Review</h2>
+                <button
+                  onClick={() => setShowReview(false)}
+                  className="text-[10px] font-black uppercase tracking-widest text-text-soft hover:text-accent transition-colors"
+                >
+                  ← Back to Results
+                </button>
+              </div>
+              <AnswerReview answers={reviewAnswers} onClose={() => setShowReview(false)} />
+            </motion.div>
+          ) : (
+            <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center">
+              <Trophy className="mx-auto text-accent-alt mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)]" size={80} />
+              <h1 className="text-4xl font-black mb-2 uppercase tracking-tight">Practice Complete!</h1>
+              <p className="text-text-soft mb-10 text-lg">
+                You've finished your solo run through "{quiz.title}".
+              </p>
 
-        <div className="grid grid-cols-2 gap-4 mb-12">
-          <div className="glass p-8 rounded-3xl">
-            <p className="text-[10px] uppercase font-black tracking-widest text-text-soft mb-2">Final Score</p>
-            <p className="text-4xl font-black text-white">{score} <span className="text-lg opacity-40">/ {totalQuestions}</span></p>
-          </div>
-          <div className="glass p-8 rounded-3xl">
-            <p className="text-[10px] uppercase font-black tracking-widest text-text-soft mb-2">Accuracy</p>
-            <p className="text-4xl font-black text-accent-alt">{accuracy}%</p>
-          </div>
-        </div>
+              {/* Score cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-10">
+                <div className="glass p-6 rounded-3xl space-y-2">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Final Score</p>
+                  <p className="text-4xl font-black text-white">{score} <span className="text-lg opacity-40">/ {totalQuestions}</span></p>
+                </div>
+                <div className="glass p-6 rounded-3xl space-y-2">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Accuracy</p>
+                  <p className={cn("text-4xl font-black", accuracy >= 80 ? "text-emerald-400" : accuracy >= 50 ? "text-amber-400" : "text-red-400")}>
+                    {accuracy}%
+                  </p>
+                </div>
+                <div className="glass p-6 rounded-3xl space-y-2 col-span-2 sm:col-span-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Performance</p>
+                  <p className="text-2xl font-black text-white">
+                    {accuracy >= 90 ? '🏆 Excellent' : accuracy >= 70 ? '⚡ Good' : accuracy >= 50 ? '📈 Average' : '💪 Keep Going'}
+                  </p>
+                </div>
+              </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button onClick={() => window.location.reload()} className="px-8">
-            Try Again
-          </Button>
-          <Button onClick={() => router.push('/dashboard')} variant="outline" className="px-8 border-white/10">
-            <ArrowLeft size={18} /> Back to Terminal
-          </Button>
-        </div>
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  onClick={() => {
+                    setIsFinished(false);
+                    setShowIntro(true);
+                    setScore(0);
+                    setTotalQuestions(0);
+                    setReviewAnswers([]);
+                  }}
+                  className="px-8 flex items-center gap-2"
+                >
+                  <RefreshCw size={16} /> Try Again
+                </Button>
+                {reviewAnswers.length > 0 && (
+                  <Button
+                    onClick={() => setShowReview(true)}
+                    variant="outline"
+                    className="px-8 border-accent/30 text-accent hover:bg-accent/10 flex items-center gap-2"
+                  >
+                    <ClipboardList size={16} /> Review Answers
+                  </Button>
+                )}
+                <Button onClick={() => router.push('/dashboard')} variant="outline" className="px-8 border-white/10 flex items-center gap-2">
+                  <ArrowLeft size={18} /> Dashboard
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   }
 
+  // ── Active Quiz ──────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
-      <QuizEngine 
-        quiz={quiz} 
-        isLive={false} 
-        onFinish={(finalScore, total) => {
-          setScore(finalScore);
-          setTotalQuestions(total);
-          setIsFinished(true);
-        }}
-      />
+      <ErrorBoundary onReset={() => setRetryCount(c => c + 1)}>
+        <QuizEngine
+          quiz={quiz}
+          isLive={false}
+          onFinish={(finalScore, total, _lb, answersLog) => {
+            setScore(finalScore);
+            setTotalQuestions(total);
+            if (answersLog) setReviewAnswers(answersLog);
+            setIsFinished(true);
+          }}
+        />
+      </ErrorBoundary>
     </div>
   );
 }
 
 export default function SoloPlayPage() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-bold uppercase tracking-widest text-text-soft">Loading Solo Arena...</p>
-      </div>
-    }>
-      <SoloPlayContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+          <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+          <p className="font-bold uppercase tracking-widest text-text-soft">Loading Solo Arena...</p>
+        </div>
+      }>
+        <SoloPlayContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }

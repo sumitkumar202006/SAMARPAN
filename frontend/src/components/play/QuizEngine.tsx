@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { SecurityLockdown } from './SecurityLockdown';
 
+import { ReviewAnswer } from './AnswerReview';
+
 interface Question {
   question: string;
   options: string[];
@@ -29,7 +31,7 @@ interface QuizEngineProps {
   isLive?: boolean;
   socket?: any;
   pin?: string;
-  onFinish: (score: number, total: number, leaderboard?: any) => void;
+  onFinish: (score: number, total: number, leaderboard?: any, answersLog?: ReviewAnswer[]) => void;
   isHostOverride?: boolean;
   examSettings?: any;
 }
@@ -75,6 +77,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const isFinishedRef = useRef(false);
   const autoSubmittedRef = useRef(false); // Guards against double auto-submit
   const lastTimerRef = useRef<number>(999); // Monotonic timer: tracks highest seen value to prevent backward jumps
+  // Tracks each answer for post-quiz review mode
+  const answersLogRef = useRef<ReviewAnswer[]>([]);
 
   // Keep refs in sync with state
   useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
@@ -117,8 +121,6 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
     if (isLive) {
       playClick();
-      // timeTaken calculated from the rendered timeLeft, but we need a stable value
-      // Server trusts its own timer; we send best-effort client time
       socket?.emit('submit_answer', { 
         pin, 
         optionIdx: idx, 
@@ -139,6 +141,15 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       }
       setCorrectIdx(q.correctIndex!);
       setExplanation(q.explanation || null);
+      // Record for review
+      answersLogRef.current[currentIndexRef.current] = {
+        questionIndex: currentIndexRef.current,
+        question: q.question,
+        options: q.options,
+        selectedIdx: idx,
+        correctIdx: q.correctIndex!,
+        explanation: q.explanation
+      };
     }
   }, [isLive, socket, pin, playClick, playSuccess, playError, quiz.questions, timeLeft]);
 
@@ -236,8 +247,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
       setCurrentIndex(data.index);
       currentIndexRef.current = data.index;
-      setTimeLeft(data.timerSeconds);
       if (data.timerMode) setTimerMode(data.timerMode);
+      // Reset monotonic guard per new question — each question starts fresh
+      lastTimerRef.current = data.timerSeconds;
+      setTimeLeft(data.timerSeconds);
       setSelectedIdx(null);
       selectedIdxRef.current = null;
       setIsLocked(false);
@@ -253,7 +266,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setIsFinished(true);
       isFinishedRef.current = true;
       setIsMatchActive(false);
-      onFinish(0, quiz.questions.length, data.leaderboard);
+      onFinish(0, quiz.questions.length, data.leaderboard, answersLogRef.current);
     };
 
     // Reconnection sync: server sends current state when a player rejoins a running game

@@ -13,6 +13,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { HostNexus } from '@/components/play/HostNexus';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 function LivePlayContent() {
   const { user } = useAuth(); // Added for AuthGuard
@@ -242,18 +243,20 @@ function LivePlayContent() {
           pin={pin || ''} 
         />
       ) : (
-        <QuizEngine 
-          quiz={quiz} 
-          isLive={true} 
-          socket={socket} 
-          pin={pin || ''}
-          examSettings={examSettings}
-          isHostOverride={isHost}
-          onFinish={(score, total, lb) => {
-            setIsFinished(true);
-            if (lb) setLeaderboard(lb);
-          }}
-        />
+        <ErrorBoundary>
+          <QuizEngine 
+            quiz={quiz} 
+            isLive={true} 
+            socket={socket} 
+            pin={pin || ''}
+            examSettings={examSettings}
+            isHostOverride={isHost}
+            onFinish={(score, total, lb) => {
+              setIsFinished(true);
+              if (lb) setLeaderboard(lb);
+            }}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

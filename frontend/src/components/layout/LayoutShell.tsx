@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { FloatingChat } from '@/components/social/FloatingChat';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { useAuth } from '@/context/AuthContext';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -42,6 +43,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   // Force override the sidebar visually during tactical engagements
   const perfClass = user?.settings?.performanceMode ? `perf-${user.settings.performanceMode}` : 'perf-high';
+  
+  const childrenWithBoundary = <ErrorBoundary>{children}</ErrorBoundary>;
 
   // Force override the sidebar visually during tactical engagements
   const effectiveSidebarCollapsed = isMatchOrLobby ? true : isSidebarCollapsed;
@@ -108,7 +111,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           )}>
             <div className="flex-1 px-5 lg:px-8 max-w-7xl mx-auto w-full">
               <Suspense fallback={null}>
-                {children}
+                {childrenWithBoundary}
               </Suspense>
             </div>
 

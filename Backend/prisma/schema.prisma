@@ -108,7 +108,7 @@ model AnswerLog {
 }
 
 model RatingHistory {
-  id        String      @id @id @default(uuid())
+  id        String      @id @default(uuid())
   userId    String
   gameId    String
   mode      String?

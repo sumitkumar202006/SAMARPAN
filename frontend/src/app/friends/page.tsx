@@ -443,7 +443,7 @@ export default function FriendsPage() {
                         : "bg-zinc-900/80 backdrop-blur-md border-white/5 text-white/90 rounded-tl-none"
                     )}>
                       {m.isEncrypted && (
-                        <ShieldAlert size={10} className="absolute top-2 right-2 opacity-30" title="Neural-Encrypted" />
+                        <ShieldAlert size={10} className="absolute top-2 right-2 opacity-30" />
                       )}
                       {m.content}
                     </div>

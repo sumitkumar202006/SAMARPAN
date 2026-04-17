@@ -168,7 +168,7 @@ export default function CreatePage() {
                    onClick={() => router.push(`/host?quiz=${createdQuiz._id}`)}
                    className="py-5 bg-white/5 border-2 border-dashed border-white/10 text-white font-black text-xs uppercase tracking-[0.3em] rounded-3xl hover:bg-white/10 transition-all flex items-center justify-center gap-3"
                 >
-                   <Users size={18} /> Launch Arena
+                   <Users size={18} /> Launch Session
                 </button>
               </div>
 
@@ -388,7 +388,7 @@ export default function CreatePage() {
                             )}
                           >
                              <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-all pointer-events-none" />
-                             Deploy to Vault
+                             Save to Library
                           </button>
                           {aiStatus && <p className="text-center text-[9px] font-black uppercase italic text-accent-alt animate-pulse">{aiStatus}</p>}
                        </div>

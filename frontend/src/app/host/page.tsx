@@ -26,7 +26,7 @@ function HostContent() {
   const [timer, setTimer] = useState(30);
   const [totalTime, setTotalTime] = useState(10); // Default 10 mins
   const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
-  const [isRated, setIsRated] = useState(true);
+  const [isCompetition, setIsCompetition] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   
   // Rapid Gen State
@@ -83,17 +83,16 @@ function HostContent() {
     };
     const timer = setTimeout(searchCommunity, 500);
 
-    // Handle Friendly Preset
-    if (isFriendly) {
+    // Handle Mode Logic
+    if (!isCompetition) {
       setMode('battle');
-      setIsRated(false);
-      setBattleType('1v1'); // Default to 1v1 for friendly battles
+      setBattleType('1v1');
       setPlayAsHost(true);
     } else {
-      setIsRated(true);
+      setPlayAsHost(false);
     }
     return () => clearTimeout(timer);
-  }, [user, authLoading, searchParams, isFriendly, searchQuery, repoTab]);
+  }, [user, authLoading, searchParams, isCompetition, searchQuery, repoTab]);
 
   const handleHost = async () => {
     // Validation: Require either a selected quiz OR a topic OR a queue
@@ -107,7 +106,7 @@ function HostContent() {
         try { playEnter(); } catch (e) { console.warn("Audio failed", e); }
       }
       
-      setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Arena..." : "Synthesizing Arena via AI...");
+      setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Operations..." : "Synthesizing Nexus via AI...");
       
       const res = await api.post('/api/host/start', {
         quizId: quizQueue.length > 0 ? quizQueue[0]._id : (selectedQuiz || null),
@@ -123,7 +122,7 @@ function HostContent() {
         timerSeconds: timer,
         timerMode,
         totalSessionTime: totalTime,
-        rated: isRated,
+        rated: false, // Force unrated per user request
         playAsHost,
         pointsPerQ,
         penaltyPoints,
@@ -144,20 +143,43 @@ function HostContent() {
   return (
     <AuthGuard>
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10 space-y-10">
-        <div className="flex flex-col gap-1 px-2">
-           <div className="flex items-center gap-3">
-             <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic text-white flex items-center gap-4">
-               <Target className="text-accent" />
-               Arena Commission
-             </h2>
-             {isFriendly && (
-               <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase rounded-full animate-pulse">
-                 CASUAL MODE
-               </span>
-             )}
-           </div>
-           <p className="text-text-soft text-xs lg:text-sm">Configure and initialize a high-fidelity quiz theater for your squad.</p>
-        </div>
+         <div className="flex flex-col gap-6 px-2">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                 <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic text-white flex items-center gap-4">
+                   <Target className="text-accent" />
+                   Operation Hub
+                 </h2>
+               </div>
+               
+               {/* Styled Mode Switcher */}
+               <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-xl">
+                  <button 
+                    onClick={() => setIsCompetition(false)}
+                    className={cn(
+                      "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      !isCompetition ? "bg-emerald-500 text-white shadow-lg" : "text-text-soft hover:text-white"
+                    )}
+                  >
+                    Casual
+                  </button>
+                  <button 
+                    onClick={() => setIsCompetition(true)}
+                    className={cn(
+                      "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      isCompetition ? "bg-accent text-white shadow-lg" : "text-text-soft hover:text-white"
+                    )}
+                  >
+                    Competition
+                  </button>
+               </div>
+            </div>
+            <p className="text-text-soft text-xs lg:text-sm">
+              {isCompetition 
+                ? "Conduct high-stakes examinations and competitive tournaments." 
+                : "Initialize a casual play session for friendly practice."}
+            </p>
+         </div>
 
         <div className="grid lg:grid-cols-3 gap-8 items-start">
           
@@ -173,7 +195,7 @@ function HostContent() {
                    <label className="text-[9px] font-black uppercase tracking-widest text-text-soft italic">Primary Mode</label>
                    <div className="grid grid-cols-1 gap-2">
                       {[
-                        { id: 'rapid', label: 'Grand Arena', d: 'Standard multiplayer sync' },
+                        { id: 'rapid', label: 'Global Nexus', d: 'Standard multiplayer sync' },
                         { id: 'blitz', label: 'Tournament', d: 'Multi-set competitive queue' },
                         { id: 'battle', label: 'Squad Battle', d: 'Team vs Team operations' }
                       ].map((m) => (
@@ -239,7 +261,7 @@ function HostContent() {
                              repoTab === tab ? "bg-accent text-white shadow-xl" : "text-text-soft hover:bg-white/5"
                            )}
                         >
-                           {tab === 'personal' ? 'Vault' : 'Arena'}
+                           {tab === 'personal' ? 'Library' : 'Community'}
                         </button>
                       ))}
                    </div>
@@ -311,17 +333,38 @@ function HostContent() {
                       onChange={(e: any) => { setTopic(e.target.value); if(e.target.value) setSelectedQuiz(''); }}
                       className="bg-background/20"
                    />
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-1 gap-4">
                       <Select label="Difficulty" value={difficulty} onChange={(e: any) => setDifficulty(e.target.value)}>
                          <option value="easy">RECRUIT</option>
                          <option value="medium">VETERAN</option>
                          <option value="hard">ELITE</option>
                       </Select>
-                      <Select label="Quantity" value={numQuestions} onChange={(e: any) => setNumQuestions(parseInt(e.target.value))}>
-                         <option value={10}>10 Qs</option>
-                         <option value={15}>15 Qs</option>
-                         <option value={20}>20 Qs</option>
-                      </Select>
+                      <div className="space-y-2">
+                         <label className="text-[9px] font-black uppercase tracking-widest text-text-soft italic ml-1">Module Count</label>
+                         <div className="flex gap-2">
+                            {[10, 15, 20].map(n => (
+                              <button 
+                                key={n}
+                                onClick={() => setNumQuestions(n)}
+                                className={cn(
+                                  "flex-1 py-2 rounded-xl text-[10px] font-black border transition-all",
+                                  numQuestions === n ? "bg-accent/20 border-accent/40 text-accent" : "bg-white/5 border-white/5 text-text-soft"
+                                )}
+                              >
+                                {n}
+                              </button>
+                            ))}
+                            <div className="flex-[2]">
+                              <Input 
+                                placeholder="Custom..." 
+                                type="number" 
+                                value={numQuestions} 
+                                onChange={(e: any) => setNumQuestions(parseInt(e.target.value) || 0)}
+                                className="h-full bg-background/20"
+                              />
+                            </div>
+                         </div>
+                      </div>
                    </div>
                 </div>
              </div>
@@ -362,44 +405,17 @@ function HostContent() {
                    />
                 </div>
 
-                <div className="space-y-4">
-                   <label className="text-[9px] font-black uppercase tracking-widest text-text-soft italic">Engagement Type</label>
-                   <Select 
-                      label=""
-                      value={isRated ? "true" : "false"}
-                      onChange={(e: any) => setIsRated(e.target.value === "true")}
-                      disabled={isFriendly}
-                   >
-                      <option value="true">RATED (COMPETITIVE)</option>
-                      <option value="false">UNRATED (PRACTICE)</option>
-                   </Select>
-                   <p className="text-[8px] text-text-soft italic uppercase bg-white/5 p-3 rounded-xl border border-white/5">
-                      {isRated ? "Affects global pilot rating and XP scaling." : "Social mode. Zero rating weight applied."}
-                   </p>
-                </div>
 
-                 {/* EXAM PARAMETERS - Moved to Lobby Settings */}
-                 <div className="space-y-4 pt-4 border-t border-white/5 pb-4">
-                    <div className="flex flex-col gap-3">
-                       <button 
-                         onClick={() => setPlayAsHost(!playAsHost)}
-                         className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all", playAsHost ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/5 border-white/5 text-text-soft")}
-                       >
-                         <span className="text-[10px] font-black uppercase tracking-widest">Participate as Player</span>
-                         <div className={cn("w-4 h-4 rounded-full", playAsHost ? "bg-accent" : "bg-white/10")} />
-                       </button>
-                    </div>
-                 </div>
                  <button 
                    onClick={handleHost}
                    disabled={(!selectedQuiz && !topic && quizQueue.length === 0) || !!status}
                    className={cn(
                      "w-full py-5 rounded-[24px] text-white font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-2xl relative overflow-hidden group",
-                     isFriendly ? "bg-emerald-500 shadow-emerald-500/20" : "bg-accent shadow-accent/20"
+                     !isCompetition ? "bg-emerald-500 shadow-emerald-500/20" : "bg-accent shadow-accent/20"
                    )}
                 >
                    <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-all pointer-events-none" />
-                   {status || (isFriendly ? "Initialize Casual" : "Launch Arena PIN")}
+                   {status || (isCompetition ? "Launch Competition PIN" : "Initialize Casual Session")}
                 </button>
              </div>
 

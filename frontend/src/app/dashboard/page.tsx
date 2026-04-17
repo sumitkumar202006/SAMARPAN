@@ -91,15 +91,12 @@ export default function DashboardPage() {
 
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Arena Nexus</h1>
-          <p className="text-text-soft text-xs lg:text-sm">Strategic oversight of your combat history and neural assets.</p>
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Nexus Hub</h1>
+          <p className="text-text-soft text-xs lg:text-sm">Strategic oversight of your session history and neural assets.</p>
         </div>
         
         {/* Rapid Deployment Buttons */}
         <div className="flex gap-3">
-           <Link href="/battles" className="px-6 py-3 rounded-xl bg-gradient-to-tr from-accent to-accent-alt text-white font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all">
-              <Zap size={14} className="inline mr-2" /> Quick Battle
-           </Link>
            <Link href="/create" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:border-accent/40 transition-all">
               <Plus size={14} className="inline mr-2" /> Create Asset
            </Link>
@@ -175,7 +172,7 @@ export default function DashboardPage() {
           </div>
 
           <StatCard 
-            title="Arena Rating" 
+            title="Nexus Rating" 
             value={stats?.globalRating || 1200}
             description="Your current weight in global tournaments."
             className="rounded-[32px] p-8"
@@ -190,7 +187,7 @@ export default function DashboardPage() {
           </div>
 
           <CollapsibleCard 
-            title="History Vault" 
+            title="Record Library" 
             icon={BookOpen}
             className="border-white/10"
             headerAction={
@@ -198,7 +195,7 @@ export default function DashboardPage() {
                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-soft group-focus-within/search:text-accent transition-colors" />
                  <input 
                    type="text"
-                   placeholder="Filter vault..."
+                   placeholder="Filter records..."
                    value={searchQuery}
                    onChange={(e) => setSearchQuery(e.target.value)}
                    className="h-8 w-32 bg-white/5 border border-white/10 rounded-lg pl-8 pr-2 text-[10px] outline-none focus:w-48 transition-all font-bold"
@@ -303,12 +300,12 @@ export default function DashboardPage() {
           <div className="glass p-8 rounded-[40px] border-white/5 space-y-8">
             <div className="flex items-center justify-between border-b border-white/5 pb-6">
                <h3 className="font-black text-sm uppercase tracking-[0.2em] italic">Tactical Toolbar</h3>
-               <Link href="/explore" className="text-[10px] font-black text-accent-alt uppercase tracking-widest">Global Vault</Link>
+               <Link href="/explore" className="text-[10px] font-black text-accent-alt uppercase tracking-widest">Global Library</Link>
             </div>
             
             <div className="space-y-4">
               {[
-                { title: 'Battle Arena', sub: 'Host Competitive Tournament', icon: Trophy, href: '/battles', color: 'accent' },
+                { title: 'Room Hub', sub: 'Host Competitive Session', icon: Trophy, href: '/host', color: 'accent' },
                 { title: 'Neural Forge', sub: 'AI Automated Generation', icon: Zap, href: '/create', color: 'accent-alt' },
                 { title: 'Training Grounds', sub: 'Friendly/Solo Practice', icon: Users, href: '/host?friendly=true', color: 'emerald-500' },
                 { title: 'Command Center', sub: 'Account & Neural Config', icon: Settings, href: '/settings', color: 'white' },

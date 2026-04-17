@@ -46,7 +46,7 @@
 .animate-pulse { animation-duration: var(--pulse-duration) !important; }
 .animate-float { animation-duration: var(--float-duration) !important; }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   

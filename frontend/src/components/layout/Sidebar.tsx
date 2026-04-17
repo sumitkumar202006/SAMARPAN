@@ -26,8 +26,7 @@ import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { name: 'Create', icon: PlusSquare, href: '/create' },
-  { name: 'Host Hub', icon: ShieldCheck, href: '/host' },
-  { name: 'Casual Play', icon: Users, href: '/host?friendly=true' },
+  { name: 'Room Hub', icon: ShieldCheck, href: '/host' },
   { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Leaderboard', icon: Trophy, href: '/leaderboard' },
   { name: 'Explore', icon: Compass, href: '/explore' },

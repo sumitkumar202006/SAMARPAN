@@ -45,6 +45,7 @@ export default function SettingsPage() {
     username: user?.username || '',
     avatar: user?.avatar || '',
     preferredField: user?.preferredField || 'General',
+    interest: user?.interest || '',
     customField: '',
     college: user?.college || '',
     course: user?.course || '',
@@ -67,6 +68,7 @@ export default function SettingsPage() {
       username: user.username || '',
       avatar: user.avatar || '',
       preferredField: user.preferredField || 'General',
+      interest: user.interest || '',
       customField: user.customField || '',
       college: user.college || '',
       course: user.course || '',
@@ -106,6 +108,7 @@ export default function SettingsPage() {
         name: formData.name,
         avatar: formData.avatar,
         preferredField: formData.preferredField,
+        interest: formData.interest,
         customField: formData.customField,
         college: formData.college,
         course: formData.course,
@@ -123,6 +126,7 @@ export default function SettingsPage() {
           name: formData.name,
           avatar: formData.avatar,
           preferredField: formData.preferredField,
+          interest: formData.interest,
           customField: formData.customField,
           college: formData.college,
           course: formData.course,
@@ -420,6 +424,23 @@ export default function SettingsPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Field of Interest / Background Paragraph */}
+              <div className="space-y-3 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="text-accent" size={16} />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-text-soft">Field of Interest / Research Background</p>
+                </div>
+                <textarea 
+                  value={formData.interest}
+                  onChange={(e) => setFormData({...formData, interest: e.target.value})}
+                  placeholder="Describe your field, projects, or interests in detail. The AI will use this to fine-tune your quizzes..."
+                  className="w-full h-32 bg-background/20 border border-white/5 rounded-2xl p-4 text-xs font-bold outline-none focus:border-accent/40 transition-colors uppercase italic resize-none"
+                />
+                <p className="text-[8px] text-text-soft uppercase font-black tracking-widest leading-relaxed">
+                  TIP: Explaining your specific focus (e.g., 'Quantum Computing optimization') will result in highly relevant 1v1 and practice battles.
+                </p>
+              </div>
             </div>
           </motion.div>
 

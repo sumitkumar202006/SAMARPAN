@@ -270,7 +270,7 @@ function LobbyContent() {
 
   const confirmJoin = () => {
     if (!pendingSlot || !socket || !isConnected) return;
-    socket.emit('join_slot', { 
+    socket.emit('join_team_slot', { 
       pin, 
       team: pendingSlot.team, 
       slotIndex: pendingSlot.index 
@@ -331,7 +331,7 @@ function LobbyContent() {
         socket={socket}
         pin={pin}
         team={team}
-        onClick={() => !occupant && handleJoinSlot(team, index)}
+        onClick={() => !occupant && !isHost && handleJoinSlot(team, index)}
       />
     );
   };
@@ -444,7 +444,7 @@ function LobbyContent() {
                 {isHost && (
                   <Button 
                     onClick={handleStartGame}
-                    disabled={playerCount === 0}
+                    disabled={playerCount < 2}
                     className="w-full h-14 bg-gradient-to-tr from-accent to-accent-alt text-lg font-black italic shadow-2xl hover:scale-[1.02] transition-transform"
                   >
                     <Play size={20} fill="currentColor" className="mr-1" />
@@ -650,7 +650,7 @@ function LobbyContent() {
                 {isHost && (
                   <Button 
                     onClick={handleStartGame}
-                    disabled={playerCount === 0}
+                    disabled={playerCount < 2}
                     className="w-full bg-gradient-to-tr from-accent to-accent-alt shadow-[0_0_20px_rgba(99,102,241,0.2)]"
                   >
                     <Play size={18} fill="currentColor" />

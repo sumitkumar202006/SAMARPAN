@@ -28,6 +28,7 @@ model User {
   dob            DateTime?
   preferredField String          @default("General")
   settings       Json?
+  interest       String?
   role           String          @default("user")
   status         String          @default("active")
   dailyStreak    Int             @default(0)

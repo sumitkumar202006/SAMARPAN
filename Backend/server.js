@@ -312,7 +312,7 @@ app.post("/api/host/start", async (req, res) => {
     if (!quizId && topic) {
       console.log(`[AI-Forge] Synthesizing rapid quiz for: ${topic}`);
       try {
-        const questions = await generateQuizQuestions(topic, difficulty || 'medium', numQuestions || 10, user.preferredField || 'General');
+        const questions = await generateQuizQuestions(topic, difficulty || 'medium', numQuestions || 10, user);
         const synthQuiz = await prisma.quiz.create({
           data: {
             title: `Rapid Arena: ${topic}`,
@@ -1332,8 +1332,8 @@ io.on("connection", (socket) => {
     const playersAsParticipants = Object.values(session.players);
     const playerCount = playersAsParticipants.filter(p => !p.isHost).length;
     
-    if (playerCount === 0 && !session.players[socket.id].isHost) { 
-      socket.emit("error_msg", { message: "Need at least 1 player to start." }); 
+    if (playerCount < 2 && !session.players[socket.id].isHost) { 
+      socket.emit("error_msg", { message: "Arena requires at least 2 players to initiate." }); 
       return; 
     }
 
@@ -1685,6 +1685,11 @@ io.on("connection", (socket) => {
 
     const player = session.players[socket.id];
     if (!player) return;
+
+    if (player.isHost) {
+      socket.emit("error_msg", { message: "Hosts are restricted to the command center and cannot join play slots." });
+      return;
+    }
 
     // Enforce massive 200-player matrix or team-based constraints
     const maxSlots = { '1v1': 1, '2v2': 2, '3v3': 3, '4v4': 4, 'Standard': 200 }[session.battleType || 'Standard'] || 200;

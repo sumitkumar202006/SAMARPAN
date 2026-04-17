@@ -9,7 +9,8 @@ async function generateQuizQuestions(topic, difficulty, count = 5, userContext =
     preferredField = 'General', 
     college = 'Not Specified', 
     course = 'Not Specified',
-    customField = ''
+    customField = '',
+    interest = ''
   } = userContext;
   
   const prompt = `
@@ -21,8 +22,10 @@ The user is a student/professional with the following background:
 - Institution: ${college}
 - Program/Course: ${course}
 - Specific Expertise: ${preferredField}${customField ? ` (${customField})` : ''}
+- Interest/Background: ${interest || 'General interest in the topic'}
 
 TAILORING RULE: 
+- Use the "Interest/Background" paragraph to deeply personalize the questions. If the user describes specific projects, goals, or niche interests, incorporate those themes.
 - If the topic permits, prioritize examples, terminology, and use-cases that resonate with a student in ${course} at ${college}. 
 - Align the complexity and focus with the user's specific expertise node: ${customField || preferredField}.
 

@@ -13,6 +13,7 @@ interface User {
   globalRating?: number;
   xp?: number;
   preferredField?: string;
+  interest?: string;
   settings?: {
     soundEnabled: boolean;
     performanceMode?: 'high' | 'medium' | 'low';

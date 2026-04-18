@@ -1,25 +1,40 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import socket from '@/lib/socket';
 import { useAuth } from './AuthContext';
+
+type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
 interface SocketContextType {
   socket: typeof socket;
   isConnected: boolean;
+  connectionStatus: ConnectionStatus;
+  reconnect: () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(socket.connected);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
+    socket.connected ? 'connected' : 'connecting'
+  );
   const { user } = useAuth();
+
+  const reconnect = useCallback(() => {
+    if (!socket.connected) {
+      setConnectionStatus('connecting');
+      socket.connect();
+    }
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
 
     function onConnect() {
       setIsConnected(true);
+      setConnectionStatus('connected');
       console.log("[Socket] Connected to Arena Server");
       if (user?.id) {
         socket.emit('social_connect', { userId: user.id });
@@ -29,10 +44,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     function onDisconnect() {
       console.log("[Socket] Disconnected from Arena Server");
       setIsConnected(false);
+      setConnectionStatus('disconnected');
     }
 
     function onConnectError(err: any) {
       console.error("[Socket] Connection error:", err.message);
+      setConnectionStatus('disconnected');
     }
 
     socket.on('connect', onConnect);
@@ -53,10 +70,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
     };
-  }, [user, socket]);
+  }, [user]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected, connectionStatus, reconnect }}>
       {children}
     </SocketContext.Provider>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause, Crown } from 'lucide-react';
+import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause, Crown, Trophy, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -29,10 +29,18 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localQuestions, setLocalQuestions] = useState(quiz.questions);
   const [isMounted, setIsMounted] = useState(false);
+  const [liveLeaderboard, setLiveLeaderboard] = useState<any[]>([]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Emit host_join on mount so host is properly in the socket room
+  // This is critical for direct page loads (not coming from lobby)
+  useEffect(() => {
+    if (!socket || !isMounted || !pin) return;
+    socket.emit('host_join', { pin });
+  }, [socket, isMounted, pin]);
 
   const { playNavigate, playClick } = useAudio();
 
@@ -45,6 +53,12 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
 
     socket.on('stats_update', (data: any) => {
       if (data.stats) setStats(data.stats);
+      if (data.leaderboard) setLiveLeaderboard(data.leaderboard);
+    });
+
+    socket.on('quiz_finished', (data: any) => {
+      setStatus('finished');
+      if (data.leaderboard) setLiveLeaderboard(data.leaderboard);
     });
 
     socket.on('timer_tick', (data: any) => {
@@ -119,6 +133,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
       socket.off('next_question');
       socket.off('player_choice');
       socket.off('leaderboard_update');
+      socket.off('quiz_finished');
     };
   }, [socket, isMounted]);
 
@@ -484,6 +499,59 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
                 </div>
              </div>
           </div>
+
+          {/* Live Leaderboard Panel */}
+          {(status === 'running' || status === 'finished') && liveLeaderboard.length > 0 && (
+            <div className="glass p-6 rounded-[32px] border-white/5">
+              <h3 className="flex items-center gap-3 font-bold text-base mb-5">
+                <Trophy size={18} className="text-yellow-400" />
+                Live Rankings
+              </h3>
+              <div className="space-y-2">
+                {liveLeaderboard.slice(0, 6).map((p: any, i: number) => (
+                  <motion.div
+                    key={p.name}
+                    layout
+                    className={cn(
+                      "flex items-center justify-between px-4 py-2.5 rounded-xl border text-sm",
+                      i === 0 ? "border-yellow-400/30 bg-yellow-400/5" : "border-white/5 bg-white/[0.02]"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={cn(
+                        "w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px]",
+                        i === 0 ? "bg-yellow-400 text-black" : "bg-white/5 text-text-soft"
+                      )}>
+                        {i === 0 ? '👑' : `#${i+1}`}
+                      </span>
+                      <span className="font-bold truncate max-w-[100px]">{p.name}</span>
+                    </div>
+                    <motion.span
+                      key={p.score}
+                      initial={{ scale: 1.4, color: '#22c55e' }}
+                      animate={{ scale: 1, color: '#6366f1' }}
+                      className="font-black tabular-nums text-accent"
+                    >
+                      {p.score}
+                    </motion.span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Finished State Banner */}
+          {status === 'finished' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass p-6 rounded-[32px] border-emerald-500/30 bg-emerald-500/5 text-center"
+            >
+              <Medal className="mx-auto text-yellow-400 mb-3" size={32} />
+              <p className="font-black text-base uppercase tracking-widest text-white">Arena Complete</p>
+              <p className="text-xs text-text-soft mt-1">Results have been broadcast to all players.</p>
+            </motion.div>
+          )}
         </div>
       </div>
 

@@ -1,29 +1,27 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { QuizEngine } from '@/components/play/QuizEngine';
 import { useSocket } from '@/context/SocketContext';
-import { Trophy, ArrowLeft, BarChart3, Medal, Target, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
+import { Trophy, ArrowLeft, BarChart3, Medal, Target, CheckCircle2, XCircle, ShieldAlert, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { HostNexus } from '@/components/play/HostNexus';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { QuizIntro } from '@/components/play/QuizIntro';
 import { ShareResultCard } from '@/components/ui/ShareResultCard';
 
 function LivePlayContent() {
-  const { user } = useAuth(); // Added for AuthGuard
+  const { user } = useAuth();
   const { playEnter } = useAudio();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pin = searchParams.get('pin');
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, connectionStatus, reconnect } = useSocket();
 
   const [quiz, setQuiz] = useState<any>(null);
   const [isFinished, setIsFinished] = useState(false);
@@ -32,18 +30,23 @@ function LivePlayContent() {
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
   const [examSettings, setExamSettings] = useState<any>(null);
-  // Intro screen disabled — match starts directly after the countdown
-  const [showIntro, setShowIntro] = useState(false);
+  const [answersLog, setAnswersLog] = useState<any[]>([]);
 
+  // join_ack unblocks this — prevents rendering with stale/null state
+  const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
+  const joinedRef = useRef(false); // guard against double-join on re-render
+
+  // -----------------------------------------------------------------------
+  // Fetch session via REST (fallback — used if socket join_ack times out)
+  // -----------------------------------------------------------------------
   const fetchSession = useCallback(async () => {
     if (!pin) return;
     try {
       const res = await api.get(`/api/host/session/${pin}`);
       if (res.data.quiz) {
         setQuiz(res.data.quiz);
-        // Determine hosting status - GameSession 'host' is the user ID
         const playAsHost = searchParams.get('playAsHost') === 'true';
-        if (user && res.data.host === user.userId && !playAsHost) {
+        if (user && res.data.hostId === user.userId && !playAsHost) {
           setIsHost(true);
         }
       }
@@ -52,58 +55,161 @@ function LivePlayContent() {
     } finally {
       setLoading(false);
     }
-  }, [pin]);
+  }, [pin, user, searchParams]);
 
+  // -----------------------------------------------------------------------
+  // Core socket lifecycle: join room + listen for authoritative state
+  // -----------------------------------------------------------------------
   useEffect(() => {
-    if (!isConnected || !socket) return;
+    if (!isConnected || !socket || !pin || !user) return;
 
-    // Fetch initial state in case of late join/refresh
-    fetchSession();
+    // --- Emit join_room exactly once per connection ---
+    if (!joinedRef.current) {
+      joinedRef.current = true;
+      const playAsHost = searchParams.get('playAsHost') === 'true';
+      socket.emit('join_room', {
+        pin,
+        name: user.name || 'Player',
+        userId: user.userId,
+        email: user.email,
+        avatar: user.avatar || null,
+        // Pass team/slot from URL params if present (lobby redirect)
+        team: searchParams.get('team') || null,
+        slotIndex: searchParams.get('slot') ? Number(searchParams.get('slot')) : undefined,
+      });
+    }
 
-    socket.on('game_started', (data: any) => {
-      playEnter();
-      setQuiz(data.quiz);
-      if (data.examSettings) setExamSettings(data.examSettings);
-      // Game is now live — bypass intro since the countdown already showed
-      setShowIntro(false);
-    });
-
-    // Reconnection to a running game: server sends full current state
-    socket.on('game_state_sync', (data: any) => {
+    // ---- join_ack: THE primary sync mechanism ----
+    // Server sends this immediately after join_room with full current state.
+    // This is what unblocks isSyncing in QuizEngine — fixes the "Synchronizing Arena" freeze.
+    const onJoinAck = (data: any) => {
       if (data.quiz) setQuiz(data.quiz);
       if (data.examSettings) setExamSettings(data.examSettings);
       setLoading(false);
-      // Player is mid-game on reconnect — skip intro
-      setShowIntro(false);
-    });
+      setHasJoinedRoom(true);
+      // Determine host status from session data
+      const playAsHost = searchParams.get('playAsHost') === 'true';
+      if (user && data.hostId === user.userId && !playAsHost) {
+        setIsHost(true);
+      }
+    };
 
-    socket.on('settings_updated', (data: any) => {
+    // ---- game_starting: quiz data arrives before countdown ----
+    const onGameStarting = (data: any) => {
+      if (data.quiz) setQuiz(data.quiz);
       if (data.examSettings) setExamSettings(data.examSettings);
-    });
+      setLoading(false);
+      setHasJoinedRoom(true);
+    };
 
-    socket.on('quiz_finished', (data: any) => {
+    // ---- game_started: authoritative start, always has full state ----
+    const onGameStarted = (data: any) => {
+      playEnter();
+      if (data.quiz) setQuiz(data.quiz);
+      if (data.examSettings) setExamSettings(data.examSettings);
+      setLoading(false);
+      setHasJoinedRoom(true);
+    };
+
+    // ---- game_state_sync: reconnection to a mid-game session ----
+    const onGameStateSync = (data: any) => {
+      if (data.quiz) setQuiz(data.quiz);
+      if (data.examSettings) setExamSettings(data.examSettings);
+      setLoading(false);
+      setHasJoinedRoom(true);
+    };
+
+    const onSettingsUpdated = (data: any) => {
+      if (data.examSettings) setExamSettings(data.examSettings);
+    };
+
+    const onQuizFinished = (data: any) => {
       setIsFinished(true);
-      if (data.leaderboard) {
-        setLeaderboard(data.leaderboard);
+      if (data.leaderboard) setLeaderboard(data.leaderboard);
+      if (data.teamScores) setTeamScores(data.teamScores);
+    };
+
+    const onJoinError = (data: any) => {
+      console.error('[LivePlay] join_error:', data.message);
+      setLoading(false);
+    };
+
+    socket.on('join_ack', onJoinAck);
+    socket.on('game_starting', onGameStarting);
+    socket.on('game_started', onGameStarted);
+    socket.on('game_state_sync', onGameStateSync);
+    socket.on('settings_updated', onSettingsUpdated);
+    socket.on('quiz_finished', onQuizFinished);
+    socket.on('join_error', onJoinError);
+
+    // Safety timeout: if join_ack never arrives (cold server, slow DB),
+    // fall back to REST after 8s so the player is never permanently blocked.
+    const syncTimeout = setTimeout(() => {
+      if (!hasJoinedRoom) {
+        console.warn('[LivePlay] join_ack timeout — falling back to REST fetch');
+        fetchSession();
+        setHasJoinedRoom(true); // unblock rendering with whatever REST returns
       }
-      if (data.teamScores) {
-        setTeamScores(data.teamScores);
-      }
-    });
+    }, 8000);
 
     return () => {
-      socket.off('game_started');
-      socket.off('game_state_sync');
-      socket.off('settings_updated');
-      socket.off('quiz_finished');
+      socket.off('join_ack', onJoinAck);
+      socket.off('game_starting', onGameStarting);
+      socket.off('game_started', onGameStarted);
+      socket.off('game_state_sync', onGameStateSync);
+      socket.off('settings_updated', onSettingsUpdated);
+      socket.off('quiz_finished', onQuizFinished);
+      socket.off('join_error', onJoinError);
+      clearTimeout(syncTimeout);
     };
-  }, [isConnected, socket, pin, fetchSession]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, socket, pin, user]);
+
+  // Reset join guard when socket reconnects after a disconnect
+  useEffect(() => {
+    if (!isConnected) {
+      joinedRef.current = false;
+    }
+  }, [isConnected]);
+
+  // -----------------------------------------------------------------------
+  // Loading / disconnected states
+  // -----------------------------------------------------------------------
+  if (connectionStatus === 'connecting') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-accent/20" />
+          <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="font-bold uppercase tracking-widest text-sm text-white">Connecting to Arena...</p>
+          <p className="text-[10px] text-text-soft uppercase tracking-widest">Establishing secure uplink</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (connectionStatus === 'disconnected') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <WifiOff className="text-red-400" size={48} />
+        <div className="text-center space-y-2">
+          <p className="font-bold uppercase tracking-widest text-sm text-white">Connection Lost</p>
+          <p className="text-xs text-text-soft">Arena uplink severed. Attempting recovery...</p>
+        </div>
+        <Button onClick={reconnect} className="px-8 h-12 rounded-2xl">
+          <Wifi className="mr-2" size={16} /> Reconnect
+        </Button>
+      </div>
+    );
+  }
 
   if (loading && !quiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="w-16 h-16 rounded-full border-4 border-accent border-t-transparent animate-spin" />
-        <p className="font-bold uppercase tracking-widest text-text-soft">Connecting to arena...</p>
+        <Loader2 className="text-accent animate-spin" size={40} />
+        <p className="font-bold uppercase tracking-widest text-text-soft">Joining Arena...</p>
       </div>
     );
   }
@@ -121,9 +227,9 @@ function LivePlayContent() {
     );
   }
 
-  // Hosts skip the player intro screen entirely
-  const resolvedShowIntro = showIntro && !isHost;
-
+  // -----------------------------------------------------------------------
+  // Finished state — final leaderboard + social share
+  // -----------------------------------------------------------------------
   if (isFinished) {
     return (
       <motion.div 
@@ -199,8 +305,6 @@ function LivePlayContent() {
                       <span className="text-[8px] uppercase font-bold tracking-widest text-text-soft">{player.streak} STREAK</span>
                     </div>
                   </div>
-                  
-                  {/* Detailed Stats Row */}
                   <div className="flex items-center gap-3 px-3 py-1 bg-white/5 rounded-full border border-white/5 mt-1 scale-90 origin-right">
                     <div className="flex items-center gap-1.5" title="Correct Answers">
                       <CheckCircle2 size={10} className="text-emerald-400" />
@@ -240,7 +344,6 @@ function LivePlayContent() {
           </Button>
         </div>
 
-        {/* Social share */}
         {quiz && (
           <div className="mt-6 max-w-sm mx-auto">
             <ShareResultCard
@@ -259,6 +362,9 @@ function LivePlayContent() {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Main match view
+  // -----------------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
       {isHost ? (
@@ -266,16 +372,6 @@ function LivePlayContent() {
           quiz={quiz} 
           socket={socket} 
           pin={pin || ''} 
-        />
-      ) : resolvedShowIntro ? (
-        // Player sees quiz info while waiting for host to start
-        <QuizIntro
-          quiz={quiz}
-          timerSeconds={examSettings?.timerSeconds || 30}
-          timerMode={examSettings?.timerMode || 'per-question'}
-          isLive={true}
-          examSettings={examSettings}
-          onStart={() => setShowIntro(false)}
         />
       ) : (
         <ErrorBoundary>
@@ -286,9 +382,10 @@ function LivePlayContent() {
             pin={pin || ''}
             examSettings={examSettings}
             isHostOverride={isHost}
-            onFinish={(score, total, lb) => {
+            onFinish={(score, total, lb, log) => {
               setIsFinished(true);
               if (lb) setLeaderboard(lb);
+              if (log) setAnswersLog(log);
             }}
           />
         </ErrorBoundary>

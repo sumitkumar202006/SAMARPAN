@@ -1277,6 +1277,38 @@ function startCountdown(pin) {
   }, (session.timerSeconds + 1) * 1000);
 }
 
+/**
+ * Build a full authoritative state snapshot for a client joining or reconnecting.
+ * Returns null when the session or quiz is not ready.
+ */
+function buildFullStateSnapshot(session) {
+  if (!session || !session.quiz) return null;
+  const currentQ = session.quiz.questions[session.currentQ];
+  const questionsForClient = (session.quiz.questions || []).map(q => ({
+    question: q.question,
+    options: q.options
+  }));
+  return {
+    status: session.status,
+    questionIndex: session.currentQ,
+    timeLeft: session.timeLeft || 0,
+    timerSeconds: session.timerSeconds,
+    timerMode: session.timerMode || 'per-question',
+    serverTs: Date.now(),
+    quiz: {
+      id: session.quiz.id,
+      title: session.quiz.title,
+      questions: questionsForClient,
+      totalQuestions: questionsForClient.length
+    },
+    currentQuestion: currentQ ? { question: currentQ.question, options: currentQ.options } : null,
+    examSettings: session.examSettings,
+    leaderboard: getLeaderboard(session),
+    teamScores: session.teamScores || null,
+    players: Object.values(session.players).length
+  };
+}
+
 function endSessionImmediately(pin, reason) {
   const session = liveSessions.get(pin);
   if (!session) return;
@@ -1320,6 +1352,7 @@ function advanceQuestion(pin) {
   // Auto-advance delay
   setTimeout(() => {
     session.currentQ++;
+    session.timeLeft = session.timerSeconds; // Reset time tracking for new question
     session.optionStats = [0, 0, 0, 0];
     Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
 
@@ -1327,7 +1360,7 @@ function advanceQuestion(pin) {
       const hasMoreSets = session.quizQueue && session.quizQueue.length > 0;
       
       if (hasMoreSets) {
-        session.status = 'set_finished'; // Waiting for host to bridge to next set
+        session.status = 'set_finished';
         io.in(pin).emit("set_finished", { 
           leaderboard: getLeaderboard(session),
           currentSetIndex: (session.currentSet || 0) + 1,
@@ -1338,7 +1371,6 @@ function advanceQuestion(pin) {
 
       session.status = 'finished';
       
-      // Persist final leaderboard and exam settings
       prisma.gameSession.update({
         where: { pin },
         data: { metadata: { finalLeaderboard: getLeaderboard(session), teamScores: session.teamScores, examSettings: session.examSettings } }
@@ -1353,14 +1385,19 @@ function advanceQuestion(pin) {
       return;
     }
 
+    const nextQ = session.quiz.questions[session.currentQ];
+    // Include serverTs for client-side drift correction
     io.in(pin).emit("next_question", {
       index: session.currentQ,
       timerSeconds: session.timerSeconds,
       total: session.quiz.questions.length,
-      timerMode: session.timerMode
+      timerMode: session.timerMode,
+      serverTs: Date.now(),
+      // Include question so desynced clients can self-heal without a page reload
+      question: nextQ ? nextQ.question : null,
+      options: nextQ ? nextQ.options : []
     });
     
-    // Only auto-start countdown if in per-question mode
     if (session.timerMode === 'per-question') {
       startCountdown(pin);
     }
@@ -1646,7 +1683,25 @@ io.on("connection", (socket) => {
     };
     socket.emit("join_success", { pin, name, playAsHost: session.playAsHost });
     
-    // --- STARTING PHASE SYNC: Late joiners get countdown state immediately ---
+    // === JOIN_ACK: Single authoritative state snapshot delivered immediately on join ===
+    // This is the primary mechanism for unblocking isSyncing on the client.
+    // Replaces the fragmented game_starting / game_state_sync split that caused
+    // clients to get stuck in "Synchronizing Arena State" on page load/refresh.
+    const stateSnap = buildFullStateSnapshot(session);
+    if (stateSnap) {
+      socket.emit("join_ack", stateSnap);
+    } else {
+      // Session exists but quiz not loaded yet (pre-start waiting room)
+      socket.emit("join_ack", { 
+        status: session.status, 
+        questionIndex: 0, 
+        timeLeft: session.timerSeconds,
+        quiz: null,
+        examSettings: session.examSettings
+      });
+    }
+    
+    // --- STARTING PHASE SYNC: Late joiners also get countdown-specific events ---
     if (session.status === 'starting') {
       const questionsForAll = (session.quiz?.questions || []).map(q => ({ question: q.question, options: q.options }));
       socket.emit("game_starting", {
@@ -1656,13 +1711,12 @@ io.on("connection", (socket) => {
         examSettings: session.examSettings,
         countdownSeconds: session.countdownRemaining ?? 5
       });
-      // Also immediately emit the current countdown tick so client shows correct number
       if (session.countdownRemaining !== undefined) {
         socket.emit("game_countdown", { secondsLeft: session.countdownRemaining });
       }
     }
     
-    // --- RECONNECT TO RUNNING GAME: Sync state for late joiners or refreshers ---
+    // --- RECONNECT TO RUNNING GAME: game_state_sync kept for backward compat ---
     if (session.status === 'running') {
       const currentQ = session.quiz.questions[session.currentQ];
       if (currentQ) {
@@ -1713,7 +1767,9 @@ io.on("connection", (socket) => {
     const playersAsParticipants = Object.values(session.players);
     const playerCount = playersAsParticipants.filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
     
-    if (playerCount < 2) { 
+    // Matchmade sessions can start with 1 player (solo fallback after 60s timeout)
+    // Host-created sessions require at least 2 participants
+    if (!session.matchmade && playerCount < 2) { 
       socket.emit("error_msg", { message: "Arena requires at least 2 players to initiate." }); 
       return; 
     }
@@ -1797,6 +1853,8 @@ io.on("connection", (socket) => {
           delete session.countdownRemaining;
           // Transition to fully running
           session.status = 'running';
+          session.timeLeft = session.timerSeconds; // Initialise for first question
+          // Full state on game_started so clients never need a separate sync call
           io.in(pin).emit("game_started", {
             quiz: { 
               id: session.quiz.id, 
@@ -1808,20 +1866,30 @@ io.on("connection", (socket) => {
             timerMode: session.timerMode,
             totalSessionTime: session.totalSessionTime,
             rated: session.rated,
-            examSettings: session.examSettings
+            examSettings: session.examSettings,
+            // New: authoritative starting state
+            questionIndex: 0,
+            status: 'running',
+            serverTs: Date.now()
           });
 
-          // Periodic state snapshot every 10s for self-healing desynced clients
+          // Periodic state snapshot every 8s for self-healing desynced clients
+          // Includes current question so clients can fully recover without reload
           session.stateSnapshotInterval = setInterval(() => {
             const s = liveSessions.get(pin);
             if (!s || s.status !== 'running') { clearInterval(session.stateSnapshotInterval); return; }
+            const snapQ = s.quiz.questions[s.currentQ];
             io.in(pin).emit("state_snapshot", {
               questionIndex: s.currentQ,
               timeLeft: s.timeLeft,
               status: s.status,
-              serverTs: Date.now()
+              serverTs: Date.now(),
+              timerSeconds: s.timerSeconds,
+              // Include question data so a desynced client can re-render immediately
+              question: snapQ ? snapQ.question : null,
+              options: snapQ ? snapQ.options : []
             });
-          }, 10000);
+          }, 8000);
 
           // Global Session Timer (Fixed termination)
           if (session.timerMode === 'total') {

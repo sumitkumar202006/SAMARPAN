@@ -69,7 +69,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [isMatchActive, setIsMatchActive] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null); // Pre-game countdown overlay
   // isSyncing: blocks rendering until first server state arrives (prevents stale-UI flicker on reconnect)
-  const [isSyncing, setIsSyncing] = useState(isLive); // true only for live sessions until first sync
+  // Starts true only for live sessions; unblocked by join_ack, game_started, or game_state_sync
+  const [isSyncing, setIsSyncing] = useState(isLive);
+  // Track the last questionIndex received from state_snapshot for monotonic guard reset
+  const lastSnapshotQIndexRef = useRef<number>(-1);
 
   const { playNavigate, playClick, playSuccess, playError, playCountdown, playUrgent } = useAudio();
 
@@ -181,6 +184,16 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     }
   }, [timeLeft, isPaused, playUrgent]);
 
+  // --- isSyncing escape hatch: if server never responds in 8s, unblock anyway ---
+  useEffect(() => {
+    if (!isLive || !isSyncing) return;
+    const escapeTo = setTimeout(() => {
+      setIsSyncing(false);
+      console.warn('[QuizEngine] isSyncing timeout — forcing unblock after 8s');
+    }, 8000);
+    return () => clearTimeout(escapeTo);
+  }, [isLive, isSyncing]);
+
   // --- Auto-submit on timer expiry (server-driven for live, client for solo) ---
   useEffect(() => {
     if (!isLive || isFinished || isPaused || timeLeft > 0) return;
@@ -246,10 +259,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         setLastFlashCorrect(true);
         setFlashKey(k => k + 1);
         playSuccess();
+        // Mobile vibration: short pulse for correct
+        navigator.vibrate?.(50);
       } else {
         setLastFlashCorrect(false);
         setFlashKey(k => k + 1);
         playError();
+        // Mobile vibration: double pulse for wrong
+        navigator.vibrate?.([100, 50, 100]);
       }
     };
 
@@ -282,13 +299,20 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setTimeout(() => setHudMessage(null), 4000);
     };
 
-    const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total' }) => {
+    const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total', serverTs?: number, question?: string, options?: string[] }) => {
       setCurrentIndex(data.index);
       currentIndexRef.current = data.index;
       if (data.timerMode) setTimerMode(data.timerMode);
       // Reset monotonic guard per new question — each question starts fresh
-      lastTimerRef.current = data.timerSeconds;
-      setTimeLeft(data.timerSeconds);
+      // Use corrected time if serverTs is available for drift correction
+      let correctedTimer = data.timerSeconds;
+      if (data.serverTs) {
+        const latencyMs = Math.max(0, Date.now() - data.serverTs);
+        const latencySeconds = Math.round(latencyMs / 1000);
+        correctedTimer = Math.max(0, data.timerSeconds - latencySeconds);
+      }
+      lastTimerRef.current = correctedTimer;
+      setTimeLeft(correctedTimer);
       setSelectedIdx(null);
       selectedIdxRef.current = null;
       setIsLocked(false);
@@ -297,6 +321,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setExplanation(null);
       setIsPaused(false);
       isPausedRef.current = false;
+      autoSubmittedRef.current = false;
     };
 
     // Server sends the leaderboard with authoritative scores — use that, not local score
@@ -334,20 +359,30 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     };
 
     // Periodic state snapshot: self-heal if questionIndex is out of sync
-    const onStateSnapshot = (data: { questionIndex: number, timeLeft: number, status: string, serverTs: number }) => {
+    // Now also resets the monotonic guard when the question index changes,
+    // fixing the "stuck at 0s" bug where guard prevented timer from resetting.
+    const onStateSnapshot = (data: { questionIndex: number, timeLeft: number, status: string, serverTs: number, timerSeconds?: number, question?: string, options?: string[] }) => {
       if (data.status !== 'running') return;
-      // Only force-sync if we're on the wrong question
-      if (data.questionIndex !== currentIndexRef.current) {
-        console.warn(`[QuizEngine] State mismatch detected. Server: Q${data.questionIndex}, Client: Q${currentIndexRef.current}. Force-syncing.`);
+
+      const isDifferentQuestion = data.questionIndex !== currentIndexRef.current;
+
+      if (isDifferentQuestion) {
+        console.warn(`[QuizEngine] State mismatch. Server: Q${data.questionIndex}, Client: Q${currentIndexRef.current}. Force-syncing.`);
         setCurrentIndex(data.questionIndex);
         currentIndexRef.current = data.questionIndex;
-        lastTimerRef.current = data.timeLeft;
+        // CRITICAL: reset monotonic guard so timer can restart from correct value
+        lastTimerRef.current = data.timerSeconds ?? data.timeLeft;
         setTimeLeft(data.timeLeft);
         setSelectedIdx(null);
         selectedIdxRef.current = null;
         setIsLocked(false);
         isLockedRef.current = false;
         autoSubmittedRef.current = false;
+        lastSnapshotQIndexRef.current = data.questionIndex;
+      } else if (lastSnapshotQIndexRef.current !== data.questionIndex) {
+        // Same question, but first snapshot for this question — allow guard reset
+        lastTimerRef.current = Math.max(lastTimerRef.current, data.timeLeft);
+        lastSnapshotQIndexRef.current = data.questionIndex;
       }
     };
 
@@ -371,6 +406,17 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     socket.on('game_state_sync', onGameStateSync);
     socket.on('state_snapshot', onStateSnapshot);
     socket.on('host_broadcast_to_player', onHostBroadcast);
+    // join_ack: fastest path to unblock isSyncing — arrives before game_started on refresh/rejoin
+    socket.on('join_ack', (data: any) => {
+      if (data.examSettings) setExamSettings(data.examSettings);
+      // If game is running, unblock immediately and let game_state_sync fill in the details
+      if (data.status === 'running' || data.status === 'starting') {
+        setIsSyncing(false);
+        setIsMatchActive(true);
+      } else if (data.status === 'waiting') {
+        setIsSyncing(false); // waiting room — nothing to sync yet
+      }
+    });
 
     // Heartbeat: update lastSeen on server every 5s
     const heartbeatTimer = setInterval(() => {
@@ -393,6 +439,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket.off('game_state_sync', onGameStateSync);
       socket.off('state_snapshot', onStateSnapshot);
       socket.off('host_broadcast_to_player', onHostBroadcast);
+      socket.off('join_ack');
       clearInterval(heartbeatTimer);
     };
   }, [isLive, socket, onFinish, quiz.questions.length, playSuccess, playError]);

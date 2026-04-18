@@ -1123,6 +1123,129 @@ async function createMatchFromQueue(queueKey, players) {
 setInterval(processQueues, 2000);
 
 // ============================================================
+// 🏛️ RULE SYSTEM — MODE-AWARE PERMISSION MATRIX
+// ============================================================
+
+/**
+ * Mode definitions:
+ *   'casual'    — host IS a player. Leaderboard includes host. Only emergency controls.
+ *   'hub'       — host is supervisor. Full moderator powers. Excluded from leaderboard.
+ *   'matchmade' — no host. Server-controlled. All players equal.
+ */
+
+/**
+ * Validates whether the host may perform a given action in the current session mode.
+ * All host socket events MUST call this before executing.
+ *
+ * @param {object} session - live session object
+ * @param {string} action  - one of: 'pause','resume','skip','kick','ban','broadcast',
+ *                           'reduce_score','end_match','spectate','patch_quiz'
+ * @returns {boolean}
+ */
+function canHostDo(session, action) {
+  // Matchmade sessions have no host — all host actions are rejected
+  if (session.matchmade) return false;
+
+  const mode = session.mode || 'hub';
+
+  // Casual: host is a player — only emergency end is allowed, no moderation
+  const CASUAL_ALLOWED = new Set(['end_match']);
+
+  // Hub: full supervisor suite
+  const HUB_ALLOWED = new Set([
+    'pause', 'resume', 'skip', 'kick', 'ban', 'broadcast',
+    'reduce_score', 'end_match', 'spectate', 'patch_quiz', 'next', 'show_results'
+  ]);
+
+  if (mode === 'casual') return CASUAL_ALLOWED.has(action);
+  return HUB_ALLOWED.has(action);
+}
+
+/**
+ * Returns a question object safe for broadcasting to clients.
+ * Strips correctIndex and explanation to prevent cheating.
+ * These are revealed only via question_result after the question ends.
+ */
+function safeQuestion(q) {
+  if (!q) return null;
+  return { question: q.question, options: q.options };
+}
+
+/**
+ * Returns a full list of safe (no-answer) questions for client broadcasts.
+ */
+function safeQuestions(questions) {
+  return (questions || []).map(safeQuestion);
+}
+
+/**
+ * Server-side auto-submit: when timer expires, any player who hasn't answered
+ * gets an automatic penalty-free no-answer (optionIdx = -1, isCorrect = false).
+ * This is the server enforcing rule: "Auto-submit answers when time ends".
+ */
+function autoSubmitAll(pin, session) {
+  if (!session || session.status !== 'running') return;
+  const q = session.quiz.questions[session.currentQ];
+  if (!q) return;
+
+  Object.entries(session.players).forEach(([sid, player]) => {
+    if (player.answeredThisQ) return; // Already answered — skip
+    if (player.isHost && !session.playAsHost) return; // Observer host — skip
+
+    // Mark as answered with no-answer
+    player.answeredThisQ = true;
+    player.optionIdx = -1;
+    player.streak = 0; // Streak broken by timeout
+    player.incorrectCount = (player.incorrectCount || 0) + 1;
+
+    // Log the timeout as a missed answer in DB
+    logAnswerToDb(session, player, { optionIdx: -1, isCorrect: false, timeTaken: session.timerSeconds });
+
+    // Notify the individual player their answer was auto-submitted
+    const sock = io.sockets.sockets.get(sid);
+    if (sock) {
+      sock.emit('answer_timeout', {
+        questionIndex: session.currentQ,
+        message: 'Time expired — answer auto-submitted.'
+      });
+    }
+  });
+}
+
+/**
+ * Casual-mode host transfer: promotes the first connected real player to host.
+ * Called when the host disconnects in casual mode.
+ * @returns {boolean} true if transfer succeeded
+ */
+function transferHost(pin, session) {
+  // Find first connected, non-host player
+  const candidate = Object.entries(session.players).find(([sid, p]) => {
+    return !p.isHost && io.sockets.sockets.has(sid);
+  });
+
+  if (!candidate) return false;
+
+  const [newHostSid, newHostPlayer] = candidate;
+  newHostPlayer.isHost = true;
+  session.hostSocketId = newHostSid;
+
+  io.to(newHostSid).emit('host_transferred', {
+    pin,
+    message: 'The previous host disconnected. You are now the host.'
+  });
+
+  io.in(pin).emit('broadcast_message', {
+    message: `${newHostPlayer.name} has taken over as host.`,
+    type: 'info'
+  });
+
+  console.log(`[HOST TRANSFER] ${newHostPlayer.name} is now host of arena ${pin}`);
+  return true;
+}
+
+
+
+// ============================================================
 // 🏟️ LIVE ARENA REST ENDPOINT
 // ============================================================
 
@@ -1261,7 +1384,9 @@ async function ensureSessionInMemory(pin) {
         battleType: dbSession.battleType || null,
         teamScores: metadata.teamScores || null,
         teamNames: metadata.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' },
-        playAsHost: metadata.playAsHost !== false,
+        // RULE SYSTEM: mode determines host permissions
+        mode: metadata.mode || (dbSession.rated !== false ? 'hub' : 'casual'),
+        playAsHost: metadata.mode === 'casual' || (!dbSession.rated && !metadata.mode),
         examSettings: metadata.examSettings || { 
           strictFocus: true, 
           allowBacktrack: false,
@@ -1280,27 +1405,31 @@ async function ensureSessionInMemory(pin) {
   return null;
 }
 
+/**
+ * Returns players who count toward the leaderboard given the session mode.
+ * Rule:
+ *   casual  → everyone including host (host is a player)
+ *   hub     → only non-hosts
+ *   matchmade → everyone (no host concept)
+ */
+function isLeaderboardPlayer(session, p) {
+  if (!p.isHost) return true;                              // Always include real players
+  if (session.matchmade) return true;                      // Matchmade has no true host
+  return session.mode === 'casual';                        // Casual: host IS a player
+}
+
 function getLeaderboard(session) {
   return Object.values(session.players)
-    .filter(p => {
-      // Real players always appear on leaderboard
-      if (!p.isHost) return true;
-      // Host appears ONLY in casual mode where they explicitly opted in as a player
-      // In ranked / hub mode the host is an observer — never on the board
-      if (session.playAsHost === true && session.rated === false) return true;
-      return false;
-    })
+    .filter(p => isLeaderboardPlayer(session, p))
     .sort((a, b) => {
-      // Primary: score descending
       if (b.score !== a.score) return b.score - a.score;
-      // Tiebreak 1: correctCount descending
       if ((b.correctCount || 0) !== (a.correctCount || 0)) return (b.correctCount || 0) - (a.correctCount || 0);
-      // Tiebreak 2: name ascending (stable)
       return (a.name || '').localeCompare(b.name || '');
     })
     .map((p, i) => ({ 
       rank: i + 1, 
-      name: p.name, 
+      name: p.name,
+      avatar: p.avatar || null,
       score: p.score, 
       streak: p.streak || 0,
       correctCount: p.correctCount || 0,
@@ -1313,12 +1442,8 @@ function getLeaderboard(session) {
 }
 
 function broadcastStats(pin, session) {
-  // Only count real players (and host only in casual playAsHost mode)
-  const isPlayerVisible = (p) => {
-    if (!p.isHost) return true;
-    return session.playAsHost === true && session.rated === false;
-  };
-  const players = Object.values(session.players).filter(isPlayerVisible);
+  // Count only players visible on leaderboard
+  const players = Object.values(session.players).filter(p => isLeaderboardPlayer(session, p));
   const responded = players.filter(p => p.answeredThisQ).length;
   io.in(pin).emit("stats_update", {
     stats: session.optionStats,
@@ -1327,10 +1452,10 @@ function broadcastStats(pin, session) {
     leaderboard: getLeaderboard(session)
   });
   
-  // Asynchronous Navigation: In 'total' (self-paced) mode, we NEVER force global question advancement.
+  // Asynchronous Navigation: In 'total' (self-paced) mode, never force global advancement.
   if (session.timerMode === 'total') return;
 
-  // Synchronized Navigation: Auto-advance if ALL PRESENT (non-disconnected) players answered.
+  // Synchronized Navigation: Auto-advance if ALL PRESENT (connected) players answered.
   const allPresent = players.filter(p => {
     const sid = Object.keys(session.players).find(id => session.players[id] === p);
     return !!sid && !!io.sockets.sockets.get(sid);
@@ -1367,6 +1492,8 @@ function startCountdown(pin) {
 
   session.timerHandle = setTimeout(() => {
     clearInterval(session.countdownHandle);
+    // RULE: auto-submit all non-answered players before advancing
+    autoSubmitAll(pin, session);
     advanceQuestion(pin);
   }, (session.timerSeconds + 1) * 1000);
 }
@@ -1374,14 +1501,11 @@ function startCountdown(pin) {
 /**
  * Build a full authoritative state snapshot for a client joining or reconnecting.
  * Returns null when the session or quiz is not ready.
+ * SECURITY: correctIndex is NEVER included — revealed only via question_result.
  */
 function buildFullStateSnapshot(session) {
   if (!session || !session.quiz) return null;
   const currentQ = session.quiz.questions[session.currentQ];
-  const questionsForClient = (session.quiz.questions || []).map(q => ({
-    question: q.question,
-    options: q.options
-  }));
   return {
     status: session.status,
     questionIndex: session.currentQ,
@@ -1389,13 +1513,14 @@ function buildFullStateSnapshot(session) {
     timerSeconds: session.timerSeconds,
     timerMode: session.timerMode || 'per-question',
     serverTs: Date.now(),
+    mode: session.mode || 'hub',
     quiz: {
       id: session.quiz.id,
       title: session.quiz.title,
-      questions: questionsForClient,
-      totalQuestions: questionsForClient.length
+      questions: safeQuestions(session.quiz.questions), // STRIPPED — no correctIndex
+      totalQuestions: (session.quiz.questions || []).length
     },
-    currentQuestion: currentQ ? { question: currentQ.question, options: currentQ.options } : null,
+    currentQuestion: safeQuestion(currentQ),
     examSettings: session.examSettings,
     leaderboard: getLeaderboard(session),
     teamScores: session.teamScores || null,
@@ -1436,6 +1561,7 @@ function advanceQuestion(pin) {
 
   const q = session.quiz.questions[session.currentQ];
   if (q) {
+    // Reveal correctIndex NOW (after question is over) — safe to send
     io.in(pin).emit("question_result", {
       correctIndex: q.correctIndex,
       explanation: q.explanation || null,
@@ -1446,7 +1572,7 @@ function advanceQuestion(pin) {
   // Auto-advance delay
   setTimeout(() => {
     session.currentQ++;
-    session.timeLeft = session.timerSeconds; // Reset time tracking for new question
+    session.timeLeft = session.timerSeconds;
     session.optionStats = [0, 0, 0, 0];
     Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
 
@@ -1480,14 +1606,13 @@ function advanceQuestion(pin) {
     }
 
     const nextQ = session.quiz.questions[session.currentQ];
-    // Include serverTs for client-side drift correction
     io.in(pin).emit("next_question", {
       index: session.currentQ,
       timerSeconds: session.timerSeconds,
       total: session.quiz.questions.length,
       timerMode: session.timerMode,
       serverTs: Date.now(),
-      // Include question so desynced clients can self-heal without a page reload
+      // SECURITY: only send safe question data — no correctIndex
       question: nextQ ? nextQ.question : null,
       options: nextQ ? nextQ.options : []
     });
@@ -1654,7 +1779,9 @@ io.on("connection", (socket) => {
         maxPlayers: 200,
         battleType: null,
         teamScores: null,
-        playAsHost: false, // Host defaults to observer; set true for casual/friendly matches
+        // Mode set from URL param if provided; defaults to hub (supervisor)
+        mode: data.mode || 'hub',
+        playAsHost: data.mode === 'casual', // casual: host=player, hub: host=observer
         examSettings: { 
           strictFocus: true, 
           allowBacktrack: false,
@@ -1709,8 +1836,8 @@ io.on("connection", (socket) => {
       penaltyScore: 0,
       strikeCount: 0
     };
-    socket.emit("host_ready", { pin, playAsHost: session.playAsHost });
-    console.log(`Host joined/created room ${pin}`);
+    socket.emit("host_ready", { pin, mode: session.mode || 'hub', playAsHost: session.playAsHost });
+    console.log(`Host joined/created room ${pin} (mode: ${session.mode || 'hub'})`);
   });
 
   socket.on("join_room", async (data) => {
@@ -1801,9 +1928,12 @@ io.on("connection", (socket) => {
     
     // --- STARTING PHASE SYNC: Late joiners also get countdown-specific events ---
     if (session.status === 'starting') {
-      const questionsForAll = (session.quiz?.questions || []).map(q => ({ question: q.question, options: q.options }));
       socket.emit("game_starting", {
-        quiz: { title: session.quiz?.title, questions: questionsForAll, totalQuestions: questionsForAll.length },
+        quiz: { 
+          title: session.quiz?.title, 
+          questions: safeQuestions(session.quiz?.questions), // STRIPPED — no correctIndex
+          totalQuestions: (session.quiz?.questions || []).length
+        },
         timerSeconds: session.timerSeconds,
         timerMode: session.timerMode || 'per-question',
         examSettings: session.examSettings,
@@ -1814,20 +1944,30 @@ io.on("connection", (socket) => {
       }
     }
     
-    // --- RECONNECT TO RUNNING GAME: game_state_sync kept for backward compat ---
+    // --- RECONNECT TO RUNNING GAME --- 
     if (session.status === 'running') {
+      // SPECTATOR: if the join explicitly requests spectator mode, 
+      // don't add them to players — just give them the current state for viewing only
+      if (data.spectator) {
+        const snap = buildFullStateSnapshot(session);
+        socket.emit('spectator_state', snap);
+        // Remove from players since we shouldn't have added them
+        delete session.players[socket.id];
+        return; // Don't broadcast player list or do slot assignment
+      }
+      
       const currentQ = session.quiz.questions[session.currentQ];
       if (currentQ) {
         socket.emit("game_state_sync", {
           questionIndex: session.currentQ,
           timerSeconds: session.timeLeft || 0,
           timerMode: session.timerMode || 'per-question',
-          question: currentQ.question,
+          question: currentQ.question, // SAFE: correctIndex not sent
           options: currentQ.options,
           examSettings: session.examSettings,
           quiz: {
             title: session.quiz.title,
-            questions: (session.quiz.questions || []).map(q => ({ question: q.question, options: q.options })),
+            questions: safeQuestions(session.quiz.questions),
             totalQuestions: session.quiz.questions.length
           }
         });
@@ -1893,9 +2033,11 @@ io.on("connection", (socket) => {
       session.timerMode = meta.timerMode || 'per-question';
       session.totalSessionTime = meta.totalSessionTime || 10;
       session.sessionTimeLeft = session.totalSessionTime * 60;
-      // playAsHost: true means host opted in as a PLAYER in casual mode — appears on leaderboard
-      // false (default) = host is observer — excluded from leaderboard
-      session.playAsHost = meta.playAsHost !== false && session.rated === false;
+      // Mode enforcement: casual (host=player) or hub (host=supervisor)
+      // Defaults to 'hub' for rated sessions, 'casual' for unrated ones unless overridden
+      session.mode = meta.mode || (session.rated === false ? 'casual' : 'hub');
+      // playAsHost: host appears on leaderboard in casual mode only
+      session.playAsHost = session.mode === 'casual';
 
       // Shuffling
       if (session.examSettings.randomizeOrder) {
@@ -1912,23 +2054,21 @@ io.on("connection", (socket) => {
       session.status = 'starting'; // STARTING phase — pre-game countdown
       session.currentQ = 0;
       
-      const questionsForAll = (session.quiz.questions || []).map(q => ({
-        question: q.question,
-        options: q.options
-      }));
+      // Broadcast game_starting — SAFE questions only (no correctIndex)
+      const safeQuestionsForAll = safeQuestions(session.quiz.questions);
 
-      // Broadcast that the game is beginning — send quiz data now so clients can prepare
       io.in(pin).emit("game_starting", {
         quiz: { 
           id: session.quiz.id, 
           title: session.quiz.title, 
-          questions: questionsForAll, 
-          totalQuestions: (session.quiz.questions || []).length 
+          questions: safeQuestionsForAll, 
+          totalQuestions: safeQuestionsForAll.length 
         },
         timerSeconds: session.timerSeconds,
         timerMode: session.timerMode,
         totalSessionTime: session.totalSessionTime,
         rated: session.rated,
+        mode: session.mode,
         examSettings: session.examSettings,
         countdownSeconds: 5
       });
@@ -1955,20 +2095,20 @@ io.on("connection", (socket) => {
           // Transition to fully running
           session.status = 'running';
           session.timeLeft = session.timerSeconds; // Initialise for first question
-          // Full state on game_started so clients never need a separate sync call
+          // Full state on game_started — SAFE questions only (no correctIndex)
           io.in(pin).emit("game_started", {
             quiz: { 
               id: session.quiz.id, 
               title: session.quiz.title, 
-              questions: questionsForAll, 
-              totalQuestions: (session.quiz.questions || []).length 
+              questions: safeQuestionsForAll, 
+              totalQuestions: safeQuestionsForAll.length 
             },
             timerSeconds: session.timerSeconds,
             timerMode: session.timerMode,
             totalSessionTime: session.totalSessionTime,
             rated: session.rated,
+            mode: session.mode,
             examSettings: session.examSettings,
-            // New: authoritative starting state
             questionIndex: 0,
             status: 'running',
             serverTs: Date.now()
@@ -2088,12 +2228,18 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ── HOST NEXT (skip to next question) ──────────────────────────────────────
   socket.on("host_next", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
     
-    // In 'total' mode, players navigate independently. 
-    // Global skips would teleport all players, which is a logic violation.
+    // RULE: permission check
+    if (!canHostDo(session, 'next')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow skipping questions.` });
+      return;
+    }
+    
+    // In 'total' mode, players navigate independently.
     if (session.timerMode === 'total') {
       socket.emit("error_msg", { message: "Global skips are disabled in Self-Paced (Exam) mode." });
       return;
@@ -2102,27 +2248,44 @@ io.on("connection", (socket) => {
     advanceQuestion(pin);
   });
 
+  // ── HOST SHOW RESULTS ───────────────────────────────────────────────────────
   socket.on("host_show_results", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'show_results')) {
+      socket.emit("error_msg", { message: `Permission denied in '${session.mode}' mode.` });
+      return;
+    }
     io.in(pin).emit("reveal_results", { leaderboard: getLeaderboard(session) });
   });
 
+  // ── HOST CANCEL / END MATCH ─────────────────────────────────────────────────
+  // end_match is allowed in ALL modes (emergency control)
   socket.on("host_cancel", (pin) => {
     const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'end_match')) {
+      socket.emit("error_msg", { message: "Permission denied: cannot end this session." });
+      return;
+    }
     // If cancelling during STARTING: immediately clear countdown so game_started never fires
-    if (session && session.countdownIntervalHandle) {
+    if (session.countdownIntervalHandle) {
       clearInterval(session.countdownIntervalHandle);
       session.countdownIntervalHandle = null;
       delete session.countdownRemaining;
     }
-    terminateSession(pin, "Host chose to terminate the arena session.");
+    terminateSession(pin, "Host terminated the arena session.");
   });
 
+  // ── HOST KICK ───────────────────────────────────────────────────────────────
   socket.on("host_kick", (data) => {
     const { pin, playerId } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'kick')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow kicking players.` });
+      return;
+    }
     const target = io.sockets.sockets.get(playerId);
     if (target) { target.emit("kicked", { message: "You were removed by the host." }); target.leave(pin); }
     delete session.players[playerId];
@@ -2166,6 +2329,10 @@ io.on("connection", (socket) => {
     const { pin, playerId, name, ip } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'ban')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow banning players.` });
+      return;
+    }
     if (name) session.bannedNames.add(name.toLowerCase());
     if (ip) session.bannedIPs.add(ip);
     
@@ -2216,10 +2383,15 @@ io.on("connection", (socket) => {
     io.in(pin).emit("settings_updated", { examSettings: session.examSettings });
   });
 
+  // ── HOST REDUCE SCORE ───────────────────────────────────────────────────────
   socket.on("host_reduce_score", (data) => {
     const { pin, playerId, amount } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'reduce_score')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow score adjustment.` });
+      return;
+    }
 
     const player = session.players[playerId];
     if (player) {
@@ -2234,7 +2406,10 @@ io.on("connection", (socket) => {
     const { pin, playerId, message, type } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
-    
+    if (!canHostDo(session, 'broadcast')) {
+      socket.emit("error_msg", { message: `Permission denied in '${session.mode}' mode.` });
+      return;
+    }
     socket.to(playerId).emit("broadcast_message", { message, type });
   });
 
@@ -2242,10 +2417,12 @@ io.on("connection", (socket) => {
     const { pin, questions } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
-    if (session.status !== 'waiting') return; // Only patch before start for stability
-    
+    if (!canHostDo(session, 'patch_quiz')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow quiz patching.` });
+      return;
+    }
+    if (session.status !== 'waiting') return;
     session.quiz.questions = questions;
-    // Notify all players that the quiz has been updated/prepared
     io.in(pin).emit("quiz_updated", { title: session.quiz.title });
   });
 
@@ -2262,9 +2439,16 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ── HOST PAUSE ──────────────────────────────────────────────────────────────
   socket.on("host_pause", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    
+    // RULE: Casual mode hosts cannot pause
+    if (!canHostDo(session, 'pause')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode || 'casual'}' mode does not allow pausing.` });
+      return;
+    }
     
     // If paused during STARTING phase: abort countdown, revert to WAITING
     if (session.status === 'starting') {
@@ -2284,9 +2468,14 @@ io.on("connection", (socket) => {
     io.in(pin).emit("game_paused");
   });
 
+  // ── HOST RESUME ─────────────────────────────────────────────────────────────
   socket.on("host_resume", (pin) => {
     const session = liveSessions.get(pin);
     if (!session || !session.isPaused || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'resume')) {
+      socket.emit("error_msg", { message: `Permission denied in '${session.mode}' mode.` });
+      return;
+    }
     session.isPaused = false;
     startCountdown(pin);
     io.in(pin).emit("game_resumed");
@@ -2295,6 +2484,10 @@ io.on("connection", (socket) => {
   socket.on("host_start_next_set", async (pin) => {
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'next')) {
+      socket.emit("error_msg", { message: `Permission denied in '${session.mode}' mode.` });
+      return;
+    }
     if (session.status !== 'set_finished') return;
     if (!session.quizQueue || session.quizQueue.length === 0) return;
 
@@ -2308,17 +2501,15 @@ io.on("connection", (socket) => {
       session.status = 'running';
       session.currentSet = (session.currentSet || 0) + 1;
 
-      const questionsForAll = (session.quiz.questions || []).map(q => ({
-        question: q.question,
-        options: q.options
-      }));
+      // SAFE: strip correctIndex from next set questions
+      const safeQs = safeQuestions(session.quiz.questions);
 
       io.in(pin).emit("next_set_started", {
         quiz: { 
           id: session.quiz.id, 
           title: session.quiz.title, 
-          questions: questionsForAll, 
-          totalQuestions: (session.quiz.questions || []).length 
+          questions: safeQs, 
+          totalQuestions: safeQs.length
         },
         currentSet: session.currentSet
       });
@@ -2334,6 +2525,10 @@ io.on("connection", (socket) => {
     const { pin, message, type } = data;
     const session = liveSessions.get(pin);
     if (!session || session.hostSocketId !== socket.id) return;
+    if (!canHostDo(session, 'broadcast')) {
+      socket.emit("error_msg", { message: `Permission denied: '${session.mode}' mode does not allow broadcasting.` });
+      return;
+    }
     io.in(pin).emit("broadcast_message", { message, type: type || 'info' });
   });
 
@@ -2461,7 +2656,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     // Only process sessions this socket was actually part of
-    // to avoid O(n*m) work and avoid false-triggering host kill timers
     const relevantSessions = [];
     liveSessions.forEach((session, pin) => {
       if (session.hostSocketId === socket.id || session.players[socket.id]) {
@@ -2473,21 +2667,40 @@ io.on("connection", (socket) => {
       const isHostSocket = (socket.id === session.hostSocketId);
       
       if (isHostSocket && !session.matchmade) {
-        // Only start kill timer for host-created sessions, not matchmade ones
-        console.log(`[HOST DISCONNECT] Host left room ${pin}. Starting ${HOST_RECOVERY_WINDOW/60000}m buffer.`);
-        session.hostSocketId = null;
+        const mode = session.mode || 'hub';
         
-        session.hostDisconnectTimer = setTimeout(() => {
-          terminateSession(pin, "Host failed to return within the 5-minute recovery window.");
-        }, HOST_RECOVERY_WINDOW);
+        if (mode === 'casual') {
+          // CASUAL MODE: Attempt host transfer to another player
+          const transferred = transferHost(pin, session);
+          if (!transferred) {
+            // No players left — end the match
+            console.log(`[CASUAL] No players to transfer host to. Ending match ${pin}.`);
+            terminateSession(pin, 'All players left the casual match.');
+          }
+        } else {
+          // HUB MODE: Pause match and start 5-minute recovery timer
+          console.log(`[HOST DISCONNECT] Host left room ${pin}. Mode: ${mode}. Starting ${HOST_RECOVERY_WINDOW/60000}m buffer.`);
+          session.hostSocketId = null;
+          
+          // Auto-pause running match so players aren't stuck
+          if (session.status === 'running' && !session.isPaused) {
+            session.isPaused = true;
+            if (session.timerHandle) clearTimeout(session.timerHandle);
+            if (session.countdownHandle) clearInterval(session.countdownHandle);
+            io.in(pin).emit('game_paused', { reason: 'host_disconnected' });
+          }
+          
+          session.hostDisconnectTimer = setTimeout(() => {
+            terminateSession(pin, "Host failed to return within the 5-minute recovery window.");
+          }, HOST_RECOVERY_WINDOW);
 
-        io.in(pin).emit("broadcast_message", { 
-          message: "Host disconnected. Arena will expire in 5 minutes unless host returns.", 
-          type: 'warning' 
-        });
+          io.in(pin).emit("broadcast_message", { 
+            message: "Host disconnected. Match paused. Arena will expire in 5 minutes unless host returns.", 
+            type: 'warning' 
+          });
+        }
       } else if (isHostSocket && session.matchmade) {
-        // In matchmade sessions the first player is 'host socket' but they're a real player.
-        // Just clear the socket reference — other players continue.
+        // Matchmade: no host concept — just clear the reference, game continues
         session.hostSocketId = null;
         console.log(`[MATCHMADE] Pseudo-host disconnected from arena ${pin}. Game continues.`);
       }
@@ -2497,9 +2710,16 @@ io.on("connection", (socket) => {
         delete session.players[socket.id];
         
         if (!isHostSocket) {
-           broadcastPlayerList(pin, session);
-           io.in(pin).emit("player_left", { name: playerName });
-           updatePublicRoomCount(pin, -1);
+          broadcastPlayerList(pin, session);
+          io.in(pin).emit("player_left", { name: playerName });
+          updatePublicRoomCount(pin, -1);
+          
+          // MATCHMADE: If no players remain, terminate the session
+          const remainingPlayers = Object.values(session.players).filter(p => !p.isHost).length;
+          if (session.matchmade && remainingPlayers === 0) {
+            console.log(`[MATCHMADE] All players left arena ${pin}. Terminating.`);
+            terminateSession(pin, 'All players left the matchmade arena.');
+          }
         }
       }
     });

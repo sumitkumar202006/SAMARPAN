@@ -124,6 +124,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
                    <div className="w-10 h-1 h-px bg-white/10 rounded-full overflow-hidden group-hover:bg-accent/30 transition-colors" />
                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-text-soft group-hover:text-accent group-hover:tracking-[0.4em] transition-all">
                       {showFooter ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                      <span>{showFooter ? "REVEAL LESS" : "EXPLORE MORE"}</span>
+                   </div>
+                 </button>
+              </div>
+            )}
+
             {!isMatchOrLobby && !isAdminPath && (
               <AnimatePresence>
                 {showFooter && (

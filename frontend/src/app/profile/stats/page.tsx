@@ -11,7 +11,8 @@ import api from '@/lib/axios';
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/lib/utils';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  LineChart, Line, CartesianGrid
 } from 'recharts';
 
 // Simulated per-category accuracy data derived from profile stats if available
@@ -276,6 +277,56 @@ export default function UserStatsPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Performance Trends — Line Chart */}
+      <div className="glass p-8 rounded-[40px] border-white/5 space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
+            <TrendingUp className="text-accent-alt" size={20} />
+            Neural Weight Trend
+          </h3>
+          <span className="text-[10px] font-black uppercase text-text-soft tracking-[0.2em]">Last 7 Sessions</span>
+        </div>
+        <div className="h-[240px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={[
+              { day: 'Mon', elo: 1200 },
+              { day: 'Tue', elo: 1245 },
+              { day: 'Wed', elo: 1230 },
+              { day: 'Thu', elo: 1290 },
+              { day: 'Fri', elo: 1320 },
+              { day: 'Sat', elo: 1315 },
+              { day: 'Sun', elo: profile?.globalRating || 1350 },
+            ]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+              <XAxis 
+                dataKey="day" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }} 
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#64748b', fontSize: 10 }}
+                domain={['dataMin - 50', 'dataMax + 50']} 
+              />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#080d20', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }}
+                itemStyle={{ color: '#6366f1' }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="elo" 
+                stroke="#6366f1" 
+                strokeWidth={4} 
+                dot={{ fill: '#6366f1', strokeWidth: 2, r: 4, stroke: '#020617' }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

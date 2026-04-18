@@ -4,15 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { NeuralBackground } from './NeuralBackground';
+import { useAuth } from '@/context/AuthContext';
 
 export const DynamicBackground = () => {
+  const { user } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const { scrollY } = useScroll();
   const pathname = usePathname();
   
-  // Performance Mode: Disable heavy GPU/CPU background calculations during active arena matches
-  // Resolves extreme battery drain and device heating.
+  const perfMode = user?.settings?.performanceMode || 'high';
   const isMatchOrLobby = pathname?.includes('/play') || pathname?.includes('/lobby') || pathname?.includes('/host/live');
+  const isLowPerf = perfMode === 'low' || perfMode === 'medium' || isMatchOrLobby;
 
   // Subtle parallax effect based on scroll
   const backgroundY = useTransform(scrollY, [0, 1000], [0, 200]);
@@ -106,8 +108,8 @@ export const DynamicBackground = () => {
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* 3. Neural Network Particle Layer */}
-      <NeuralBackground />
+      {/* 3. Neural Network Particle Layer (Only for High Perf / Non-Match) */}
+      {!isLowPerf && <NeuralBackground />}
 
       {/* 4. Moving Highlight Line (Cyber Scan) */}
       <motion.div 

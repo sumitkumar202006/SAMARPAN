@@ -124,25 +124,31 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
                    <div className="w-10 h-1 h-px bg-white/10 rounded-full overflow-hidden group-hover:bg-accent/30 transition-colors" />
                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-text-soft group-hover:text-accent group-hover:tracking-[0.4em] transition-all">
                       {showFooter ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                      {showFooter ? 'Close terminal' : 'Terminal Info'}
-                   </div>
-                 </button>
-              </div>
+            {!isMatchOrLobby && !isAdminPath && (
+              <AnimatePresence>
+                {showFooter && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="mt-auto"
+                  >
+                    <Footer />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
 
-            <AnimatePresence>
-              {showFooter && !isMatchOrLobby && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-                  className="overflow-hidden border-t border-white/5"
-                >
-                  <Footer />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Footer Toggle */}
+            {!isMatchOrLobby && !isAdminPath && (
+              <button 
+                onClick={() => setShowFooter(!showFooter)}
+                className="fixed bottom-6 right-6 z-50 p-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all backdrop-blur-xl group"
+                title={showFooter ? "Hide Footer" : "Show Footer"}
+              >
+                {showFooter ? <ChevronDown size={18} /> : <MoreHorizontal size={18} className="group-hover:scale-110" />}
+              </button>
+            )}
           </main>
           
           {!isMatchOrLobby && <MobileNav />}

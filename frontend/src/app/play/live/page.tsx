@@ -32,8 +32,8 @@ function LivePlayContent() {
   const [loading, setLoading] = useState(true);
   const [isHost, setIsHost] = useState(false);
   const [examSettings, setExamSettings] = useState<any>(null);
-  // Intro screen for players — dismissed when they click ready OR when the game is already running
-  const [showIntro, setShowIntro] = useState(true);
+  // Intro screen disabled — match starts directly after the countdown
+  const [showIntro, setShowIntro] = useState(false);
 
   const fetchSession = useCallback(async () => {
     if (!pin) return;

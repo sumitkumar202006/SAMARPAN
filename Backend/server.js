@@ -1029,13 +1029,85 @@ async function createMatchFromQueue(queueKey, players) {
           category,
           difficulty,
           players: playerNames,
-          isHost: idx === 0,
+          isHost: false, // No one is "host" in a matchmade session — everyone is a player
           totalQuestions: quiz.questions ? quiz.questions.length : 0
         });
-        // Automatically join the socket room so they receive lobby events
-        sock.join(pin);
+        // DO NOT sock.join(pin) here — players join when they emit join_room after receiving match_found
+        // This ensures session.players is properly populated
       }
     });
+
+    // Auto-start the matchmade game after a 10-second grace period
+    // This allows all players time to emit join_room before the game begins
+    const autoStartPin = pin;
+    session.autoStartTimer = setTimeout(async () => {
+      const s = liveSessions.get(autoStartPin);
+      if (!s || s.status !== 'waiting') return; // Already started or terminated
+      
+      const presentPlayers = Object.values(s.players).length;
+      if (presentPlayers === 0) {
+        // No one joined — terminate
+        terminateSession(autoStartPin, 'No players joined the matchmade arena.');
+        return;
+      }
+
+      // Transition directly to running (no host-based start needed)
+      s.status = 'starting';
+      s.currentQ = 0;
+      s.timeLeft = s.timerSeconds;
+      
+      const questionsForAll = (s.quiz.questions || []).map(q => ({
+        question: q.question,
+        options: q.options
+      }));
+
+      io.in(autoStartPin).emit('game_starting', {
+        quiz: { id: s.quiz.id, title: s.quiz.title, questions: questionsForAll, totalQuestions: questionsForAll.length },
+        timerSeconds: s.timerSeconds,
+        timerMode: s.timerMode || 'per-question',
+        examSettings: s.examSettings,
+        countdownSeconds: 5
+      });
+
+      // 5-second pre-game countdown
+      let cd = 5;
+      s.countdownRemaining = cd;
+      const cdInterval = setInterval(() => {
+        const live = liveSessions.get(autoStartPin);
+        if (!live) { clearInterval(cdInterval); return; }
+        io.in(autoStartPin).emit('game_countdown', { secondsLeft: cd });
+        live.countdownRemaining = cd;
+        cd--;
+        if (cd < 0) {
+          clearInterval(cdInterval);
+          delete live.countdownRemaining;
+          live.status = 'running';
+          live.timeLeft = live.timerSeconds;
+          io.in(autoStartPin).emit('game_started', {
+            quiz: { id: live.quiz.id, title: live.quiz.title, questions: questionsForAll, totalQuestions: questionsForAll.length },
+            timerSeconds: live.timerSeconds,
+            timerMode: live.timerMode || 'per-question',
+            examSettings: live.examSettings,
+            questionIndex: 0,
+            status: 'running',
+            serverTs: Date.now()
+          });
+          // Snapshot interval for self-healing
+          live.stateSnapshotInterval = setInterval(() => {
+            const ss = liveSessions.get(autoStartPin);
+            if (!ss || ss.status !== 'running') { clearInterval(live.stateSnapshotInterval); return; }
+            const snapQ = ss.quiz.questions[ss.currentQ];
+            io.in(autoStartPin).emit('state_snapshot', {
+              questionIndex: ss.currentQ, timeLeft: ss.timeLeft, status: ss.status,
+              serverTs: Date.now(), timerSeconds: ss.timerSeconds,
+              question: snapQ ? snapQ.question : null, options: snapQ ? snapQ.options : []
+            });
+          }, 8000);
+          startCountdown(autoStartPin);
+        }
+      }, 1000);
+      s.countdownIntervalHandle = cdInterval;
+    }, 10000); // 10-second grace period for all players to join_room
 
     console.log(`[Matchmaking] Created arena ${pin} for ${players.length} players. Category: ${category}`);
   } catch (err) {
@@ -1091,9 +1163,13 @@ function terminateSession(pin, reason) {
   if (session.globalExpireTimer) clearTimeout(session.globalExpireTimer);
   if (session.heartbeatInterval) clearInterval(session.heartbeatInterval);
   if (session.stateSnapshotInterval) clearInterval(session.stateSnapshotInterval);
+  if (session.autoStartTimer) clearTimeout(session.autoStartTimer); // matchmade auto-start
 
   // Notify all participants
   io.in(pin).emit("host_left", { message: reason });
+  
+  // Remove from public arena browser
+  unregisterPublicRoom(pin);
   
   // Clean up Memory & DB
   liveSessions.delete(pin);
@@ -1206,8 +1282,22 @@ async function ensureSessionInMemory(pin) {
 
 function getLeaderboard(session) {
   return Object.values(session.players)
-    .filter(p => session.rated === false || !p.isHost)
-    .sort((a, b) => b.score - a.score)
+    .filter(p => {
+      // Real players always appear on leaderboard
+      if (!p.isHost) return true;
+      // Host appears ONLY in casual mode where they explicitly opted in as a player
+      // In ranked / hub mode the host is an observer — never on the board
+      if (session.playAsHost === true && session.rated === false) return true;
+      return false;
+    })
+    .sort((a, b) => {
+      // Primary: score descending
+      if (b.score !== a.score) return b.score - a.score;
+      // Tiebreak 1: correctCount descending
+      if ((b.correctCount || 0) !== (a.correctCount || 0)) return (b.correctCount || 0) - (a.correctCount || 0);
+      // Tiebreak 2: name ascending (stable)
+      return (a.name || '').localeCompare(b.name || '');
+    })
     .map((p, i) => ({ 
       rank: i + 1, 
       name: p.name, 
@@ -1217,12 +1307,18 @@ function getLeaderboard(session) {
       incorrectCount: p.incorrectCount || 0,
       attemptedCount: (p.correctCount || 0) + (p.incorrectCount || 0),
       penalties: p.penalties || 0,
-      penaltyScore: p.penaltyScore || 0
+      penaltyScore: p.penaltyScore || 0,
+      isHost: p.isHost || false
     }));
 }
 
 function broadcastStats(pin, session) {
-  const players = Object.values(session.players).filter(p => session.rated === false || !p.isHost);
+  // Only count real players (and host only in casual playAsHost mode)
+  const isPlayerVisible = (p) => {
+    if (!p.isHost) return true;
+    return session.playAsHost === true && session.rated === false;
+  };
+  const players = Object.values(session.players).filter(isPlayerVisible);
   const responded = players.filter(p => p.answeredThisQ).length;
   io.in(pin).emit("stats_update", {
     stats: session.optionStats,
@@ -1235,11 +1331,9 @@ function broadcastStats(pin, session) {
   if (session.timerMode === 'total') return;
 
   // Synchronized Navigation: Auto-advance if ALL PRESENT (non-disconnected) players answered.
-  // We filter to players who are still connected (have an active socket) to avoid deadlock
-  // when a player disconnects mid-question.
   const allPresent = players.filter(p => {
-    const sock = io.sockets.sockets.get(Object.keys(session.players).find(sid => session.players[sid] === p) || '');
-    return !!sock; // Only count connected players
+    const sid = Object.keys(session.players).find(id => session.players[id] === p);
+    return !!sid && !!io.sockets.sockets.get(sid);
   });
   const respondedPresent = allPresent.filter(p => p.answeredThisQ).length;
   
@@ -1560,6 +1654,7 @@ io.on("connection", (socket) => {
         maxPlayers: 200,
         battleType: null,
         teamScores: null,
+        playAsHost: false, // Host defaults to observer; set true for casual/friendly matches
         examSettings: { 
           strictFocus: true, 
           allowBacktrack: false,
@@ -1586,31 +1681,34 @@ io.on("connection", (socket) => {
 
     socket.join(pin);
 
-      // Stability: If host is already in players (reconnection), remove old socket entry
-      Object.entries(session.players).forEach(([sid, p]) => {
-        if (p.isHost || (data.userId && p.userId === data.userId)) {
-          delete session.players[sid];
-        }
-      });
+    // Remove stale host entry (reconnect cleanup)
+    Object.entries(session.players).forEach(([sid, p]) => {
+      if (p.isHost || (data.userId && p.userId === data.userId)) {
+        delete session.players[sid];
+      }
+    });
 
-      session.players[socket.id] = { 
-        name: data.name || "Host", // Use host's real name if provided
-        userId: data.userId || null,
-        avatar: data.avatar || null, // Persist host avatar
-        team: null,
-        slotIndex: null,
-        score: 0, 
-        answeredThisQ: false, 
-        optionIdx: -1, 
-        isHost: true, 
-        streak: 0,
-        correctCount: 0,
-        incorrectCount: 0,
-        latency: 0,
-        penalties: 0,
-        penaltyScore: 0,
-        strikeCount: 0
-      };
+    // Add host as observer-only player entry (for presence tracking)
+    // isHost=true means this entry is EXCLUDED from leaderboard in ranked mode
+    // In casual playAsHost mode the entry IS included in leaderboard
+    session.players[socket.id] = { 
+      name: data.name || "Host",
+      userId: data.userId || null,
+      avatar: data.avatar || null,
+      team: null,
+      slotIndex: null,
+      score: 0, 
+      answeredThisQ: false, 
+      optionIdx: -1, 
+      isHost: true, 
+      streak: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      latency: 0,
+      penalties: 0,
+      penaltyScore: 0,
+      strikeCount: 0
+    };
     socket.emit("host_ready", { pin, playAsHost: session.playAsHost });
     console.log(`Host joined/created room ${pin}`);
   });
@@ -1736,10 +1834,10 @@ io.on("connection", (socket) => {
       }
     }
     
-    // Auto-assign slot for Grand Arena (Standard/Rapid)
+    // Auto-assign slot for Grand Arena (Standard/Rapid) — ONLY for non-host players
     if (!session.battleType || session.battleType === 'Standard' || session.battleType === 'rapid') {
       const takenSlots = Object.values(session.players)
-        .filter(p => p.slotIndex !== undefined && p.slotIndex !== null)
+        .filter(p => !p.isHost && p.slotIndex !== undefined && p.slotIndex !== null)
         .map(p => Number(p.slotIndex));
       let nextSlot = 0;
       while (takenSlots.includes(nextSlot)) nextSlot++;
@@ -1795,6 +1893,9 @@ io.on("connection", (socket) => {
       session.timerMode = meta.timerMode || 'per-question';
       session.totalSessionTime = meta.totalSessionTime || 10;
       session.sessionTimeLeft = session.totalSessionTime * 60;
+      // playAsHost: true means host opted in as a PLAYER in casual mode — appears on leaderboard
+      // false (default) = host is observer — excluded from leaderboard
+      session.playAsHost = meta.playAsHost !== false && session.rated === false;
 
       // Shuffling
       if (session.examSettings.randomizeOrder) {
@@ -1920,6 +2021,12 @@ io.on("connection", (socket) => {
     if (!session || session.status !== 'running') return;
     const player = session.players[socket.id];
     if (!player) return;
+    
+    // Guard: Host cannot submit answers in ranked/observer mode
+    // In casual playAsHost mode the host IS a player so allow it
+    if (player.isHost && !(session.playAsHost === true && session.rated === false)) {
+      return;
+    }
     
     const qIndex = questionIndex !== undefined ? questionIndex : session.currentQ;
     const q = session.quiz.questions[qIndex];
@@ -2353,14 +2460,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
+    // Only process sessions this socket was actually part of
+    // to avoid O(n*m) work and avoid false-triggering host kill timers
+    const relevantSessions = [];
     liveSessions.forEach((session, pin) => {
+      if (session.hostSocketId === socket.id || session.players[socket.id]) {
+        relevantSessions.push([pin, session]);
+      }
+    });
+
+    relevantSessions.forEach(([pin, session]) => {
       const isHostSocket = (socket.id === session.hostSocketId);
       
-      if (isHostSocket) {
+      if (isHostSocket && !session.matchmade) {
+        // Only start kill timer for host-created sessions, not matchmade ones
         console.log(`[HOST DISCONNECT] Host left room ${pin}. Starting ${HOST_RECOVERY_WINDOW/60000}m buffer.`);
-        session.hostSocketId = null; // Clear active socket reference
+        session.hostSocketId = null;
         
-        // Start 5-minute countdown to session termination
         session.hostDisconnectTimer = setTimeout(() => {
           terminateSession(pin, "Host failed to return within the 5-minute recovery window.");
         }, HOST_RECOVERY_WINDOW);
@@ -2369,6 +2485,11 @@ io.on("connection", (socket) => {
           message: "Host disconnected. Arena will expire in 5 minutes unless host returns.", 
           type: 'warning' 
         });
+      } else if (isHostSocket && session.matchmade) {
+        // In matchmade sessions the first player is 'host socket' but they're a real player.
+        // Just clear the socket reference — other players continue.
+        session.hostSocketId = null;
+        console.log(`[MATCHMADE] Pseudo-host disconnected from arena ${pin}. Game continues.`);
       }
 
       if (session.players[socket.id]) {
@@ -2378,7 +2499,6 @@ io.on("connection", (socket) => {
         if (!isHostSocket) {
            broadcastPlayerList(pin, session);
            io.in(pin).emit("player_left", { name: playerName });
-           // Update public room count on disconnect
            updatePublicRoomCount(pin, -1);
         }
       }

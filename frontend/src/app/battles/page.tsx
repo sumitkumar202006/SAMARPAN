@@ -113,7 +113,15 @@ export default function BattlesPage() {
     const onMatchFound = (data: any) => {
       setMatchResult(data);
       setMatchState('found');
-      // 5s countdown then redirect
+      // Emit join_room immediately so server registers player before auto-start fires
+      const playerName = user?.name || joinName || 'Player';
+      socket?.emit('join_room', {
+        pin: data.pin,
+        name: playerName,
+        userId: user?.id || user?.userId || null,
+        avatar: user?.avatar || null,
+      });
+      // 5s countdown then redirect directly to play/live (matchmade sessions auto-start)
       let cd = 5;
       setCountdown(cd);
       countdownRef.current = setInterval(() => {
@@ -121,7 +129,7 @@ export default function BattlesPage() {
         setCountdown(cd);
         if (cd <= 0) {
           clearInterval(countdownRef.current!);
-          router.push(`/lobby/${data.pin}?role=player&name=${encodeURIComponent(user?.name || joinName || 'Player')}`);
+          router.push(`/play/live?pin=${data.pin}`);
         }
       }, 1000);
     };
@@ -493,7 +501,7 @@ export default function BattlesPage() {
                       </div>
 
                       <div className="flex gap-3 justify-center">
-                        <button onClick={() => router.push(`/lobby/${matchResult.pin}?role=player&name=${encodeURIComponent(user?.name || 'Player')}`)}
+                        <button onClick={() => router.push(`/play/live?pin=${matchResult.pin}`)}
                           className="px-8 py-3 rounded-2xl bg-accent text-white text-[10px] font-black uppercase tracking-widest hover:bg-accent/90 transition-all">
                           Enter Now <ArrowRight size={14} className="inline-block ml-1" />
                         </button>

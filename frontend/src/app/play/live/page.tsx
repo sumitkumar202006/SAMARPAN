@@ -46,7 +46,8 @@ function LivePlayContent() {
       if (res.data.quiz) {
         setQuiz(res.data.quiz);
         const playAsHost = searchParams.get('playAsHost') === 'true';
-        if (user && res.data.hostId === user.userId && !playAsHost) {
+        const userId = user?.id || user?.userId;
+        if (user && res.data.hostId === userId && !playAsHost) {
           setIsHost(true);
         }
       }
@@ -70,7 +71,7 @@ function LivePlayContent() {
       socket.emit('join_room', {
         pin,
         name: user.name || 'Player',
-        userId: user.userId,
+        userId: user.id || user.userId, // Fix: user.id is the correct field
         email: user.email,
         avatar: user.avatar || null,
         // Pass team/slot from URL params if present (lobby redirect)
@@ -372,6 +373,7 @@ function LivePlayContent() {
           quiz={quiz} 
           socket={socket} 
           pin={pin || ''} 
+          user={user}
         />
       ) : (
         <ErrorBoundary>

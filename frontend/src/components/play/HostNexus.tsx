@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Users, BarChart3, Settings, Play, ChevronRight, XCircle, Ban, Edit3, MessageSquare, Pause, Crown, Trophy, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -13,9 +13,10 @@ interface HostNexusProps {
   quiz: any;
   socket: any;
   pin: string;
+  user?: any; // host user data for proper name/avatar display
 }
 
-export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
+export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user }) => {
   const [players, setPlayers] = useState<any>({});
   const [isPaused, setIsPaused] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
@@ -31,16 +32,24 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [liveLeaderboard, setLiveLeaderboard] = useState<any[]>([]);
 
+  const hasEmittedHostJoin = useRef(false); // Prevent duplicate host_join on re-render
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Emit host_join on mount so host is properly in the socket room
-  // This is critical for direct page loads (not coming from lobby)
+  // Emit host_join exactly ONCE per pin+socket combo
+  // Guards against duplicate joins from component re-mounts
   useEffect(() => {
-    if (!socket || !isMounted || !pin) return;
-    socket.emit('host_join', { pin });
-  }, [socket, isMounted, pin]);
+    if (!socket || !isMounted || !pin || hasEmittedHostJoin.current) return;
+    hasEmittedHostJoin.current = true;
+    socket.emit('host_join', {
+      pin,
+      name: user?.name || 'Host',
+      userId: user?.id || user?.userId || null,
+      avatar: user?.avatar || null,
+    });
+  }, [socket, isMounted, pin, user]);
 
   const { playNavigate, playClick } = useAudio();
 

@@ -97,13 +97,16 @@ async function callGroq(prompt) {
       const response = await groq.chat.completions.create({
         model,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.5, // Reduced for higher accuracy and consistency
+        temperature: 0.4,
+        max_tokens: 4096, // Cap output to prevent truncated JSON
       });
 
       let rawText = response.choices[0].message.content.trim();
       
-      rawText = rawText.replace(/```json|```/gi, "");
+      // Strip markdown code fences
+      rawText = rawText.replace(/```json|```/gi, "").trim();
       
+      // Extract the JSON array portion
       const startIdx = rawText.indexOf("[");
       const endIdx = rawText.lastIndexOf("]");
       
@@ -111,11 +114,43 @@ async function callGroq(prompt) {
         rawText = rawText.substring(startIdx, endIdx + 1);
       }
 
+      // Basic JSON cleanup
       rawText = rawText
         .replace(/,\s*\]/g, "]") 
-        .replace(/,\s*\}/g, "}"); 
+        .replace(/,\s*\}/g, "}");
 
-      return JSON.parse(rawText);
+      // Primary parse attempt
+      try {
+        const parsed = JSON.parse(rawText);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`[AI-FORGE] Success with ${model}. Got ${parsed.length} questions.`);
+          return parsed;
+        }
+      } catch (_parseErr) {
+        // Fall through to recovery
+      }
+
+      // === RECOVERY: Extract valid question objects one by one via regex ===
+      // Handles truncated JSON where the last object is incomplete
+      console.warn(`[AI-FORGE] Primary parse failed for ${model}. Attempting object-level extraction...`);
+      const questionRegex = /\{[^{}]*"question"[^{}]*"options"[^{}]*"correctIndex"[^{}]*\}/gs;
+      const rawMatches = rawText.match(questionRegex) || [];
+      const recovered = [];
+      for (const match of rawMatches) {
+        try {
+          const q = JSON.parse(match);
+          if (q.question && Array.isArray(q.options) && typeof q.correctIndex === 'number') {
+            recovered.push(q);
+          }
+        } catch (_) { /* skip malformed */ }
+      }
+      if (recovered.length > 0) {
+        console.log(`[AI-FORGE] Recovered ${recovered.length} questions via extraction for ${model}.`);
+        return recovered;
+      }
+
+      // Could not recover — throw to try next model
+      throw new Error(`JSON parse and extraction both failed for ${model}`);
     } catch (err) {
       console.warn(`[AI-FORGE] Model ${model} failed. Error: ${err.message}`);
       lastError = err;

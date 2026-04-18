@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Shield, Zap, X, Play, Edit3, Check, MoveRight, Trash2, Ban, Crown } from 'lucide-react';
+import { Users, Shield, Zap, X, Play, Edit3, Check, MoveRight, Trash2, Ban, Crown, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -143,8 +143,13 @@ function LobbyContent() {
   });
   const [playAsHost, setPlayAsHost] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [lobbyCountdown, setLobbyCountdown] = useState<number | null>(null); // Pre-game countdown
+  const [lobbyCountdown, setLobbyCountdown] = useState<number | null>(null);
   const lobbyCountdownRef = React.useRef<number | null>(null);
+
+  // Bot management (host only)
+  const [botCount, setBotCount] = useState(0);
+  const [botDifficulty, setBotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [botIds, setBotIds] = useState<{id: string; name: string}[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -275,6 +280,16 @@ function LobbyContent() {
       if (data.playAsHost !== undefined) setPlayAsHost(data.playAsHost);
     });
 
+    socket.on('bot_added', (data: { botId: string; botName: string; total: number }) => {
+      setBotCount(data.total);
+      setBotIds(prev => [...prev, { id: data.botId, name: data.botName }]);
+    });
+
+    socket.on('bot_removed', (data: { botId: string; total: number }) => {
+      setBotCount(data.total);
+      setBotIds(prev => prev.filter(b => b.id !== data.botId));
+    });
+
     return () => {
       socket.off('player_list_update');
       socket.off('host_player_list_update');
@@ -289,6 +304,8 @@ function LobbyContent() {
       socket.off('error_msg');
       socket.off('join_success');
       socket.off('host_ready');
+      socket.off('bot_added');
+      socket.off('bot_removed');
       joinedRef.current = false;
     };
   }, [isConnected, pin, socket, user?.userId, user?.name, router, searchParams]);
@@ -555,6 +572,60 @@ function LobbyContent() {
                   <span className="text-[10px] uppercase font-black tracking-widest">Anti-Cheat Matrix Active</span>
                 </div>
               </div>
+
+              {/* Bot Control Panel — Host Only */}
+              {isHost && (
+                <div className="space-y-3 pt-2">
+                  <hr className="border-white/5" />
+                  <div className="flex items-center gap-2">
+                    <Cpu size={14} className="text-accent-alt" />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-accent-alt">AI Opponents</span>
+                    {botCount > 0 && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full bg-accent-alt/20 text-accent-alt text-[9px] font-black border border-accent-alt/30">{botCount} Active</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                    {(['easy', 'medium', 'hard'] as const).map(d => (
+                      <button
+                        key={d}
+                        onClick={() => setBotDifficulty(d)}
+                        className={cn(
+                          'py-1.5 text-[8px] font-black rounded-lg uppercase tracking-widest transition-all',
+                          botDifficulty === d
+                            ? d === 'easy' ? 'bg-emerald-500 text-white' : d === 'medium' ? 'bg-amber-400 text-black' : 'bg-red-500 text-white'
+                            : 'text-text-soft hover:bg-white/5'
+                        )}
+                      >{d}</button>
+                    ))}
+                  </div>
+                  <button
+                    id="add-bot-btn"
+                    onClick={() => socket?.emit('add_bot', { pin, difficulty: botDifficulty })}
+                    disabled={botCount >= 8}
+                    className="w-full py-2.5 rounded-xl bg-accent-alt/20 border border-accent-alt/30 text-accent-alt text-[9px] font-black uppercase tracking-widest hover:bg-accent-alt/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Cpu size={12} />
+                    Add Bot {botCount >= 8 ? '(Max 8)' : `(${8 - botCount} left)`}
+                  </button>
+                  {botIds.length > 0 && (
+                    <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-none">
+                      {botIds.map(b => (
+                        <div key={b.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-white/5 border border-white/5 group">
+                          <span className="text-[9px] font-black uppercase text-accent-alt flex items-center gap-1">
+                            <Cpu size={9} /> {b.name}
+                          </span>
+                          <button
+                            onClick={() => socket?.emit('remove_bot', { pin, botId: b.id })}
+                            className="text-red-400 opacity-30 group-hover:opacity-100 transition-all"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Massive Lobby Chat Widget */}

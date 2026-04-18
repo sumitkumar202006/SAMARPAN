@@ -29,6 +29,7 @@ const navItems = [
   { name: 'Room Hub', icon: ShieldCheck, href: '/host' },
   { name: 'Battles', icon: Zap, href: '/battles' },
   { name: 'Leaderboard', icon: Trophy, href: '/leaderboard' },
+  { name: 'Friends', icon: Users, href: '/friends' },
   { name: 'Explore', icon: Compass, href: '/explore' },
   { name: 'Contact', icon: MessageSquare, href: '/contact' },
   { name: 'About', icon: Info, href: '/about' },
@@ -185,9 +186,15 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
           const isFriendlyLink = item.href.includes('friendly=true');
-          let isActive = pathname === '/host' 
-            ? (isFriendlyLink ? isFriendly : (!isFriendly && item.href === '/host'))
-            : (pathname === item.href);
+          // Use startsWith so /profile/stats also highlights Profile, etc.
+          let isActive: boolean;
+          if (pathname === '/host' || pathname?.startsWith('/host?')) {
+            isActive = isFriendlyLink ? isFriendly : (!isFriendly && item.href === '/host');
+          } else {
+            // Match exact or startsWith for parent routes (/explore, /profile, etc.)
+            isActive = pathname === item.href || 
+                       (item.href !== '/dashboard' && (pathname?.startsWith(item.href + '/') || pathname?.startsWith(item.href + '?')));
+          }
 
           return (
             <Link

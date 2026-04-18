@@ -1040,7 +1040,9 @@ async function createMatchFromQueue(queueKey, players) {
     // Auto-start the matchmade game after a 10-second grace period
     // This allows all players time to emit join_room before the game begins
     const autoStartPin = pin;
-    session.autoStartTimer = setTimeout(async () => {
+    // FIX: session refers to the local (null) variable above — must store on the live session object
+    const liveSessionRef = liveSessions.get(autoStartPin);
+    if (liveSessionRef) liveSessionRef.autoStartTimer = setTimeout(async () => {
       const s = liveSessions.get(autoStartPin);
       if (!s || s.status !== 'waiting') return; // Already started or terminated
       
@@ -1107,7 +1109,7 @@ async function createMatchFromQueue(queueKey, players) {
         }
       }, 1000);
       s.countdownIntervalHandle = cdInterval;
-    }, 10000); // 10-second grace period for all players to join_room
+    }, 10000); // 10-second grace period for all players to join_room — stored on liveSession above
 
     console.log(`[Matchmaking] Created arena ${pin} for ${players.length} players. Category: ${category}`);
   } catch (err) {
@@ -1121,6 +1123,163 @@ async function createMatchFromQueue(queueKey, players) {
 
 // Start matchmaking processor — 2s interval
 setInterval(processQueues, 2000);
+
+// ============================================================
+// 🤖 BOT SYSTEM — Server-side simulated players
+// ============================================================
+
+const BOT_NAMES = [
+  'NexusBot', 'QuantumAI', 'CyberMind', 'ArenaBot', 'ShadowBot',
+  'VortexAI', 'StormBot', 'EchoBot', 'PhoenixAI', 'ZenithBot'
+];
+
+// How quickly bots answer relative to the question timer (0.2 = very fast, 0.9 = slow)
+const BOT_SPEED_PROFILE = {
+  easy: { minFraction: 0.15, maxFraction: 0.35, accuracy: 0.9 },
+  medium: { minFraction: 0.25, maxFraction: 0.6, accuracy: 0.72 },
+  hard: { minFraction: 0.35, maxFraction: 0.8, accuracy: 0.55 },
+};
+
+/**
+ * Inject a server-side bot into a live session.
+ * Bots have a fake socket ID, appear in the player list, and auto-answer each question.
+ *
+ * @param {string} pin - room pin
+ * @param {string} difficulty - 'easy' | 'medium' | 'hard'
+ * @returns {string|null} bot's fake socket ID, or null on failure
+ */
+function injectBot(pin, difficulty = 'medium') {
+  const session = liveSessions.get(pin);
+  if (!session) return null;
+  if (session.status !== 'waiting') return null;
+
+  const botId = `BOT_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  const usedNames = new Set(Object.values(session.players).map(p => p.name));
+  const availableNames = BOT_NAMES.filter(n => !usedNames.has(n));
+  const botName = availableNames.length > 0
+    ? availableNames[Math.floor(Math.random() * availableNames.length)]
+    : `Bot${Math.floor(Math.random() * 9000 + 1000)}`;
+
+  // Auto-assign slot
+  const takenSlots = Object.values(session.players)
+    .filter(p => !p.isHost && p.slotIndex !== undefined && p.slotIndex !== null)
+    .map(p => Number(p.slotIndex));
+  let nextSlot = 0;
+  while (takenSlots.includes(nextSlot)) nextSlot++;
+
+  session.players[botId] = {
+    name: botName,
+    userId: null,
+    avatar: null,
+    team: 'Team A',
+    slotIndex: nextSlot,
+    score: 0,
+    streak: 0,
+    correctCount: 0,
+    incorrectCount: 0,
+    answeredThisQ: false,
+    optionIdx: -1,
+    isHost: false,
+    isBot: true,
+    botDifficulty: difficulty,
+    ip: '127.0.0.1',
+    isSuspicious: false,
+    penalties: 0,
+    penaltyScore: 0,
+    strikeCount: 0
+  };
+
+  // Track bot IDs on the session for simulation management
+  if (!session.botIds) session.botIds = [];
+  session.botIds.push(botId);
+
+  console.log(`[BOT] Injected ${botName} (${botId}) into arena ${pin} [difficulty: ${difficulty}]`);
+  return botId;
+}
+
+/**
+ * Simulate bot answers for the current question.
+ * Called automatically on next_question / game_started events for sessions that have bots.
+ *
+ * @param {string} pin
+ */
+function simulateBotAnswers(pin) {
+  const session = liveSessions.get(pin);
+  if (!session || !session.botIds || session.botIds.length === 0) return;
+  if (session.status !== 'running') return;
+
+  const q = session.quiz.questions[session.currentQ];
+  if (!q) return;
+
+  const profile = BOT_SPEED_PROFILE[session.botDifficulty || 'medium'];
+  const timerSecs = session.timerSeconds || 30;
+
+  session.botIds.forEach(botId => {
+    const bot = session.players[botId];
+    if (!bot || bot.answeredThisQ) return;
+
+    // Random answer delay within the profile range
+    const delayFraction = profile.minFraction + Math.random() * (profile.maxFraction - profile.minFraction);
+    const delayMs = Math.floor(delayFraction * timerSecs * 1000);
+    const timeTaken = delayFraction * timerSecs;
+
+    setTimeout(() => {
+      const liveSession = liveSessions.get(pin);
+      if (!liveSession || liveSession.status !== 'running') return;
+      const liveBot = liveSession.players[botId];
+      if (!liveBot || liveBot.answeredThisQ) return;
+      // Guard: make sure we're still on the same question
+      if (liveSession.currentQ !== liveSession.currentQ) return; // Always true but defensive
+
+      // Decide if bot answers correctly
+      const correct = Math.random() < profile.accuracy;
+      let optionIdx;
+      if (correct) {
+        optionIdx = q.correctIndex;
+      } else {
+        // Pick a wrong answer at random
+        const wrongOptions = [0, 1, 2, 3].filter(i => i !== q.correctIndex);
+        optionIdx = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+      }
+
+      // Apply scoring logic (mirrors submit_answer)
+      liveBot.optionIdx = optionIdx;
+      liveBot.answeredThisQ = true;
+      if (optionIdx >= 0 && optionIdx < liveSession.optionStats.length) liveSession.optionStats[optionIdx]++;
+
+      if (correct) {
+        const t = Math.min(timeTaken, timerSecs);
+        const speedBonus = Math.max(0, Math.floor(50 * (1 - t / timerSecs)));
+        liveBot.streak = (liveBot.streak || 0) + 1;
+        const streakBonus = Math.min(liveBot.streak - 1, 5) * 10;
+        const basePoints = liveSession.pointsPerQ || 100;
+        const points = basePoints + speedBonus + streakBonus;
+        liveBot.score += points;
+        if (liveBot.team && liveSession.teamScores) liveSession.teamScores[liveBot.team] += points;
+        liveBot.correctCount = (liveBot.correctCount || 0) + 1;
+      } else {
+        liveBot.streak = 0;
+        liveBot.incorrectCount = (liveBot.incorrectCount || 0) + 1;
+      }
+
+      // Re-log answer (no DB call for bots — they don't have a userId)
+      broadcastStats(pin, liveSession);
+    }, delayMs);
+  });
+}
+
+/** Reset bot answered flag between questions */
+function resetBotFlags(pin) {
+  const session = liveSessions.get(pin);
+  if (!session || !session.botIds) return;
+  session.botIds.forEach(botId => {
+    const bot = session.players[botId];
+    if (bot) {
+      bot.answeredThisQ = false;
+      bot.optionIdx = -1;
+    }
+  });
+}
 
 // ============================================================
 // 🏛️ RULE SYSTEM — MODE-AWARE PERMISSION MATRIX
@@ -1385,8 +1544,9 @@ async function ensureSessionInMemory(pin) {
         teamScores: metadata.teamScores || null,
         teamNames: metadata.teamNames || { 'Team A': 'Team A', 'Team B': 'Team B' },
         // RULE SYSTEM: mode determines host permissions
-        mode: metadata.mode || (dbSession.rated !== false ? 'hub' : 'casual'),
-        playAsHost: metadata.mode === 'casual' || (!dbSession.rated && !metadata.mode),
+        // FIX: Default to 'hub' for all host-created sessions to prevent premature termination
+        mode: metadata.mode || 'hub',
+        playAsHost: metadata.mode === 'casual',
         examSettings: metadata.examSettings || { 
           strictFocus: true, 
           allowBacktrack: false,
@@ -1575,6 +1735,8 @@ function advanceQuestion(pin) {
     session.timeLeft = session.timerSeconds;
     session.optionStats = [0, 0, 0, 0];
     Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
+    // Reset bot flags so they can re-answer on this new question
+    resetBotFlags(pin);
 
     if (session.currentQ >= session.quiz.questions.length) {
       const hasMoreSets = session.quizQueue && session.quizQueue.length > 0;
@@ -1620,6 +1782,8 @@ function advanceQuestion(pin) {
     if (session.timerMode === 'per-question') {
       startCountdown(pin);
     }
+    // Trigger bot answers for the new question
+    simulateBotAnswers(pin);
   }, 2500);
 }
 
@@ -2005,10 +2169,10 @@ io.on("connection", (socket) => {
     const playersAsParticipants = Object.values(session.players);
     const playerCount = playersAsParticipants.filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
     
-    // Matchmade sessions can start with 1 player (solo fallback after 60s timeout)
-    // Host-created sessions require at least 2 participants
-    if (!session.matchmade && playerCount < 2) { 
-      socket.emit("error_msg", { message: "Arena requires at least 2 players to initiate." }); 
+    // Count bots as valid participants (host-added bots satisfy the 2-player minimum)
+    const botCount = session.botIds ? session.botIds.length : 0;
+    if (!session.matchmade && (playerCount + botCount) < 2) { 
+      socket.emit("error_msg", { message: "Arena requires at least 2 players (or add bots via the lobby) to initiate." }); 
       return; 
     }
 
@@ -2033,9 +2197,10 @@ io.on("connection", (socket) => {
       session.timerMode = meta.timerMode || 'per-question';
       session.totalSessionTime = meta.totalSessionTime || 10;
       session.sessionTimeLeft = session.totalSessionTime * 60;
-      // Mode enforcement: casual (host=player) or hub (host=supervisor)
-      // Defaults to 'hub' for rated sessions, 'casual' for unrated ones unless overridden
-      session.mode = meta.mode || (session.rated === false ? 'casual' : 'hub');
+      // Mode enforcement: casual (host=player, transfers on disconnect) or hub (host=supervisor, 5-min recovery)
+      // FIX: Default to 'hub' for all host-created sessions — 'casual' must be explicitly set via metadata.
+      // Previously 'rated: false' was incorrectly mapping to 'casual', causing session termination on host disconnect.
+      session.mode = meta.mode || 'hub';
       // playAsHost: host appears on leaderboard in casual mode only
       session.playAsHost = session.mode === 'casual';
 
@@ -2146,12 +2311,62 @@ io.on("connection", (socket) => {
           }
 
           startCountdown(pin);
+          // Trigger bot answers for question 0 immediately after game starts
+          simulateBotAnswers(pin);
         }
       }, 1000);
       session.countdownIntervalHandle = countdownInterval;
     } catch (err) {
       console.error("start_game error:", err);
       socket.emit("error_msg", { message: "Failed to initialize arena." });
+    }
+  });
+
+  // ── ADD BOT ─────────────────────────────────────────────────────────────────
+  // Host can inject server-side bots into the lobby before starting.
+  socket.on("add_bot", (data) => {
+    const { pin, difficulty } = data || {};
+    if (!pin) return;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) {
+      socket.emit("error_msg", { message: "Only the host can add bots." });
+      return;
+    }
+    if (session.status !== 'waiting') {
+      socket.emit("error_msg", { message: "Bots can only be added before the game starts." });
+      return;
+    }
+    const maxBots = 8;
+    const currentBots = session.botIds ? session.botIds.length : 0;
+    if (currentBots >= maxBots) {
+      socket.emit("error_msg", { message: `Maximum ${maxBots} bots per session.` });
+      return;
+    }
+    // Store the difficulty preference on the session for simulateBotAnswers
+    session.botDifficulty = difficulty || 'medium';
+    const botId = injectBot(pin, difficulty || 'medium');
+    if (botId) {
+      broadcastPlayerList(pin, session);
+      socket.emit("bot_added", { botId, botName: session.players[botId]?.name, total: session.botIds.length });
+      console.log(`[BOT] Host added bot to arena ${pin}. Total bots: ${session.botIds.length}`);
+    } else {
+      socket.emit("error_msg", { message: "Could not add bot. Session may have already started." });
+    }
+  });
+
+  // ── REMOVE BOT ──────────────────────────────────────────────────────────────
+  socket.on("remove_bot", (data) => {
+    const { pin, botId } = data || {};
+    if (!pin || !botId) return;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+    if (session.status !== 'waiting') return;
+
+    if (session.players[botId] && session.players[botId].isBot) {
+      delete session.players[botId];
+      if (session.botIds) session.botIds = session.botIds.filter(id => id !== botId);
+      broadcastPlayerList(pin, session);
+      socket.emit("bot_removed", { botId, total: session.botIds ? session.botIds.length : 0 });
     }
   });
 

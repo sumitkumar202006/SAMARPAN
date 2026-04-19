@@ -10,7 +10,7 @@ export interface ReviewAnswer {
   question: string;
   options: string[];
   selectedIdx: number | null; // -1 or null = no answer
-  correctIdx: number;
+  correctIdx: number | null;  // null when host has revealAnswers off mid-match; filled at quiz_finished
   explanation?: string;
 }
 

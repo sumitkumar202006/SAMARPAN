@@ -63,6 +63,9 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [timerMode, setTimerMode] = useState<'per-question' | 'total'>('per-question');
   const [sessionTimeLeft, setSessionTimeLeft] = useState<number | null>(null);
   
+  // SYNC FIX (Issue 1): Store answers internally during match, reveal only at end
+  const [answerReview, setAnswerReview] = useState<any[] | null>(null);
+
   const [hudMessage, setHudMessage] = useState<{ text: string; type: string } | null>(null);
   const [isHostToolsOpen, setIsHostToolsOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState('');
@@ -71,6 +74,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   // isSyncing: blocks rendering until first server state arrives (prevents stale-UI flicker on reconnect)
   // Starts true only for live sessions; unblocked by join_ack, game_started, or game_state_sync
   const [isSyncing, setIsSyncing] = useState(isLive);
+  // SYNC FIX (Issue 4): monotonic stateVersion guard — reject stale state_snapshot packets
+  const stateVersionRef = useRef<number>(-1);
   // Track the last questionIndex received from state_snapshot for monotonic guard reset
   const lastSnapshotQIndexRef = useRef<number>(-1);
 
@@ -93,6 +98,9 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const lastTimerRef = useRef<number>(999); // Monotonic timer: tracks highest seen value to prevent backward jumps
   // Tracks each answer for post-quiz review mode
   const answersLogRef = useRef<ReviewAnswer[]>([]);
+  // SYNC FIX (Issue 1): Track selected answer per question index for post-quiz review
+  // This is separate from correctIdx which is only revealed by the server at question end.
+  const selectedAnswersRef = useRef<Record<number, number | null>>({});;
 
   // Keep refs in sync with state
   useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
@@ -135,12 +143,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
     if (isLive) {
       playClick();
+      // SYNC FIX (Issue 1): In live mode, only record selection and emit to server.
+      // Do NOT reveal correctIdx or explanation — that only comes from question_result.
+      selectedAnswersRef.current[currentIndexRef.current] = idx;
       socket?.emit('submit_answer', { 
         pin, 
         optionIdx: idx, 
-        timeTaken: 30 - timeLeft, // Note: this captures current timeLeft at call time
+        timeTaken: 30 - timeLeft,
         questionIndex: currentIndexRef.current 
       });
+      // Lock UI so player can't change answer (no correctness feedback yet)
+      setIsLocked(true);
+      isLockedRef.current = true;
     } else {
       // Solo mode: resolve immediately
       setIsLocked(true);
@@ -195,8 +209,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   }, [isLive, isSyncing]);
 
   // --- Auto-submit on timer expiry (server-driven for live, client for solo) ---
+  // SYNC FIX (Issue 2): Only auto-submit if in per-question mode (timeLeft > 0 is valid).
+  // In total-timer mode, timeLeft is -1 (sentinel) so this never fires.
   useEffect(() => {
-    if (!isLive || isFinished || isPaused || timeLeft > 0) return;
+    if (!isLive || isFinished || isPaused || timeLeft > 0 || timeLeft === -1) return;
     if (isLockedRef.current || autoSubmittedRef.current) return;
     
     autoSubmittedRef.current = true;
@@ -210,9 +226,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     if (!isLive || !socket) return;
 
     const onTimerTick = (data: { timeLeft: number | null, mode?: string, serverTs?: number }) => {
-      if (data.mode === 'total' || data.timeLeft === null) {
-        setTimeLeft(0);
-        lastTimerRef.current = 0;
+      // SYNC FIX (Issue 2): total-timer mode uses sentinel -1 (not null/0) to signal
+      // "no per-question timer". Clients should NOT auto-submit when mode='total'.
+      if (data.mode === 'total' || data.timeLeft === -1 || data.timeLeft === null) {
+        setTimeLeft(-1); // Sentinel: no per-question timer, no auto-submit
+        lastTimerRef.current = -1;
+        setTimerMode('total');
+        return;
       } else {
         // Drift correction: subtract transit latency from displayed time
         let corrected = data.timeLeft;
@@ -248,25 +268,50 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setTimeout(() => setHudMessage(null), 5000);
     };
 
-    const onQuestionResult = (data: { correctIndex: number, explanation?: string }) => {
-      setCorrectIdx(data.correctIndex);
-      setExplanation(data.explanation || null);
+    const onQuestionResult = (data: { questionIndex: number, correctIndex?: number, explanation?: string, stateVersion?: number, playerAnswers?: any }) => {
+      // SYNC FIX (Issue 1) + HOST CONTROL:
+      // correctIndex is only present if host has enabled revealAnswers.
+      // If absent, we DON'T reveal — player sees their selected option highlighted neutrally.
+      // Correct answers are always shown at quiz_finished regardless.
+      const hasReveal = data.correctIndex !== undefined && data.correctIndex !== null;
+
+      if (hasReveal) {
+        setCorrectIdx(data.correctIndex!);
+        setExplanation(data.explanation || null);
+      }
       setIsLocked(true);
       isLockedRef.current = true;
-      const wasCorrect = selectedIdxRef.current === data.correctIndex;
-      if (wasCorrect) {
-        setScorePopKey(k => k + 1);
-        setLastFlashCorrect(true);
-        setFlashKey(k => k + 1);
-        playSuccess();
-        // Mobile vibration: short pulse for correct
-        navigator.vibrate?.(50);
-      } else {
-        setLastFlashCorrect(false);
-        setFlashKey(k => k + 1);
-        playError();
-        // Mobile vibration: double pulse for wrong
-        navigator.vibrate?.([100, 50, 100]);
+
+      // Build answer log entry for post-quiz review
+      const qIdx = data.questionIndex ?? currentIndexRef.current;
+      const q = quiz.questions[qIdx];
+      const mySelection = selectedAnswersRef.current[qIdx] ?? selectedIdxRef.current ?? -1;
+      if (q) {
+        answersLogRef.current[qIdx] = {
+          questionIndex: qIdx,
+          question: q.question,
+          options: q.options,
+          selectedIdx: mySelection === -1 ? null : mySelection,
+          correctIdx: data.correctIndex ?? null, // null if reveal was off — filled in at quiz_finished
+          explanation: data.explanation
+        };
+      }
+
+      // Sound & vibration feedback only when we actually know if it was correct
+      if (hasReveal) {
+        const wasCorrect = mySelection === data.correctIndex;
+        if (wasCorrect && mySelection >= 0) {
+          setScorePopKey(k => k + 1);
+          setLastFlashCorrect(true);
+          setFlashKey(k => k + 1);
+          playSuccess();
+          navigator.vibrate?.(50);
+        } else {
+          setLastFlashCorrect(false);
+          setFlashKey(k => k + 1);
+          playError();
+          navigator.vibrate?.([100, 50, 100]);
+        }
       }
     };
 
@@ -299,17 +344,27 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       setTimeout(() => setHudMessage(null), 4000);
     };
 
-    const onNextQuestion = (data: { index: number, timerSeconds: number, timerMode?: 'per-question' | 'total', serverTs?: number, question?: string, options?: string[] }) => {
+    const onNextQuestion = (data: { index: number, stateVersion?: number, timerSeconds: number, timerMode?: 'per-question' | 'total', serverTs?: number, question?: string, options?: string[] }) => {
+      // SYNC FIX (Issue 4): Reject stale next_question packets using stateVersion.
+      if (data.stateVersion !== undefined && data.stateVersion <= stateVersionRef.current) {
+        console.warn(`[QuizEngine] Ignoring stale next_question v${data.stateVersion}, current v${stateVersionRef.current}`);
+        return;
+      }
+      if (data.stateVersion !== undefined) stateVersionRef.current = data.stateVersion;
+
       setCurrentIndex(data.index);
       currentIndexRef.current = data.index;
       if (data.timerMode) setTimerMode(data.timerMode);
       // Reset monotonic guard per new question — each question starts fresh
-      // Use corrected time if serverTs is available for drift correction
       let correctedTimer = data.timerSeconds;
       if (data.serverTs) {
         const latencyMs = Math.max(0, Date.now() - data.serverTs);
         const latencySeconds = Math.round(latencyMs / 1000);
         correctedTimer = Math.max(0, data.timerSeconds - latencySeconds);
+      }
+      // SYNC FIX (Issue 2): In total-timer mode, don't set a per-question timer
+      if (data.timerMode === 'total') {
+        correctedTimer = -1; // Sentinel — disables per-question auto-submit
       }
       lastTimerRef.current = correctedTimer;
       setTimeLeft(correctedTimer);
@@ -325,7 +380,18 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     };
 
     // Server sends the leaderboard with authoritative scores — use that, not local score
-    const onQuizFinished = (data: { leaderboard: any }) => {
+    // SYNC FIX (Issue 1): Also receive answerReview (full answer key revealed only now)
+    const onQuizFinished = (data: { leaderboard: any, answerReview?: any[] }) => {
+      // Merge server-provided answer review with locally tracked selections
+      if (data.answerReview) {
+        const mergedLog = data.answerReview.map((qa: any) => ({
+          ...qa,
+          selectedIdx: selectedAnswersRef.current[qa.questionIndex] ?? answersLogRef.current[qa.questionIndex]?.selectedIdx ?? null,
+          correctIdx: qa.correctIndex
+        }));
+        setAnswerReview(data.answerReview);
+        answersLogRef.current = mergedLog;
+      }
       setIsFinished(true);
       isFinishedRef.current = true;
       setIsMatchActive(false);
@@ -359,10 +425,16 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     };
 
     // Periodic state snapshot: self-heal if questionIndex is out of sync
-    // Now also resets the monotonic guard when the question index changes,
-    // fixing the "stuck at 0s" bug where guard prevented timer from resetting.
-    const onStateSnapshot = (data: { questionIndex: number, timeLeft: number, status: string, serverTs: number, timerSeconds?: number, question?: string, options?: string[] }) => {
+    // SYNC FIX (Issue 4): Reject stale snapshots using stateVersion monotonic guard
+    const onStateSnapshot = (data: { questionIndex: number, stateVersion?: number, timeLeft: number, status: string, serverTs: number, timerSeconds?: number, timerMode?: string, question?: string, options?: string[] }) => {
       if (data.status !== 'running') return;
+
+      // Reject snapshots older than what we've already processed
+      if (data.stateVersion !== undefined && data.stateVersion < stateVersionRef.current) {
+        console.debug(`[QuizEngine] Ignoring stale state_snapshot v${data.stateVersion}, current v${stateVersionRef.current}`);
+        return;
+      }
+      if (data.stateVersion !== undefined) stateVersionRef.current = data.stateVersion;
 
       const isDifferentQuestion = data.questionIndex !== currentIndexRef.current;
 
@@ -371,8 +443,10 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         setCurrentIndex(data.questionIndex);
         currentIndexRef.current = data.questionIndex;
         // CRITICAL: reset monotonic guard so timer can restart from correct value
-        lastTimerRef.current = data.timerSeconds ?? data.timeLeft;
-        setTimeLeft(data.timeLeft);
+        // SYNC FIX (Issue 2): respect total-timer sentinel
+        const timerVal = data.timerMode === 'total' ? -1 : (data.timerSeconds ?? data.timeLeft);
+        lastTimerRef.current = timerVal;
+        setTimeLeft(timerVal);
         setSelectedIdx(null);
         selectedIdxRef.current = null;
         setIsLocked(false);
@@ -381,7 +455,9 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         lastSnapshotQIndexRef.current = data.questionIndex;
       } else if (lastSnapshotQIndexRef.current !== data.questionIndex) {
         // Same question, but first snapshot for this question — allow guard reset
-        lastTimerRef.current = Math.max(lastTimerRef.current, data.timeLeft);
+        if (data.timerMode !== 'total') {
+          lastTimerRef.current = Math.max(lastTimerRef.current, data.timeLeft);
+        }
         lastSnapshotQIndexRef.current = data.questionIndex;
       }
     };
@@ -649,12 +725,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
             <div className={cn(
               "flex items-center gap-3 px-6 py-3 rounded-2xl glass transition-all relative",
-              isPaused ? "text-accent" : (timeLeft <= 5 && !isPaused) ? "text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" : (timeLeft < 10) ? "text-red-500" : "text-white",
-              timeLeft <= 5 && !isPaused && 'animate-[tremor_0.3s_ease-in-out_infinite]'
+              isPaused ? "text-accent" : (timerMode === 'total' || timeLeft === -1) ? "text-accent-alt" : (timeLeft <= 5 && !isPaused) ? "text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" : (timeLeft < 10) ? "text-red-500" : "text-white",
+              timeLeft <= 5 && !isPaused && timerMode !== 'total' && 'animate-[tremor_0.3s_ease-in-out_infinite]'
             )}>
-              <Clock size={20} className={timeLeft < 10 && !isPaused ? "animate-pulse" : ""} />
+              <Clock size={20} className={timeLeft < 10 && !isPaused && timerMode !== 'total' ? "animate-pulse" : ""} />
               <span className="text-2xl font-black tabular-nums">
-                {isPaused ? 'HALTED' : `${timeLeft}s`}
+                {/* SYNC FIX (Issue 2): total-timer mode shows session countdown, not per-question */}
+                {isPaused ? 'HALTED' : (timerMode === 'total' || timeLeft === -1) ? (sessionTimeLeft !== null ? `${sessionTimeLeft}s` : '∞') : `${timeLeft}s`}
               </span>
             </div>
           </div>
@@ -694,17 +771,38 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-4 w-full sm:w-auto">
-              {(!isLive && isLocked) || (isLive && (timerMode === 'total' || examSettings?.allowBacktrack)) ? (
+              {/* SYNC FIX (Issue 3): In live synchronized mode, the server controls progression.
+                  Navigation buttons are ONLY shown when:
+                  a) Solo mode (not live), OR
+                  b) Live + allowBacktrack enabled (local view navigation, NOT server progression)
+                  When isLive && !allowBacktrack: hide all nav buttons. */}
+              {!isLive ? (
+                // SOLO MODE: full navigation after answer locked
+                isLocked && (
+                  <>
+                    <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0} className="flex-1 py-4 px-8 border-white/10 rounded-2xl">
+                      <ChevronLeft className="mr-2" /> Previous
+                    </Button>
+                    <Button onClick={handleNext} className={cn("flex-1 py-4 px-10 rounded-2xl", currentIndex === quiz.questions.length - 1 ? "bg-emerald-500" : "bg-accent")}>
+                      {currentIndex === quiz.questions.length - 1 ? 'Final Submit' : 'Next Question'} <ChevronRight className="ml-2" />
+                    </Button>
+                  </>
+                )
+              ) : examSettings?.allowBacktrack ? (
+                // LIVE + BACKTRACK ENABLED: allow local view navigation (capped at globalIndex)
                 <>
-                  <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0 || (isLive && !examSettings?.allowBacktrack)} className="flex-1 py-4 px-8 border-white/10 rounded-2xl">
-                    <ChevronLeft className="mr-2" /> Previous
+                  <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0} className="flex-1 py-4 px-8 border-white/10 rounded-2xl">
+                    <ChevronLeft className="mr-2" /> Review Previous
                   </Button>
-                  <Button onClick={handleNext} className={cn("flex-1 py-4 px-10 rounded-2xl", currentIndex === quiz.questions.length - 1 ? "bg-emerald-500" : "bg-accent")}>
-                    {currentIndex === quiz.questions.length - 1 ? 'Final Submit' : 'Next Question'} <ChevronRight className="ml-2" />
-                  </Button>
+                  {isLocked && (
+                    <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse">Waiting for next question...</p>
+                  )}
                 </>
               ) : (
-                isLive && isLocked && <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse">Waiting for tactical sync...</p>
+                // LIVE SYNCHRONIZED MODE: no navigation. Server drives everything.
+                isLocked
+                  ? <p className="text-sm font-bold uppercase tracking-widest text-accent-alt animate-pulse">⏳ Waiting for next question...</p>
+                  : null
               )}
             </div>
             <div className="flex flex-col items-center sm:items-end opacity-50">

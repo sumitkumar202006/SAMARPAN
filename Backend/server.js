@@ -1527,6 +1527,7 @@ async function ensureSessionInMemory(pin) {
         quiz: dbSession.quiz,
         status: dbSession.status || 'waiting',
         currentQ: 0,
+        stateVersion: 0, // SYNC FIX: monotonic counter to prevent state overwrites
         optionStats: [0, 0, 0, 0],
         timerSeconds: dbSession.timerSeconds || 30,
         timeLeft: dbSession.timerSeconds || 30,
@@ -1635,9 +1636,11 @@ function startCountdown(pin) {
   if (session.timerHandle) clearTimeout(session.timerHandle);
   if (session.countdownHandle) clearInterval(session.countdownHandle);
   
-  // If in TOTAL timer mode, we don't use per-question timeouts
+  // SYNC FIX (Issue 2): In TOTAL timer mode, emit sentinel -1 (not null/0) so clients
+  // know they are in total-timer mode and do NOT trigger per-question auto-submit.
+  // Clients should display the global session timer (from global_timer_tick) instead.
   if (session.timerMode === 'total') {
-    io.in(pin).emit("timer_tick", { timeLeft: null, mode: 'total' });
+    io.in(pin).emit("timer_tick", { timeLeft: -1, mode: 'total', serverTs: Date.now() });
     return;
   }
 
@@ -1669,6 +1672,7 @@ function buildFullStateSnapshot(session) {
   return {
     status: session.status,
     questionIndex: session.currentQ,
+    stateVersion: session.stateVersion || 0, // SYNC FIX: include version for monotonic guard
     timeLeft: session.timeLeft || 0,
     timerSeconds: session.timerSeconds,
     timerMode: session.timerMode || 'per-question',
@@ -1719,21 +1723,45 @@ function advanceQuestion(pin) {
   if (session.timerHandle) clearTimeout(session.timerHandle);
   if (session.countdownHandle) clearInterval(session.countdownHandle);
 
+  // SYNC FIX (Issue 4): Increment stateVersion BEFORE broadcasting question_result.
+  // This ensures clients can detect stale state_snapshot packets.
+  session.stateVersion = (session.stateVersion || 0) + 1;
+
   const q = session.quiz.questions[session.currentQ];
   if (q) {
-    // Reveal correctIndex NOW (after question is over) — safe to send
-    io.in(pin).emit("question_result", {
-      correctIndex: q.correctIndex,
-      explanation: q.explanation || null,
-      leaderboard: getLeaderboard(session)
-    });
+  // SYNC FIX (Issue 1): Reveal correctIndex ONLY HERE — after question ends.
+  // The submit_answer path must NOT reveal isCorrect to clients.
+  // HOST CONTROL: correctIndex + explanation only sent if host has enabled revealAnswers.
+  // Correct answers are ALWAYS sent at quiz_finished regardless of this setting.
+  const playerAnswers = {};
+  Object.entries(session.players).forEach(([sid, p]) => {
+    if (!p.isBot) {
+      playerAnswers[sid] = {
+        selected: p.optionIdx,
+        isCorrect: p.optionIdx === q.correctIndex
+      };
+    }
+  });
+
+  const shouldReveal = session.examSettings?.revealAnswers === true;
+
+  io.in(pin).emit("question_result", {
+    questionIndex: session.currentQ,
+    // Only include correctIndex if host has enabled mid-match reveals
+    correctIndex: shouldReveal ? q.correctIndex : undefined,
+    explanation: shouldReveal ? (q.explanation || null) : undefined,
+    leaderboard: getLeaderboard(session),
+    stateVersion: session.stateVersion,
+    playerAnswers // Each client only uses their own entry (matched by socketId)
+  });
   }
 
-  // Auto-advance delay
+  // Auto-advance delay — let clients see the correct answer before moving on
   setTimeout(() => {
     session.currentQ++;
     session.timeLeft = session.timerSeconds;
     session.optionStats = [0, 0, 0, 0];
+    // SYNC FIX (Issue 3): Reset ALL players' answered flags. Server owns progression.
     Object.values(session.players).forEach(p => { p.answeredThisQ = false; p.optionIdx = -1; });
     // Reset bot flags so they can re-answer on this new question
     resetBotFlags(pin);
@@ -1753,23 +1781,38 @@ function advanceQuestion(pin) {
 
       session.status = 'finished';
       
+      // Build full answer log for post-quiz review — attach safe question data with correct answers
+      const answerReview = (session.quiz.questions || []).map((q, idx) => ({
+        questionIndex: idx,
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation || null
+      }));
+
       prisma.gameSession.update({
         where: { pin },
-        data: { metadata: { finalLeaderboard: getLeaderboard(session), teamScores: session.teamScores, examSettings: session.examSettings } }
+        data: { metadata: { finalLeaderboard: getLeaderboard(session), teamScores: session.teamScores, examSettings: session.examSettings, answerReview } }
       }).catch(console.error);
 
       RatingEngine.processGameResults(pin, session.players, session.rated !== false);
+      // SYNC FIX (Issue 1): Send full answer review on quiz_finished so clients can
+      // reveal all correct answers at the end of the match.
       io.in(pin).emit("quiz_finished", { 
         leaderboard: getLeaderboard(session),
-        teamScores: session.teamScores || null
+        teamScores: session.teamScores || null,
+        answerReview // Full answer key revealed only after quiz ends
       });
       setTimeout(() => liveSessions.delete(pin), 10 * 60 * 1000);
       return;
     }
 
     const nextQ = session.quiz.questions[session.currentQ];
+    // SYNC FIX (Issue 3 & 4): next_question is the ONLY source of truth for question progression.
+    // Include stateVersion so clients can ignore stale state_snapshot packets.
     io.in(pin).emit("next_question", {
       index: session.currentQ,
+      stateVersion: session.stateVersion,
       timerSeconds: session.timerSeconds,
       total: session.quiz.questions.length,
       timerMode: session.timerMode,
@@ -1929,6 +1972,7 @@ io.on("connection", (socket) => {
         quiz: null,
         status: 'waiting',
         currentQ: 0,
+        stateVersion: 0, // SYNC FIX (Issue 4): monotonic state version counter
         optionStats: [0, 0, 0, 0],
         timerSeconds: 30,
         timeLeft: 30,
@@ -1953,7 +1997,8 @@ io.on("connection", (socket) => {
           randomizeOrder: false,
           randomizeOptions: false,
           ipLock: false,
-          escalationMode: true
+          escalationMode: true,
+          revealAnswers: false // HOST CONTROL: if true, correctIndex sent after each question
         },
         teamNames: { 'Team A': 'Team A', 'Team B': 'Team B' }
       });
@@ -2280,17 +2325,19 @@ io.on("connection", (socket) => {
           });
 
           // Periodic state snapshot every 8s for self-healing desynced clients
-          // Includes current question so clients can fully recover without reload
+          // Includes stateVersion so clients can enforce monotonic guard
           session.stateSnapshotInterval = setInterval(() => {
             const s = liveSessions.get(pin);
             if (!s || s.status !== 'running') { clearInterval(session.stateSnapshotInterval); return; }
             const snapQ = s.quiz.questions[s.currentQ];
             io.in(pin).emit("state_snapshot", {
               questionIndex: s.currentQ,
+              stateVersion: s.stateVersion || 0, // SYNC FIX (Issue 4): version for monotonic guard
               timeLeft: s.timeLeft,
               status: s.status,
               serverTs: Date.now(),
               timerSeconds: s.timerSeconds,
+              timerMode: s.timerMode || 'per-question',
               // Include question data so a desynced client can re-render immediately
               question: snapQ ? snapQ.question : null,
               options: snapQ ? snapQ.options : []
@@ -2430,7 +2477,10 @@ io.on("connection", (socket) => {
 
     logAnswerToDb(session, player, { optionIdx, isCorrect, timeTaken, ipAddress: socket.handshake.address });
     broadcastStats(pin, session);
-    socket.emit("answer_confirmed", { optionIdx, isCorrect });
+    // SYNC FIX (Issue 1): Do NOT send isCorrect here. Correct answer is ONLY revealed
+    // via question_result after the question ends. This prevents clients from showing
+    // green/red immediately. Only confirm the selection was received.
+    socket.emit("answer_confirmed", { optionIdx });
     
     // Notify host of the choice in real-time (Oversight feature)
     if (session.hostSocketId) {
@@ -2461,6 +2511,31 @@ io.on("connection", (socket) => {
     }
 
     advanceQuestion(pin);
+  });
+
+  // ── HOST TOGGLE REVEAL ANSWERS ──────────────────────────────────────────────
+  // Host can toggle mid-match answer reveal on/off at any time during a running game.
+  // When enabled: question_result sends correctIndex + explanation after each question.
+  // When disabled: only leaderboard + playerAnswers are sent; correct answers hidden.
+  // Correct answers are ALWAYS revealed in full at quiz_finished regardless of this toggle.
+  socket.on("host_toggle_reveal", (data) => {
+    const { pin, revealAnswers } = data;
+    const session = liveSessions.get(pin);
+    if (!session || session.hostSocketId !== socket.id) return;
+
+    if (!session.examSettings) session.examSettings = {};
+    session.examSettings.revealAnswers = !!revealAnswers;
+
+    // Broadcast updated settings to all players so their UI can adjust
+    io.in(pin).emit("settings_updated", { examSettings: session.examSettings });
+
+    // Notify the room
+    const statusMsg = revealAnswers
+      ? "✅ Host has enabled answer reveals after each question."
+      : "🔒 Host has hidden answers — results will show at the end.";
+    io.in(pin).emit("broadcast_message", { message: statusMsg, type: revealAnswers ? 'success' : 'info' });
+
+    console.log(`[HOST] PIN ${pin}: revealAnswers set to ${revealAnswers}`);
   });
 
   // ── HOST SHOW RESULTS ───────────────────────────────────────────────────────

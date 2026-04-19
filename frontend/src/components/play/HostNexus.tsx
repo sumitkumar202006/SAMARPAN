@@ -31,6 +31,8 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
   const [localQuestions, setLocalQuestions] = useState(quiz.questions);
   const [isMounted, setIsMounted] = useState(false);
   const [liveLeaderboard, setLiveLeaderboard] = useState<any[]>([]);
+  // HOST CONTROL: Track revealAnswers state for the toggle UI
+  const [revealAnswers, setRevealAnswers] = useState(false);
 
   const hasEmittedHostJoin = useRef(false); // Prevent duplicate host_join on re-render
 
@@ -103,6 +105,13 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
       setTimeLeft(data.timerSeconds);
       if (data.timerMode) setTimerMode(data.timerMode);
     });
+
+    // HOST CONTROL: Sync revealAnswers from settings_updated (e.g. on reconnect)
+    socket.on('settings_updated', (data: any) => {
+      if (data.examSettings?.revealAnswers !== undefined) {
+        setRevealAnswers(data.examSettings.revealAnswers);
+      }
+    });
     
     // Oversight: Live choice tracking
     socket.on('player_choice', (data: any) => {
@@ -143,6 +152,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
       socket.off('player_choice');
       socket.off('leaderboard_update');
       socket.off('quiz_finished');
+      socket.off('settings_updated');
     };
   }, [socket, isMounted]);
 
@@ -496,6 +506,38 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
                       <span className="font-bold text-sm text-accent-alt font-mono">ENFORCED</span>
                    </div>
                 </div>
+
+                {/* HOST CONTROL: Reveal Answers Toggle */}
+                <div className={cn(
+                  "p-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer",
+                  revealAnswers
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-white/5 border-white/5 hover:border-white/10"
+                )} onClick={() => {
+                  const next = !revealAnswers;
+                  setRevealAnswers(next);
+                  socket.emit('host_toggle_reveal', { pin, revealAnswers: next });
+                  playClick();
+                }}>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-text-soft">Reveal Answers</span>
+                    <span className={cn("font-bold text-sm", revealAnswers ? "text-emerald-400" : "text-text-soft")}>
+                      {revealAnswers ? 'After Each Question' : 'End of Quiz Only'}
+                    </span>
+                  </div>
+                  {/* Toggle pill */}
+                  <div className={cn(
+                    "w-12 h-6 rounded-full transition-all relative flex items-center",
+                    revealAnswers ? "bg-emerald-500" : "bg-white/10"
+                  )}>
+                    <motion.div
+                      animate={{ x: revealAnswers ? 24 : 2 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className="w-5 h-5 bg-white rounded-full shadow absolute"
+                    />
+                  </div>
+                </div>
+
                 {status === 'waiting' && (
                   <Button variant="ghost" className="w-full text-accent font-bold gap-2 hover:bg-accent/10" onClick={() => setIsEditing(true)}>
                     <Edit3 size={16} /> Open Content Forge

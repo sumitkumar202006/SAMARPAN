@@ -104,6 +104,7 @@ export default function AboutPage() {
                 <motion.img
                   src={member.img}
                   alt={member.name}
+                  referrerPolicy="no-referrer"
                   className="relative z-10 w-full h-full rounded-full object-cover border-4 border-white/10 group-hover:border-accent group-hover:-translate-y-6 group-hover:scale-110 transition-all duration-500 shadow-2xl"
                 />
               </div>

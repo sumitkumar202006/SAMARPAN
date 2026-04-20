@@ -28,11 +28,11 @@ export default function AboutPage() {
           { icon: Users, title: 'Team Battles', desc: 'Coordinate with squadmates in 2v2 or 4v4 modes for a collaborative e-sports experience.' },
           { icon: Target, title: 'Deep Analytics', desc: 'Detailed host dashboards provide insights into player performance and question difficulty.' },
         ].map((feat, i) => (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            key={i} 
+            key={i}
             className="glass p-8 rounded-[40px] flex flex-col gap-4 border-white/5 bg-gradient-to-br from-bg-soft/50 to-transparent group hover:border-accent transition-all"
           >
             <div className="w-12 h-12 rounded-2xl bg-accent-soft flex items-center justify-center text-accent group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all">
@@ -154,7 +154,7 @@ export default function AboutPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Abstract shapes */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
       </div>

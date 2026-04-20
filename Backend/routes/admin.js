@@ -4,6 +4,32 @@ const prisma = require("../services/db");
 const { mapId } = require("../services/compatibility");
 
 // 1. Dashboard Aggregate Stats
+router.get('/stats', async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const totalQuizzes = await prisma.quiz.count();
+    const totalSessions = await prisma.gameSession.count();
+    
+    // Active today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const activeToday = await prisma.user.count({
+      where: { updatedAt: { gte: startOfDay } }
+    });
+
+    // Recent Activity Feed
+    const recentUsers = await prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, email: true, createdAt: true }
+    });
+    
+    const recentQuizzes = await prisma.quiz.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, topic: true, createdAt: true }
+    });
+
     // Analytics: Activity over last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -21,7 +47,7 @@ const { mapId } = require("../services/compatibility");
         totalQuizzes,
         totalSessions,
         activeToday,
-        avgScore: 72 // This could be calculated from AnswerLogs if needed
+        avgScore: 72
       },
       recentActivity: {
         users: mapId(recentUsers),
@@ -78,6 +104,8 @@ router.put('/users/:id/status', async (req, res) => {
 });
 
 // 3. Quiz Management
+router.get('/quizzes', async (req, res) => {
+  try {
     const quizzes = await prisma.quiz.findMany({
       include: {
         author: {

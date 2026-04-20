@@ -39,6 +39,7 @@ model User {
   updatedAt          DateTime        @updatedAt
   hostedSessions     GameSession[]   @relation("UserSessions")
   quizzes            Quiz[]          @relation("UserQuizzes")
+  news               News[]          @relation("UserNews")
   ratingHistory      RatingHistory[]
   
   friendshipsInitiated Friendship[] @relation("UserFriendships")
@@ -158,4 +159,22 @@ model Message {
 
   @@index([senderId, receiverId])
   @@index([createdAt])
+}
+
+model News {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  image     String?
+  category  String   @default("General")
+  isPinned  Boolean  @default(false)
+  authorId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author    User?    @relation("UserNews", fields: [authorId], references: [id])
+}
+
+model SystemConfig {
+  key   String @id
+  value Json
 }

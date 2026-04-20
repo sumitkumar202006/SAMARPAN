@@ -3,13 +3,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  BarChart3, 
   TrendingUp, 
   Target, 
-  UserPlus, 
   Zap, 
   Award, 
-  PieChart as PieIcon,
   Flame,
   MousePointer2
 } from 'lucide-react';
@@ -23,10 +20,9 @@ import {
   ResponsiveContainer, 
   LineChart, 
   Line, 
-  PieChart, 
-  Pie, 
   Cell 
 } from 'recharts';
+import api from '@/lib/axios';
 
 const quizStats = [
   { name: 'Comp Sci', attempts: 400, accuracy: 85 },
@@ -39,6 +35,36 @@ const quizStats = [
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function AnalyticsPage() {
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const res = await api.get('/api/admin/stats');
+        setData(res.data);
+      } catch (err) {
+        console.error("Failed to load analytics", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAnalytics();
+  }, []);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-96 gap-4">
+      <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+      <p className="text-text-soft font-black uppercase tracking-widest text-xs">Decrypting Behavioral Data...</p>
+    </div>
+  );
+
+  // Map activity over time to line chart
+  const activityData = data?.activityOverTime?.map((item: any) => ({
+    name: new Date(item.createdAt).toLocaleDateString(),
+    attempts: item._count._all
+  })) || [];
+
   return (
     <div className="space-y-10">
       <div className="flex justify-between items-end">
@@ -80,7 +106,7 @@ export default function AnalyticsPage() {
                    cursor={{ fill: '#ffffff05' }}
                 />
                 <Bar dataKey="attempts" radius={[8, 8, 0, 0]}>
-                   {quizStats.map((entry, index) => (
+                   {quizStats.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                    ))}
                 </Bar>
@@ -105,7 +131,7 @@ export default function AnalyticsPage() {
 
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={quizStats}>
+              <LineChart data={activityData.length > 0 ? activityData : quizStats}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                 <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
@@ -114,7 +140,7 @@ export default function AnalyticsPage() {
                 />
                 <Line 
                    type="monotone" 
-                   dataKey="accuracy" 
+                   dataKey="attempts" 
                    stroke="#22c55e" 
                    strokeWidth={4} 
                    dot={{ fill: '#22c55e', strokeWidth: 2, r: 6 }}

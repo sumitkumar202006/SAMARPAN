@@ -49,6 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { name: 'Overview', icon: LayoutDashboard, href: '/admin' },
+    { name: 'News & Updates', icon: Zap, href: '/admin/news' },
     { name: 'User Management', icon: Users, href: '/admin/users' },
     { name: 'Quiz Vault', icon: BookOpen, href: '/admin/quizzes' },
     { name: 'Analytics', icon: BarChart3, href: '/admin/analytics' },

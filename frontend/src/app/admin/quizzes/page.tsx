@@ -46,6 +46,15 @@ export default function QuizVaultPage() {
     }
   }
 
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    try {
+      await api.put(`/api/admin/quizzes/${id}/publish`, { isPublished: !currentStatus });
+      setQuizzes(quizzes.map(q => q._id === id ? { ...q, isPublished: !currentStatus } : q));
+    } catch (err) {
+      alert("Failed to update publication status");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Caution: This action will permanently delete this simulation from the vault. Proceed?")) return;
     try {
@@ -114,6 +123,21 @@ export default function QuizVaultPage() {
                       <Trash size={16} />
                    </button>
                 </div>
+              </div>
+
+              <div className="mb-4">
+                 <button 
+                  onClick={() => handleTogglePublish(quiz._id, quiz.isPublished)}
+                  className={cn(
+                    "w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center justify-center gap-2",
+                    quiz.isPublished 
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20" 
+                      : "bg-white/5 border-white/5 text-text-soft hover:bg-white/10"
+                  )}
+                 >
+                    <div className={cn("w-2 h-2 rounded-full", quiz.isPublished ? "bg-emerald-400 animate-pulse" : "bg-text-soft")} />
+                    {quiz.isPublished ? 'Live in Arena' : 'Vaulted / Private'}
+                 </button>
               </div>
 
               <div className="space-y-4 relative z-10 flex-1">

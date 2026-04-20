@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Settings, 
@@ -12,15 +12,67 @@ import {
   Bell, 
   Save,
   Wrench,
-  Server
+  Server,
+  Loader2
 } from 'lucide-react';
+import api from '@/lib/axios';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
 
 export default function AdminSettingsPage() {
-  const [siteName, setSiteName] = useState('Samarpan Quiz Platform');
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<any>({
+    platformName: 'Samarpan Quiz Platform',
+    maintenanceMode: false,
+    defaultTimer: 30,
+    scoringAlgorithm: 'Standard Exponential',
+    forceHttps: true
+  });
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  async function fetchSettings() {
+    try {
+      setLoading(true);
+      const res = await api.get('/api/admin/settings');
+      if (res.data.settings) {
+        // Merge with defaults
+        setSettings((prev: any) => ({...prev, ...res.data.settings}));
+      }
+    } catch (err) {
+      console.error("Failed to load settings", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      // Save each setting sequentially or optimized
+      const keys = Object.keys(settings);
+      for (const key of keys) {
+        await api.post('/api/admin/settings', { key, value: settings[key] });
+      }
+      alert("Nexus parameters updated successfully.");
+    } catch (err) {
+      alert("Failed to deploy changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-96 gap-4">
+      <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+      <p className="text-text-soft font-black uppercase tracking-widest text-xs">Accessing System Core...</p>
+    </div>
+  );
+
   return (
     <div className="space-y-10">
       <div>
@@ -45,8 +97,8 @@ export default function AdminSettingsPage() {
             <div className="grid md:grid-cols-2 gap-8">
                <Input 
                  label="Platform Name"
-                 value={siteName}
-                 onChange={(e) => setSiteName(e.target.value)}
+                 value={settings.platformName}
+                 onChange={(e) => setSettings({...settings, platformName: e.target.value})}
                  className="bg-background/20"
                />
                <Input 
@@ -56,15 +108,23 @@ export default function AdminSettingsPage() {
                />
                <div className="space-y-2">
                  <label className="text-xs font-black uppercase tracking-widest text-text-soft">Default Quiz Timer (Seconds)</label>
-                 <select className="w-full bg-background/20 border border-white/5 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-1 focus:ring-accent">
-                    <option>30 Seconds (Rapid)</option>
-                    <option>60 Seconds (Standard)</option>
-                    <option>10 Seconds (Hyper)</option>
+                 <select 
+                   value={settings.defaultTimer}
+                   onChange={(e) => setSettings({...settings, defaultTimer: parseInt(e.target.value)})}
+                   className="w-full bg-background/20 border border-white/5 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-1 focus:ring-accent"
+                 >
+                    <option value={30}>30 Seconds (Rapid)</option>
+                    <option value={60}>60 Seconds (Standard)</option>
+                    <option value={10}>10 Seconds (Hyper)</option>
                  </select>
                </div>
                <div className="space-y-2">
                  <label className="text-xs font-black uppercase tracking-widest text-text-soft">Scoring Algorithm</label>
-                 <select className="w-full bg-background/20 border border-white/5 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-1 focus:ring-accent">
+                 <select 
+                   value={settings.scoringAlgorithm}
+                   onChange={(e) => setSettings({...settings, scoringAlgorithm: e.target.value})}
+                   className="w-full bg-background/20 border border-white/5 rounded-2xl p-4 text-sm font-bold outline-none focus:ring-1 focus:ring-accent"
+                 >
                     <option>Standard Exponential (Time-based)</option>
                     <option>Static (Points per Q)</option>
                     <option>Competitive (Rank-weighted)</option>
@@ -117,10 +177,10 @@ export default function AdminSettingsPage() {
                        <p className="text-[10px] text-text-soft">Shutdown public access</p>
                     </div>
                     <button 
-                      onClick={() => setMaintenanceMode(!maintenanceMode)}
-                      className={`w-12 h-6 rounded-full transition-all relative ${maintenanceMode ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-white/10'}`}
+                      onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
+                      className={`w-12 h-6 rounded-full transition-all relative ${settings.maintenanceMode ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-white/10'}`}
                     >
-                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${maintenanceMode ? 'left-7' : 'left-1'}`} />
+                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.maintenanceMode ? 'left-7' : 'left-1'}`} />
                     </button>
                  </div>
                  
@@ -129,9 +189,15 @@ export default function AdminSettingsPage() {
                        <p className="text-xs font-black tracking-tight">Force HTTPS</p>
                        <p className="text-[10px] text-text-soft">Secure relay only</p>
                     </div>
-                    <div className="w-12 h-6 rounded-full bg-emerald-500 relative">
-                       <div className="absolute top-1 left-7 w-4 h-4 bg-white rounded-full" />
-                    </div>
+                    <button 
+                      onClick={() => setSettings({...settings, forceHttps: !settings.forceHttps})}
+                      className={cn(
+                        "w-12 h-6 rounded-full transition-all relative",
+                        settings.forceHttps ? "bg-emerald-500" : "bg-white/10"
+                      )}
+                    >
+                       <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", settings.forceHttps ? "left-7" : "left-1")} />
+                    </button>
                  </div>
               </div>
 
@@ -152,9 +218,13 @@ export default function AdminSettingsPage() {
               </div>
            </motion.div>
 
-           <Button className="w-full py-6 text-sm font-black tracking-widest uppercase">
-              <Save size={18} />
-              Deploy Global Changes
+           <Button 
+             onClick={handleSave}
+             disabled={saving}
+             className="w-full py-6 text-sm font-black tracking-widest uppercase flex items-center justify-center gap-2"
+           >
+              {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+              {saving ? 'Synchronizing...' : 'Deploy Global Changes'}
            </Button>
         </div>
 

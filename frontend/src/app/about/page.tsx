@@ -74,7 +74,7 @@ export default function AboutPage() {
               name: "Anuneet Gupta",
               role: "Founder",
               edu: "BCA 2024-2027",
-              img: "https://instagram.fknu1-5.fna.fbcdn.net/v/t51.2885-19/484953309_1294930834921878_5015488331309943351_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fknu1-5.fna.fbcdn.net&_nc_cat=106&_nc_oc=Q6cZ2gEbBRrseNT8C-luW0Yt9K8QiXKGj7Uag0z8AaSvlO1ZyZzxVoheFOThGmLJczR88-sU_ReoLcT-1m6T5o0iuEZZ&_nc_ohc=j1WBYNp-qmMQ7kNvwFQmfuW&_nc_gid=gyDjWF0-8LmguwcAg_OUkQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_Af13WYal1PaXf5C9eR0u1NzpAryU_kGVlyxbIf0Z-gxZlg&oe=69EC3FE7&_nc_sid=7a9f4b",
+              img: "https://media.licdn.com/dms/image/v2/D4D03AQFVZ-U75F70HA/profile-displayphoto-shrink_400_400/B4DZcbDvd2GkAg-/0/1748505656091?e=1778112000&v=beta&t=3dbUJFmM3gDu3BXEBgxfsguiLqa_dmtYfw_THoBeeCU",
               github: "https://github.com/anuneetgupta",
               insta: "https://www.instagram.com/anuneet_gupta/",
               link: "https://www.linkedin.com/in/anuneet-gupta-57898631a/"

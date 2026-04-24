@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { cn } from '@/lib/utils';
 import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
+import { PlanBadge, planRingClass } from '@/components/ui/PlanBadge';
 
 const navItems = [
   { name: 'Dashboard',   icon: LayoutDashboard, href: '/dashboard' },
@@ -134,7 +135,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         <Link href="/profile" onClick={() => playNavigate?.()}>
           <motion.div 
             variants={itemVariants}
-            className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-8 relative overflow-hidden group hover:border-accent/30 hover:bg-white/10 transition-all duration-500 shrink-0 cursor-pointer"
+            className="mx-6 p-5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl mb-4 relative overflow-hidden group hover:border-accent/30 hover:bg-white/10 transition-all duration-500 shrink-0 cursor-pointer"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className={cn(
@@ -142,8 +143,9 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
               mounted && isCollapsed && "justify-center gap-0"
             )}>
               <div className={cn(
-                 "w-10 h-10 rounded-full border-2 border-accent/50 p-0.5 relative shrink-0",
-                 isCollapsed && "scale-110" // Make avatar stand out in collapsed
+                 "w-10 h-10 rounded-full border-2 p-0.5 relative shrink-0 transition-all",
+                 planRingClass(user.plan || 'free'),
+                 isCollapsed && "scale-110"
               )}>
                  <div className="absolute inset-[-4px] rounded-full border border-accent/20 animate-spin-slow opacity-50" style={{ animationDuration: '10s' }} />
                  {isCollapsed && (
@@ -172,15 +174,29 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                   >
                      <span className="font-black text-xs uppercase tracking-widest text-white truncate group-hover:text-accent transition-colors">{user.name || 'Guest Explorer'}</span>
                      <span className="text-[10px] text-text-soft font-black uppercase tracking-widest mt-0.5 group-hover:text-white/60 transition-colors">@{user.username || 'nexus_pilot'}</span>
-                     <span className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-tighter flex items-center gap-1.5">
-                       <Disc size={10} className="animate-pulse" />
-                       Lvl {Math.floor((user.globalRating || 1200) / 100)} Online
-                     </span>
+                     <div className="mt-1">
+                       <PlanBadge plan={user.plan || 'free'} size="xs" />
+                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </motion.div>
+        </Link>
+      )}
+
+      {/* Go Premium CTA — only for free users, expanded sidebar */}
+      {mounted && user && !isCollapsed && (user.plan === 'free' || !user.plan) && (
+        <Link href="/pricing" onClick={() => playNavigate?.()}
+          className="mx-6 mb-4 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-violet-600/10 border border-indigo-500/20 hover:border-indigo-500/50 hover:from-indigo-500/20 hover:to-violet-600/20 transition-all group shrink-0"
+        >
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/30 shrink-0">
+            <Zap size={13} className="text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-white uppercase tracking-widest group-hover:text-indigo-300 transition-colors">Go Premium</span>
+            <span className="text-[9px] text-text-soft">Blaze Pro — ₹99/mo</span>
+          </div>
         </Link>
       )}
 

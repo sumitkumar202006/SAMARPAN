@@ -4,8 +4,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/lib/axios';
 
 interface User {
-  id: string; // Internal standard
-  userId: string; // Legacy compatibility
+  id: string;
+  userId: string;
   name: string;
   email: string;
   avatar?: string;
@@ -27,6 +27,9 @@ interface User {
   publicKey?: string;
   role?: string;
   status?: string;
+  // Subscription
+  plan?: string;        // 'free' | 'pro' | 'elite' | 'institution'
+  planStatus?: string;  // 'active' | 'trialing' | 'cancelled'
 }
 
 interface AuthContextType {
@@ -113,14 +116,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncProfile = async () => {
       try {
-        const res = await api.get(`/api/user/profile/${user.email}`);
-        if (res.data) {
-          const updatedUser = { ...user, ...res.data };
-          setUserState(updatedUser);
-          localStorage.setItem('samarpanUser', JSON.stringify(updatedUser));
+        const [profileRes, billingRes] = await Promise.allSettled([
+          api.get(`/api/user/profile/${user.email}`),
+          api.get('/api/billing/status'),
+        ]);
+
+        let updatedUser = { ...user };
+        if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+          updatedUser = { ...updatedUser, ...profileRes.value.data };
         }
+        if (billingRes.status === 'fulfilled' && billingRes.value.data) {
+          updatedUser.plan = billingRes.value.data.plan || 'free';
+          updatedUser.planStatus = billingRes.value.data.status || 'none';
+        }
+        setUserState(updatedUser);
+        localStorage.setItem('samarpanUser', JSON.stringify(updatedUser));
       } catch (err) {
-        console.error("Profile sync failed", err);
+        console.error('Profile sync failed', err);
       }
     };
 

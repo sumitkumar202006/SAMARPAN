@@ -107,7 +107,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           <main className={cn(
             "flex-1 flex flex-col pt-4 relative",
             !effectiveSidebarCollapsed && "lg:pt-6",
-            !isMatchOrLobby ? "pb-32 lg:pb-10" : "pb-10"
+            !isMatchOrLobby ? "pb-40 lg:pb-10" : "pb-10"
           )}>
             <div className="flex-1 px-5 lg:px-8 max-w-7xl mx-auto w-full">
               <Suspense fallback={null}>

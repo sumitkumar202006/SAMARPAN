@@ -7,6 +7,7 @@ import { AudioProvider } from "@/context/AudioContext";
 import { InteractionListener } from "@/components/layout/InteractionListener";
 import { AuraCursor } from "@/components/ui/AuraCursor";
 import { LayoutShell } from "@/components/layout/LayoutShell";
+import { UpgradeModalProvider } from "@/components/ui/UpgradeModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -43,9 +44,11 @@ export default function RootLayout({
         <AuthProvider>
           <AudioProvider>
             <SocketProvider>
-              <InteractionListener />
-              <AuraCursor />
-              <LayoutShell>{children}</LayoutShell>
+              <UpgradeModalProvider>
+                <InteractionListener />
+                <AuraCursor />
+                <LayoutShell>{children}</LayoutShell>
+              </UpgradeModalProvider>
             </SocketProvider>
           </AudioProvider>
         </AuthProvider>

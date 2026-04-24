@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare, X } from 'lucide-react';
+import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare, X, Sparkles } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -9,8 +9,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { UserPlus, UserCheck, CheckCircle2, XCircle, ChevronLeft } from 'lucide-react';
+import { UserPlus, UserCheck, CheckCircle2, XCircle, ChevronLeft, CreditCard } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
+import { PlanBadge, planRingClass } from '@/components/ui/PlanBadge';
 
 export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMobileMenu?: () => void, isMatchOrLobby?: boolean }) => {
   const router = useRouter();
@@ -473,27 +474,32 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
             </AnimatePresence>
           </div>
 
+          {/* ── Premium Button (only for free/unauthenticated users) ── */}
+          {user && (user.plan === 'free' || !user.plan) && (
+            <Link
+              href="/pricing"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-md shadow-indigo-500/30 shrink-0"
+            >
+              <Sparkles size={11} />
+              <span className="hidden md:inline">Go Pro</span>
+            </Link>
+          )}
+
           <div className="h-6 w-px bg-white/5" />
 
           {/* User Profile Hook */}
           <div className="relative" ref={dropdownRef}>
             {user ? (
-               <button 
+              <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 lg:gap-3 p-1 rounded-xl lg:rounded-2xl hover:bg-white/5 transition-all outline-none group/profile"
               >
-                <div className="relative w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
-                  {/* Progress Ring Matrix */}
+                <div className={cn(
+                  "relative w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center"
+                )}>
+                  {/* Plan-coloured ring */}
                   <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 36 36">
-                    <circle
-                      className="text-white/5"
-                      strokeWidth="2"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="16"
-                      cx="18"
-                      cy="18"
-                    />
+                    <circle className="text-white/5" strokeWidth="2" stroke="currentColor" fill="transparent" r="16" cx="18" cy="18" />
                     <motion.circle
                       initial={{ strokeDasharray: "0 100" }}
                       animate={{ strokeDasharray: `${profileCompletion} 100` }}
@@ -501,17 +507,11 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                         "transition-all duration-1000",
                         profileCompletion === 100 ? "text-emerald-500" : profileCompletion > 50 ? "text-accent" : "text-amber-500"
                       )}
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="16"
-                      cx="18"
-                      cy="18"
+                      strokeWidth="2.5" strokeLinecap="round" stroke="currentColor"
+                      fill="transparent" r="16" cx="18" cy="18"
                       style={{ filter: `drop-shadow(0 0 2px currentColor)` }}
                     />
                   </svg>
-
                   <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt p-0.5 shadow-lg relative z-10 transition-transform group-hover/profile:scale-105">
                     <div className="w-full h-full rounded-md lg:rounded-lg bg-background flex items-center justify-center overflow-hidden">
                       {user?.avatar ? (
@@ -528,7 +528,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                     <span className="text-xs font-black tracking-tight">{user?.name || 'Guest User'}</span>
                     {profileCompletion === 100 && <Shield size={10} className="text-emerald-400 fill-emerald-400/20" />}
                   </div>
-                  <span className="text-[9px] text-accent uppercase font-black tracking-widest">{profileCompletion}% Synced</span>
+                  <PlanBadge plan={user?.plan || 'free'} size="xs" />
                 </div>
               </button>
             ) : (
@@ -551,7 +551,10 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                   className="absolute right-0 mt-2 w-56 glass rounded-2xl p-2 shadow-2xl overflow-hidden z-50 border border-white/5"
                 >
                   <div className="px-3 py-3 border-b border-white/5 mb-1 bg-white/5 rounded-t-xl">
-                    <p className="font-bold text-sm text-white">{user?.name || 'Guest User'}</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-bold text-sm text-white">{user?.name || 'Guest User'}</p>
+                      <PlanBadge plan={user?.plan || 'free'} size="xs" />
+                    </div>
                     <p className="text-[10px] text-text-soft truncate tracking-tight">{user?.email || 'Anonymous Session'}</p>
                   </div>
 
@@ -580,6 +583,21 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                       {!user?.email && <Shield size={10} className="text-orange-400" />}
                     </Link>
                     
+                    <div className="h-px bg-white/5 my-1 mx-2" />
+
+                    {/* Billing link */}
+                    <Link
+                      href="/billing"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-all group/it"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CreditCard size={16} className="text-white/60 group-hover/it:text-accent transition-colors" />
+                        <span className="font-medium">Subscription</span>
+                      </div>
+                      <PlanBadge plan={user?.plan || 'free'} size="xs" showLabel={false} />
+                    </Link>
+
                     <div className="h-px bg-white/5 my-1 mx-2" />
                     
                     <button 

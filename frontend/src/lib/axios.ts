@@ -11,7 +11,7 @@ const api = axios.create({
   },
 });
 
-// Add a request interceptor to include the token in headers
+// ── Request interceptor: attach JWT ─────────────────────────────────────────
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const userJson = localStorage.getItem('samarpanUser');
@@ -28,5 +28,29 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// ── Response interceptor: fire UpgradeModal on 402 quota_exceeded ───────────
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 402) {
+      const data = error.response.data;
+      // Dispatch a custom browser event so UpgradeModalProvider can catch it
+      // without needing a direct React context reference here.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('samarpan:quota_exceeded', {
+          detail: {
+            resource: data.error === 'feature_locked' ? data.feature : (data.resource || 'aiGenerations'),
+            plan:     data.plan || 'free',
+            used:     data.used,
+            limit:    data.limit,
+            message:  data.message,
+          }
+        }));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

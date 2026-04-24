@@ -5,10 +5,21 @@ const crypto = require("crypto");
 const prisma = require("../services/db");
 const { authenticate, getEffectivePlan, PLAN_LIMITS, getNextMonthReset } = require("../middleware/planGate");
 
-const rzp = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy-init: only create the Razorpay client when a billing route is actually
+// called. This prevents the server from crashing at startup if the env vars
+// are not yet configured on the deployment platform.
+let _rzp = null;
+function getRzp() {
+  if (_rzp) return _rzp;
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set in environment variables.");
+  }
+  _rzp = new Razorpay({
+    key_id:     process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+  return _rzp;
+}
 
 // ─── Razorpay Plan IDs (create these in Razorpay Dashboard) ──────────────────
 // We use monthly subscriptions. Create plans in dashboard and paste IDs here.
@@ -156,7 +167,7 @@ router.post("/create-order", authenticate, async (req, res) => {
     if (!amount) return res.status(400).json({ error: "Invalid plan/interval" });
 
     // Create Razorpay order (amount in paise)
-    const order = await rzp.orders.create({
+    const order = await getRzp().orders.create({
       amount: amount * 100,
       currency: "INR",
       receipt: `sub_${req.user.id.slice(0, 8)}_${Date.now()}`,

@@ -74,7 +74,7 @@ export default function AboutPage() {
               name: "Anuneet Gupta",
               role: "Founder",
               edu: "BCA 2024-2027",
-              img: "https://media.licdn.com/dms/image/v2/D4D03AQFVZ-U75F70HA/profile-displayphoto-shrink_400_400/B4DZcbDvd2GkAg-/0/1748505656091?e=1778112000&v=beta&t=3dbUJFmM3gDu3BXEBgxfsguiLqa_dmtYfw_THoBeeCU",
+              img: "https://media.licdn.com/dms/image/v2/D5603AQG-4yjbRagcLQ/profile-displayphoto-crop_800_800/B56Z2sgod7GoAI-/0/1776715733435?e=1778716800&v=beta&t=BW91bEQq9zGMCOj-W0v2-xCYxk04Yci0AOyACzuyL6E",
               github: "https://github.com/anuneetgupta",
               insta: "https://www.instagram.com/anuneet_gupta/",
               link: "https://www.linkedin.com/in/anuneet-gupta-57898631a/"

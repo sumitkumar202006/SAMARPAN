@@ -41,7 +41,9 @@ model User {
   quizzes            Quiz[]          @relation("UserQuizzes")
   news               News[]          @relation("UserNews")
   ratingHistory      RatingHistory[]
-  
+  subscription       Subscription?
+  quota              UsageQuota?
+
   friendshipsInitiated Friendship[] @relation("UserFriendships")
   friendshipsReceived  Friendship[] @relation("FriendFriendships")
   sentMessages         Message[]    @relation("SentMessages")
@@ -177,4 +179,46 @@ model News {
 model SystemConfig {
   key   String @id
   value Json
+}
+
+// ─── Subscription & Billing ───────────────────────────────────────────────────
+
+model Subscription {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  plan              String   @default("free")    // "free" | "pro" | "elite" | "institution"
+  status            String   @default("active")  // "active" | "trialing" | "cancelled" | "past_due"
+  razorpaySubId     String?  // Razorpay subscription ID
+  razorpayCustomerId String? // Razorpay customer ID
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)
+  trialEndsAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model UsageQuota {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  aiGenerations Int      @default(0)  // Used this billing period
+  pdfUploads    Int      @default(0)  // Used this billing period
+  resetAt       DateTime             // Next monthly reset date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DeviceTrial {
+  id          String   @id @default(uuid())
+  fingerprint String   @unique // Device fingerprint hash
+  usedAt      DateTime @default(now()) // When trial was activated
+  email       String   // Which email used it (audit trail)
+
+  @@index([fingerprint])
 }

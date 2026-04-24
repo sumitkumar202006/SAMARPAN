@@ -41,6 +41,8 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
 const friendsRoutes = require("./routes/friends");
+const billingRoutes = require("./routes/billing");
+const { authenticate, checkQuota, getEffectivePlan, PLAN_LIMITS } = require("./middleware/planGate");
 
 // Basic middleware
 console.log("Registering global middleware...");
@@ -55,8 +57,11 @@ app.use(cors({
   credentials: true 
 }));
 
-app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));app.use("/uploads", express.static("uploads"));
 app.use(passport.initialize());
 console.log("Passport initialized.");
 
@@ -305,6 +310,19 @@ app.post("/api/host/start", async (req, res) => {
     if (!user) {
       return res.status(400).json({ error: "Host user not found." });
     }
+
+    // --- PLAN ENFORCEMENT ---
+    const plan = await getEffectivePlan(user.id);
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+    if (rated && !limits.ratedMatches) {
+      return res.status(402).json({ error: "Rated matches require Blaze Pro or higher." });
+    }
+
+    if (battleType && battleType !== "1v1" && !limits.allModes) {
+      return res.status(402).json({ error: `${battleType} mode requires Blaze Pro or higher.` });
+    }
+    // ------------------------
 
     let finalQuizId = quizId;
 
@@ -775,6 +793,7 @@ app.delete("/api/host/session/:pin", async (req, res) => {
 // -------------------------------
 app.use("/api/ai", aiQuizRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/billing", billingRoutes);
 
 // Admin Auth Middleware
 async function isAdmin(req, res, next) {

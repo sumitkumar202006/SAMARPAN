@@ -13,7 +13,8 @@ import {
   LogOut, 
   ShieldCheck,
   Zap,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -48,12 +49,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const navItems = [
-    { name: 'Overview', icon: LayoutDashboard, href: '/admin' },
-    { name: 'News & Updates', icon: Zap, href: '/admin/news' },
-    { name: 'User Management', icon: Users, href: '/admin/users' },
-    { name: 'Quiz Vault', icon: BookOpen, href: '/admin/quizzes' },
-    { name: 'Analytics', icon: BarChart3, href: '/admin/analytics' },
-    { name: 'General Settings', icon: Settings, href: '/admin/settings' },
+    { name: 'Overview',       icon: LayoutDashboard, href: '/admin' },
+    { name: 'News & Updates', icon: Zap,             href: '/admin/news' },
+    { name: 'User Management',icon: Users,            href: '/admin/users' },
+    { name: 'Quiz Vault',     icon: BookOpen,         href: '/admin/quizzes' },
+    { name: 'Subscriptions',  icon: CreditCard,       href: '/admin/subscriptions' },
+    { name: 'Analytics',      icon: BarChart3,        href: '/admin/analytics' },
+    { name: 'General Settings',icon: Settings,        href: '/admin/settings' },
   ];
 
   return (

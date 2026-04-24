@@ -230,4 +230,145 @@ router.post('/settings', async (req, res) => {
   }
 });
 
+// ─── 6. Subscription Management ───────────────────────────────────────────────
+
+// List all subscriptions with user + usage
+router.get('/subscriptions', async (req, res) => {
+  try {
+    const { plan, status, q } = req.query;
+
+    const subs = await prisma.subscription.findMany({
+      where: {
+        ...(plan   ? { plan }   : {}),
+        ...(status ? { status } : {}),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, avatar: true, createdAt: true },
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Enrich with quota
+    const enriched = await Promise.all(subs.map(async (sub) => {
+      const quota = await prisma.usageQuota.findUnique({ where: { userId: sub.userId } });
+      return { ...sub, quota };
+    }));
+
+    // Filter by search query
+    const filtered = q
+      ? enriched.filter(s =>
+          s.user.name.toLowerCase().includes(q.toLowerCase()) ||
+          s.user.email.toLowerCase().includes(q.toLowerCase())
+        )
+      : enriched;
+
+    res.json({ subscriptions: filtered });
+  } catch (err) {
+    console.error("Admin subscriptions list error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Override a user's plan (admin superpower)
+router.put('/subscriptions/:userId/override', async (req, res) => {
+  try {
+    const { plan, status, durationDays } = req.body;
+    const { userId } = req.params;
+
+    const validPlans = ['free', 'pro', 'elite', 'institution'];
+    if (plan && !validPlans.includes(plan)) {
+      return res.status(400).json({ error: "Invalid plan" });
+    }
+
+    const periodEnd = new Date();
+    periodEnd.setDate(periodEnd.getDate() + (durationDays || 30));
+
+    const sub = await prisma.subscription.upsert({
+      where: { userId },
+      update: {
+        plan: plan || 'pro',
+        status: status || 'active',
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+      create: {
+        userId,
+        plan: plan || 'pro',
+        status: status || 'active',
+        currentPeriodEnd: periodEnd,
+      }
+    });
+
+    // Reset quota on override
+    await prisma.usageQuota.upsert({
+      where: { userId },
+      update: { aiGenerations: 0, pdfUploads: 0 },
+      create: { userId, resetAt: periodEnd }
+    });
+
+    res.json({ message: `Plan overridden to ${plan} for ${durationDays || 30} days`, sub: mapId(sub) });
+  } catch (err) {
+    console.error("Admin plan override error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel a user's subscription
+router.post('/subscriptions/:userId/cancel', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const sub = await prisma.subscription.update({
+      where: { userId },
+      data: { status: 'cancelled', plan: 'free', cancelAtPeriodEnd: false }
+    });
+    res.json({ message: 'Subscription cancelled', sub: mapId(sub) });
+  } catch (err) {
+    console.error("Admin subscription cancel error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Revenue metrics
+router.get('/subscriptions/metrics', async (req, res) => {
+  try {
+    const [totalSubs, activeSubs, trialSubs, proPlan, elitePlan, instPlan] = await Promise.all([
+      prisma.subscription.count(),
+      prisma.subscription.count({ where: { status: 'active' } }),
+      prisma.subscription.count({ where: { status: 'trialing' } }),
+      prisma.subscription.count({ where: { plan: 'pro',         status: 'active' } }),
+      prisma.subscription.count({ where: { plan: 'elite',       status: 'active' } }),
+      prisma.subscription.count({ where: { plan: 'institution', status: 'active' } }),
+    ]);
+
+    const mrr = (proPlan * 99) + (elitePlan * 499) + (instPlan * 4999);
+
+    res.json({
+      totalSubs,
+      activeSubs,
+      trialSubs,
+      breakdown: { pro: proPlan, elite: elitePlan, institution: instPlan },
+      estimatedMRR: mrr,
+    });
+  } catch (err) {
+    console.error("Admin subscription metrics error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List device trials (audit)
+router.get('/device-trials', async (req, res) => {
+  try {
+    const trials = await prisma.deviceTrial.findMany({
+      orderBy: { usedAt: 'desc' },
+      take: 100,
+    });
+    res.json({ trials });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+

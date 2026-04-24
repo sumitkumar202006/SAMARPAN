@@ -5,6 +5,7 @@ const router = express.Router();
 const multer = require("multer");
 const prisma = require("../services/db");
 const { mapId } = require("../services/compatibility");
+const { authenticate, checkQuota } = require("../middleware/planGate");
 const debugLog = (msg) => {
   const logMsg = `[${new Date().toISOString()}] ${msg}\n`;
   fs.appendFileSync(path.join(__dirname, "../debug.log"), logMsg);
@@ -58,7 +59,8 @@ async function ensureAuthorId(userId) {
 }
 
 // Generate AI Quiz from Topic
-router.post("/generate-quiz", async (req, res) => {
+// 🔒 Gated: authenticate + aiGenerations quota
+router.post("/generate-quiz", authenticate, checkQuota("aiGenerations"), async (req, res) => {
   debugLog(`POST /api/ai/generate-quiz | Topic: ${req.body.topic} | UserID: ${req.body.userId}`);
   try {
     const { title, topic, difficulty, count, userId, tags } = req.body;
@@ -111,7 +113,8 @@ router.post("/generate-quiz", async (req, res) => {
 });
 
 // Generate AI Quiz from PDF
-router.post("/generate-from-pdf", upload.single("pdf"), async (req, res) => {
+// 🔒 Gated: authenticate + pdfUploads quota
+router.post("/generate-from-pdf", authenticate, checkQuota("pdfUploads"), upload.single("pdf"), async (req, res) => {
   debugLog(`POST /api/ai/generate-from-pdf | File: ${req.file ? req.file.originalname : "NONE"} | UserID: ${req.body.userId}`);
   try {
     const { title, difficulty, userId, tags } = req.body;

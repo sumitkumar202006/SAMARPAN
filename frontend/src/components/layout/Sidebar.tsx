@@ -16,7 +16,8 @@ import {
   Info,
   LogOut,
   ShieldCheck,
-  Disc
+  Disc,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
@@ -24,15 +25,16 @@ import { cn } from '@/lib/utils';
 import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
 
 const navItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { name: 'Create', icon: PlusSquare, href: '/create' },
-  { name: 'Room Hub', icon: ShieldCheck, href: '/host' },
-  { name: 'Battles', icon: Zap, href: '/battles' },
-  { name: 'Leaderboard', icon: Trophy, href: '/leaderboard' },
-  { name: 'Friends', icon: Users, href: '/friends' },
-  { name: 'Explore', icon: Compass, href: '/explore' },
-  { name: 'Contact', icon: MessageSquare, href: '/contact' },
-  { name: 'About', icon: Info, href: '/about' },
+  { name: 'Dashboard',   icon: LayoutDashboard, href: '/dashboard' },
+  { name: 'Create',      icon: PlusSquare,      href: '/create' },
+  { name: 'Room Hub',    icon: ShieldCheck,     href: '/host' },
+  { name: 'Battles',     icon: Zap,             href: '/battles' },
+  { name: 'Leaderboard', icon: Trophy,          href: '/leaderboard' },
+  { name: 'Friends',     icon: Users,           href: '/friends' },
+  { name: 'Explore',     icon: Compass,         href: '/explore' },
+  { name: 'Billing',     icon: CreditCard,      href: '/billing' },
+  { name: 'Contact',     icon: MessageSquare,   href: '/contact' },
+  { name: 'About',       icon: Info,            href: '/about' },
 ];
 
 export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boolean; onToggle?: () => void }) => {

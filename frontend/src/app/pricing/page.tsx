@@ -25,12 +25,18 @@ async function getDeviceFingerprint(): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const PLANS = [
+const DEFAULT_PLAN_PRICES = {
+  pro:         { monthly: 99,   yearly: 999   },
+  elite:       { monthly: 499,  yearly: 4999  },
+  institution: { monthly: 4999, yearly: 49999 },
+};
+
+const PLAN_CONFIGS = [
   {
     id: 'free',
     name: 'Spark',
     label: 'Free',
-    price: { monthly: 0, yearly: 0 },
+    defaultPrice: { monthly: 0, yearly: 0 },
     color: 'from-slate-500 to-slate-600',
     glow: 'rgba(100,116,139,0.2)',
     icon: Shield,
@@ -50,7 +56,7 @@ const PLANS = [
     id: 'pro',
     name: 'Blaze',
     label: 'Pro',
-    price: { monthly: 99, yearly: 999 },
+    defaultPrice: { monthly: 99, yearly: 999 },
     color: 'from-indigo-500 to-violet-600',
     glow: 'rgba(99,102,241,0.25)',
     icon: Zap,
@@ -70,7 +76,7 @@ const PLANS = [
     id: 'elite',
     name: 'Storm',
     label: 'Elite',
-    price: { monthly: 499, yearly: 4999 },
+    defaultPrice: { monthly: 499, yearly: 4999 },
     color: 'from-amber-500 to-orange-600',
     glow: 'rgba(245,158,11,0.25)',
     icon: Crown,
@@ -100,8 +106,17 @@ export default function PricingPage() {
 
   const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [loading, setLoading] = useState<string | null>(null);
-  const [trialState, setTrialState] = useState<'idle' | 'loading' | 'activating' | 'done' | 'used'>('idle');
+  const [trialState, setTrialState] = useState<'idle' | 'loading' | 'activating' | 'done' | 'used' | 'disabled'>('idle');
   const [currentPlan, setCurrentPlan] = useState<string>('free');
+  const [livePrices, setLivePrices] = useState<Record<string, { monthly: number; yearly: number }> | null>(null);
+
+  // Build PLANS with live prices merged in
+  const PLANS = PLAN_CONFIGS.map(p => ({
+    ...p,
+    price: p.id === 'free'
+      ? p.defaultPrice
+      : (livePrices?.[p.id] ?? p.defaultPrice),
+  }));
 
   // Load current plan
   useEffect(() => {
@@ -110,6 +125,16 @@ export default function PricingPage() {
       .then(r => setCurrentPlan(r.data.plan || 'free'))
       .catch(() => {});
   }, [user]);
+
+  // Load live prices + trial config from backend
+  useEffect(() => {
+    api.get('/api/billing/plan-prices')
+      .then(r => {
+        if (r.data.prices) setLivePrices(r.data.prices);
+        if (r.data.trial?.enabled === false) setTrialState('disabled');
+      })
+      .catch(() => {});
+  }, []);
 
   // Load Razorpay script
   useEffect(() => {
@@ -124,24 +149,24 @@ export default function PricingPage() {
 
     setLoading(planId);
     try {
-      const { data } = await api.post('/api/billing/create-order', {
+      // Step 1: Create recurring Razorpay subscription
+      const { data } = await api.post('/api/billing/create-subscription', {
         plan: planId,
         interval,
       });
 
       const rzp = new window.Razorpay({
-        key:         data.key,
-        amount:      data.amount,
-        currency:    data.currency,
-        order_id:    data.orderId,
-        name:        'Samarpan Arena',
-        description: `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${interval}`,
-        image:       '/icon.png',
-        prefill:     data.prefill,
-        theme:       { color: '#6366f1' },
+        key:             data.key,
+        subscription_id: data.subscriptionId, // ← recurring auto-pay
+        name:            'Samarpan Arena',
+        description:     `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${interval} (Auto-pay)`,
+        image:           '/icon.png',
+        prefill:         data.prefill,
+        theme:           { color: '#6366f1' },
         handler: async (response: any) => {
           try {
-            await api.post('/api/billing/verify-payment', {
+            // Step 2: Verify subscription & activate plan
+            await api.post('/api/billing/verify-subscription', {
               ...response,
               plan: planId,
               interval,
@@ -155,7 +180,7 @@ export default function PricingPage() {
       });
       rzp.open();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to initiate payment');
+      alert(err?.response?.data?.message || err?.response?.data?.error || 'Failed to initiate payment');
       setLoading(null);
     }
   };
@@ -167,21 +192,47 @@ export default function PricingPage() {
     try {
       const fp = await getDeviceFingerprint();
 
-      // Check if trial already used on this device
-      const check = await api.post('/api/billing/check-device-trial', { fingerprint: fp });
-      if (check.data.used) {
-        setTrialState('used');
-        return;
-      }
+      // Step 1: Create ₹1 mandate order
+      const { data } = await api.post('/api/billing/create-trial-mandate', { fingerprint: fp });
 
       setTrialState('activating');
-      await api.post('/api/billing/activate-trial', { fingerprint: fp });
-      setTrialState('done');
-      setTimeout(() => router.push('/billing'), 2000);
+
+      const rzp = new window.Razorpay({
+        key:         data.key,
+        order_id:    data.orderId,
+        amount:      100, // ₹1 in paise
+        currency:    'INR',
+        name:        'Samarpan Arena',
+        description: `Free ${data.trialDays}-Day Trial — ₹1 mandate (then ₹${data.realAmount}/mo after trial)`,
+        image:       '/icon.png',
+        prefill:     data.prefill,
+        theme:       { color: '#6366f1' },
+        handler: async (response: any) => {
+          try {
+            // Step 2: Verify ₹1 payment + activate trial + schedule future subscription
+            await api.post('/api/billing/verify-trial-mandate', {
+              ...response,
+              fingerprint: fp,
+            });
+            setTrialState('done');
+            setTimeout(() => router.push('/billing'), 2000);
+          } catch (err: any) {
+            const code = err?.response?.data?.error;
+            if (code === 'trial_used') setTrialState('used');
+            else { alert('Trial activation failed. Contact support.'); setTrialState('idle'); }
+          }
+        },
+        modal: {
+          ondismiss: () => setTrialState('idle'),
+        },
+      });
+      rzp.open();
     } catch (err: any) {
       const code = err?.response?.data?.error;
-      if (code === 'trial_used') setTrialState('used');
-      else { alert('Failed to activate trial'); setTrialState('idle'); }
+      if (code === 'trial_used')     { setTrialState('used'); return; }
+      if (code === 'trial_disabled') { setTrialState('disabled'); return; }
+      alert(err?.response?.data?.message || 'Failed to initiate trial');
+      setTrialState('idle');
     }
   };
 
@@ -339,12 +390,17 @@ export default function PricingPage() {
           <AnimatePresence mode="wait">
             {trialState === 'done' && (
               <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 px-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-black inline-flex items-center gap-2">
-                <Check size={18} /> Pro Trial Activated! Redirecting…
+                <Check size={18} /> Trial Activated — Auto-pay set for after trial! Redirecting…
               </motion.div>
             )}
             {trialState === 'used' && (
               <motion.div key="used" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 px-8 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 font-black inline-flex items-center gap-2">
                 <X size={18} /> Trial already used on this device.
+              </motion.div>
+            )}
+            {trialState === 'disabled' && (
+              <motion.div key="disabled" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 px-8 rounded-2xl bg-white/5 border border-white/10 text-text-soft font-black inline-flex items-center gap-2">
+                <X size={18} /> Free trials are currently paused. Check back soon!
               </motion.div>
             )}
             {(trialState === 'idle' || trialState === 'loading' || trialState === 'activating') && (
@@ -355,15 +411,18 @@ export default function PricingPage() {
                 disabled={trialState !== 'idle'}
                 className="px-10 py-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-black uppercase tracking-widest text-sm flex items-center gap-3 mx-auto hover:opacity-90 transition-all shadow-[0_10px_40px_rgba(99,102,241,0.4)] disabled:opacity-60"
               >
-                {trialState === 'idle' && <><Star size={16} fill="currentColor" /> Start Free 30-Day Trial</>}
-                {trialState === 'loading' && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Checking device…</>}
+                {trialState === 'idle'      && <><Star size={16} fill="currentColor" /> Start Free Trial — Just ₹1 Now</>}
+                {trialState === 'loading'   && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Opening payment…</>}
                 {trialState === 'activating' && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Activating trial…</>}
               </motion.button>
             )}
           </AnimatePresence>
 
-          <p className="text-text-soft text-xs mt-4">Device fingerprinted. One trial per device regardless of account.</p>
+          <p className="text-text-soft text-xs mt-4">
+            Pay just ₹1 to authorize auto-pay. Full trial access immediately — real plan price auto-debited after trial ends. Cancel anytime.
+          </p>
         </motion.div>
+
 
         {/* Institution CTA */}
         <motion.div

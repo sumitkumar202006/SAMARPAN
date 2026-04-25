@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Search,
   RefreshCw, IndianRupee,
-  Users, TrendingUp, Clock, Check, AlertTriangle
+  Users, TrendingUp, Clock, Check, AlertTriangle, Sliders
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const PLAN_META: Record<string, { label: string; color: string; bg: string }> = {
   free:        { label: 'Spark',       color: 'text-slate-400',   bg: 'bg-slate-500/10 border-slate-500/20'   },
@@ -52,6 +54,13 @@ export default function AdminSubscriptionsPage() {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const pathname = usePathname();
+
+  // Tab nav
+  const tabs = [
+    { label: 'Subscribers',       href: '/admin/subscriptions',             icon: CreditCard },
+    { label: 'Plan Config',        href: '/admin/subscriptions/plan-config', icon: Sliders    },
+  ];
 
   // Override modal state
   const [overrideTarget, setOverrideTarget] = useState<SubRecord | null>(null);
@@ -104,6 +113,28 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <div className="space-y-8">
+
+      {/* Tab nav */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/5 w-fit">
+        {tabs.map(tab => {
+          const isActive = pathname === tab.href;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                'flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
+                isActive
+                  ? 'bg-accent text-white shadow-[0_4px_16px_rgba(99,102,241,0.4)]'
+                  : 'text-text-soft hover:text-white hover:bg-white/5'
+              )}
+            >
+              <tab.icon size={13} />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

@@ -342,7 +342,11 @@ router.get('/subscriptions/metrics', async (req, res) => {
       prisma.subscription.count({ where: { plan: 'institution', status: 'active' } }),
     ]);
 
-    const mrr = (proPlan * 99) + (elitePlan * 499) + (instPlan * 4999);
+    // Read dynamic prices from DB for accurate MRR
+    const prices = await getConfigKey('plan_prices', DEFAULT_PLAN_PRICES);
+    const mrr = (proPlan * (prices.pro?.monthly || 99))
+              + (elitePlan * (prices.elite?.monthly || 499))
+              + (instPlan  * (prices.institution?.monthly || 4999));
 
     res.json({
       totalSubs,
@@ -350,6 +354,7 @@ router.get('/subscriptions/metrics', async (req, res) => {
       trialSubs,
       breakdown: { pro: proPlan, elite: elitePlan, institution: instPlan },
       estimatedMRR: mrr,
+      prices,
     });
   } catch (err) {
     console.error("Admin subscription metrics error:", err);
@@ -370,5 +375,171 @@ router.get('/device-trials', async (req, res) => {
   }
 });
 
-module.exports = router;
 
+// ─── 7. Plan Configuration (Prices, Limits, Trial Settings) ───────────────────
+
+// Default plan prices (used if not overridden in DB)
+const DEFAULT_PLAN_PRICES = {
+  pro:         { monthly: 99,   yearly: 999   },
+  elite:       { monthly: 499,  yearly: 4999  },
+  institution: { monthly: 4999, yearly: 49999 },
+};
+
+// Default plan limits (used if not overridden in DB)
+const DEFAULT_PLAN_LIMITS = {
+  free:        { aiGenerations: 5,     pdfUploads: 0,     ratedMatches: false, allModes: false, messaging: false },
+  pro:         { aiGenerations: 50,    pdfUploads: 10,    ratedMatches: true,  allModes: true,  messaging: true  },
+  elite:       { aiGenerations: 99999, pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
+  institution: { aiGenerations: 500,   pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
+};
+
+// Default trial config
+const DEFAULT_TRIAL_CONFIG = {
+  enabled: true,
+  durationDays: 30,
+  plan: 'pro',
+  deviceLocked: true,
+  maxTrialsTotal: null, // null = unlimited
+};
+
+// Helper: read a JSON key from SystemConfig with fallback
+async function getConfigKey(key, fallback) {
+  const row = await prisma.systemConfig.findUnique({ where: { key } });
+  return row ? row.value : fallback;
+}
+
+// GET /api/admin/plan-config/prices
+router.get('/plan-config/prices', async (req, res) => {
+  try {
+    const prices = await getConfigKey('plan_prices', DEFAULT_PLAN_PRICES);
+    res.json({ prices, defaults: DEFAULT_PLAN_PRICES });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/plan-config/prices
+router.put('/plan-config/prices', async (req, res) => {
+  try {
+    const { prices } = req.body;
+    if (!prices) return res.status(400).json({ error: 'prices object required' });
+
+    // Validate shape
+    const required = ['pro', 'elite', 'institution'];
+    for (const plan of required) {
+      if (prices[plan] === undefined) return res.status(400).json({ error: `Missing price for plan: ${plan}` });
+      if (typeof prices[plan].monthly !== 'number' || typeof prices[plan].yearly !== 'number') {
+        return res.status(400).json({ error: `Invalid price format for ${plan} (need monthly/yearly numbers)` });
+      }
+    }
+
+    await prisma.systemConfig.upsert({
+      where: { key: 'plan_prices' },
+      update: { value: prices },
+      create: { key: 'plan_prices', value: prices },
+    });
+    res.json({ message: 'Plan prices updated', prices });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/plan-config/limits
+router.get('/plan-config/limits', async (req, res) => {
+  try {
+    const limits = await getConfigKey('plan_limits', DEFAULT_PLAN_LIMITS);
+    res.json({ limits, defaults: DEFAULT_PLAN_LIMITS });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/plan-config/limits
+router.put('/plan-config/limits', async (req, res) => {
+  try {
+    const { limits } = req.body;
+    if (!limits) return res.status(400).json({ error: 'limits object required' });
+
+    await prisma.systemConfig.upsert({
+      where: { key: 'plan_limits' },
+      update: { value: limits },
+      create: { key: 'plan_limits', value: limits },
+    });
+    res.json({ message: 'Plan limits updated', limits });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/plan-config/trial
+router.get('/plan-config/trial', async (req, res) => {
+  try {
+    const trial = await getConfigKey('trial_config', DEFAULT_TRIAL_CONFIG);
+    const trialCount = await prisma.deviceTrial.count();
+    res.json({ trial, defaults: DEFAULT_TRIAL_CONFIG, totalTrialsUsed: trialCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/plan-config/trial
+router.put('/plan-config/trial', async (req, res) => {
+  try {
+    const { trial } = req.body;
+    if (!trial) return res.status(400).json({ error: 'trial config object required' });
+
+    await prisma.systemConfig.upsert({
+      where: { key: 'trial_config' },
+      update: { value: trial },
+      create: { key: 'trial_config', value: trial },
+    });
+    res.json({ message: 'Trial config updated', trial });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/plan-config  (combined read for the UI)
+router.get('/plan-config', async (req, res) => {
+  try {
+    const [prices, limits, trial] = await Promise.all([
+      getConfigKey('plan_prices', DEFAULT_PLAN_PRICES),
+      getConfigKey('plan_limits', DEFAULT_PLAN_LIMITS),
+      getConfigKey('trial_config', DEFAULT_TRIAL_CONFIG),
+    ]);
+    const totalTrialsUsed = await prisma.deviceTrial.count();
+    res.json({ prices, limits, trial, totalTrialsUsed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/plan-config/razorpay-plans
+router.get('/plan-config/razorpay-plans', async (req, res) => {
+  try {
+    const planIds = await getConfigKey('razorpay_plan_ids', {});
+    res.json({ planIds });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/plan-config/razorpay-plans
+router.put('/plan-config/razorpay-plans', async (req, res) => {
+  try {
+    const { planIds } = req.body;
+    if (!planIds || typeof planIds !== 'object') {
+      return res.status(400).json({ error: 'planIds object required' });
+    }
+    await prisma.systemConfig.upsert({
+      where:  { key: 'razorpay_plan_ids' },
+      update: { value: planIds },
+      create: { key: 'razorpay_plan_ids', value: planIds },
+    });
+    res.json({ message: 'Razorpay plan IDs updated', planIds });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;

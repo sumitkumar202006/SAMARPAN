@@ -111,12 +111,7 @@ export const DynamicBackground = () => {
       {/* 3. Neural Network Particle Layer (Only for High Perf / Non-Match) */}
       {!isLowPerf && <NeuralBackground />}
 
-      {/* 4. Moving Highlight Line (Cyber Scan) */}
-      <motion.div 
-        className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-accent/20 to-transparent"
-        animate={{ top: ['-10%', '110%'] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      />
+
       
       {/* 5. Vignette (Darker Edges) */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#020617]/40 shadow-[inset_0_0_150px_rgba(2,6,23,0.8)]" />

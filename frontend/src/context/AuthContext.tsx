@@ -170,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     syncProfile();
-  }, [user?.email, user?.token, isMounted]);
+  }, [user?.email, user?.token]);
 
   // E2EE Key Sync Logic
   useEffect(() => {

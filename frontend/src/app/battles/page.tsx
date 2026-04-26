@@ -113,6 +113,7 @@ export default function BattlesPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [joiningPin, setJoiningPin] = useState<string | null>(null);
+  const [onlineCount, setOnlineCount] = useState<number>(0);
 
   // ── Challenge banner (from deep link) ───────────────────
   const challengerName = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('challenge') : null;
@@ -135,14 +136,17 @@ export default function BattlesPage() {
     const onMatchFound = (data: any) => {
       setMatchResult(data);
       setMatchState('found');
-      // Emit join_room immediately so server registers player before auto-start fires
-      const playerName = user?.name || joinName || 'Player';
-      socket?.emit('join_room', {
-        pin: data.pin,
-        name: playerName,
-        userId: user?.id || user?.userId || null,
-        avatar: user?.avatar || null,
-      });
+      // Delay join_room by 500ms — server needs time to fully register the live session
+      // before players can join. Without this, join_room can arrive before liveSessions.set() completes.
+      setTimeout(() => {
+        const playerName = user?.name || joinName || 'Player';
+        socket?.emit('join_room', {
+          pin: data.pin,
+          name: playerName,
+          userId: user?.id || user?.userId || null,
+          avatar: user?.avatar || null,
+        });
+      }, 500);
       // 5s countdown then redirect directly to play/live (matchmade sessions auto-start)
       let cd = 5;
       setCountdown(cd);
@@ -171,6 +175,10 @@ export default function BattlesPage() {
       setRooms(data.rooms || []);
     };
 
+    const onOnlineCount = (data: { count: number }) => {
+      setOnlineCount(data.count);
+    };
+
     const onJoinSuccess = (data: { pin: string; name: string }) => {
       setJoiningPin(null);
       router.push(`/lobby/${data.pin}?role=player&name=${encodeURIComponent(data.name || user?.name || 'Player')}`);
@@ -189,6 +197,7 @@ export default function BattlesPage() {
     socket.on('room_list_update', onRoomListUpdate);
     socket.on('quick_join_success', onJoinSuccess);
     socket.on('join_error', onJoinError);
+    socket.on('online_count', onOnlineCount);
 
     return () => {
       socket.off('matchmaking_searching', onSearching);
@@ -199,6 +208,7 @@ export default function BattlesPage() {
       socket.off('room_list_update', onRoomListUpdate);
       socket.off('quick_join_success', onJoinSuccess);
       socket.off('join_error', onJoinError);
+      socket.off('online_count', onOnlineCount);
     };
   }, [socket, router, user, joinName, showToast]);
 
@@ -288,7 +298,17 @@ export default function BattlesPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Combat Theaters</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Combat Theaters</h1>
+          {/* Live online player count */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-emerald-400 font-black text-sm">
+              {onlineCount.toLocaleString()}+
+            </span>
+            <span className="text-emerald-400/70 text-[10px] font-black uppercase tracking-widest">Online</span>
+          </div>
+        </div>
         <p className="text-text-soft text-xs lg:text-sm">
           Find real-time multiplayer matches, join live arenas, or connect with a PIN.
         </p>
@@ -479,6 +499,11 @@ export default function BattlesPage() {
                             <p className="text-2xl font-black">{queueInfo.category}</p>
                             <p className="text-text-soft text-[11px] uppercase tracking-widest">{queueInfo.difficulty} · Position #{queueInfo.position}</p>
                             <p className="text-text-soft text-[10px] mt-2 italic">Est. wait: ~{queueInfo.estimatedWait}s</p>
+                            <div className="mt-3 px-4 py-2 rounded-xl bg-white/5 border border-white/5">
+                              <p className="text-[10px] text-text-soft">
+                                ⚡ No opponent found in <span className="text-accent font-black">10s</span>? You'll be matched with an <span className="text-yellow-400 font-black">AI opponent</span> automatically.
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>

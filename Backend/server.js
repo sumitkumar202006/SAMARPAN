@@ -945,12 +945,9 @@ function updatePublicRoomCount(pin, delta) {
   broadcastRoomList();
 }
 
-/** Generate a unique 6-char match PIN */
+/** Generate a unique 6-digit numeric match PIN (same format as regular sessions) */
 function generateMatchPin() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let pin = '';
-  for (let i = 0; i < 6; i++) pin += chars[Math.floor(Math.random() * chars.length)];
-  return pin;
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /**
@@ -968,32 +965,11 @@ async function processQueues() {
     });
 
     if (queue.length < 2) {
-      // Handle long-waiting solo players (> 60s) — create 1-player match
-      if (queue.length === 1 && now - queue[0].joinedAt > 60000) {
-        await createMatchFromQueue(key, queue.splice(0, 1));
-      }
-      // 30s: relax category, try to merge with adjacent difficulty
-      else if (queue.length === 1 && now - queue[0].joinedAt > 30000) {
-        const player = queue[0];
-        const difficulties = ['easy', 'medium', 'hard'];
-        for (const diff of difficulties) {
-          if (diff === player.difficulty) continue;
-          const altKey = `${player.category}:${diff}`;
-          const altQueue = matchmakingQueues.get(altKey) || [];
-          // ELO check even on relaxed match
-          const compatible = altQueue.find(p2 => Math.abs((p2.rating || 1200) - (player.rating || 1200)) <= Math.max(player.ratingWindow, p2.ratingWindow));
-          if (compatible) {
-            queue.splice(0, 1);
-            const idx = altQueue.indexOf(compatible);
-            altQueue.splice(idx, 1);
-            if (altQueue.length === 0) matchmakingQueues.delete(altKey);
-            await createMatchFromQueue(key, [player, compatible]);
-            break;
-          }
-        }
+      // Handle long-waiting solo players (>10s) — create bot match immediately
+      if (queue.length === 1 && now - queue[0].joinedAt > 10000) {
+        await createMatchFromQueue(key, queue.splice(0, 1), true); // true = add bot
       }
       continue;
-
     }
     // Standard ELO batch: group players within each other's rating windows
     // Sort by rating so similar players are adjacent
@@ -1016,7 +992,7 @@ async function processQueues() {
     }
 
     if (queue.length === 0) matchmakingQueues.delete(key);
-    await createMatchFromQueue(key, matched);
+    await createMatchFromQueue(key, matched, false);
   }
 }
 
@@ -1024,7 +1000,7 @@ async function processQueues() {
  * Creates a real session from matched players.
  * Picks a random quiz matching category, creates DB record, emits match_found.
  */
-async function createMatchFromQueue(queueKey, players) {
+async function createMatchFromQueue(queueKey, players, addBot = false) {
   if (!players || players.length === 0) return;
 
   const [category, difficulty] = queueKey.split(':');
@@ -1064,13 +1040,17 @@ async function createMatchFromQueue(queueKey, players) {
     }
 
     // Create DB session
+    // Use first matched player's userId as host (required by schema).
+    // If player is a guest (no userId), fall back to quiz author as a proxy host.
+    const hostUserId = players.find(p => p.userId)?.userId || quiz.authorId;
+
     await prisma.gameSession.create({
       data: {
         pin,
         quizId: quiz.id,
-        hostId: null, // Auto-match has no host user; first player acts as host
+        hostId: hostUserId,
         status: 'waiting',
-        rated: false, // Quick matches are unrated for now
+        rated: false,
         timerSeconds: 30,
         metadata: {
           pointsPerQ: 100,
@@ -1219,7 +1199,29 @@ async function createMatchFromQueue(queueKey, players) {
       s.countdownIntervalHandle = cdInterval;
     }, 10000); // 10-second grace period for all players to join_room — stored on liveSession above
 
-    console.log(`[Matchmaking] Created arena ${pin} for ${players.length} players. Category: ${category}`);
+    // If this was a solo player with no real opponent, inject a bot with random 40-100% accuracy
+    if (addBot) {
+      const botAccuracy = 0.4 + Math.random() * 0.6; // 40% – 100%
+      const botId = `BOT_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+      const liveSession = liveSessions.get(pin);
+      if (liveSession) {
+        liveSession.players[botId] = {
+          name: botName, userId: null, avatar: null, team: 'Team A',
+          slotIndex: 1, score: 0, streak: 0, correctCount: 0, incorrectCount: 0,
+          answeredThisQ: false, optionIdx: -1, isHost: false, isBot: true,
+          botAccuracy, // random per-match accuracy 40-100%
+          botDifficulty: queueKey.split(':')[1] || 'medium',
+          ip: '127.0.0.1', isSuspicious: false, penalties: 0, penaltyScore: 0, strikeCount: 0
+        };
+        if (!liveSession.botIds) liveSession.botIds = [];
+        liveSession.botIds.push(botId);
+        liveSession.botDifficulty = queueKey.split(':')[1] || 'medium';
+        console.log(`[BOT] Injected ${botName} vs solo player in arena ${pin} (accuracy: ${Math.round(botAccuracy*100)}%)`);
+      }
+    }
+
+    console.log(`[Matchmaking] Created arena ${pin} for ${players.length} player(s)${addBot ? ' + BOT' : ''}. Category: ${category}`);
   } catch (err) {
     console.error('[Matchmaking] Session creation error:', err.message);
     players.forEach(p => {
@@ -1339,8 +1341,11 @@ function simulateBotAnswers(pin) {
       // Guard: make sure we're still on the same question
       if (liveSession.currentQ !== liveSession.currentQ) return; // Always true but defensive
 
-      // Decide if bot answers correctly
-      const correct = Math.random() < profile.accuracy;
+      // Decide if bot answers correctly using its per-match random accuracy
+      const botAccuracyRate = bot.botAccuracy !== undefined
+        ? bot.botAccuracy
+        : profile.accuracy;
+      const correct = Math.random() < botAccuracyRate;
       let optionIdx;
       if (correct) {
         optionIdx = q.correctIndex;
@@ -2042,6 +2047,9 @@ io.on("connection", (socket) => {
     }
     globalOnlineUsers.get(userId).push(socket.id);
 
+    // Broadcast updated online count to everyone
+    io.emit('online_count', { count: globalOnlineUsers.size });
+
     // Notify friends this user is now online
     const friendships = await prisma.friendship.findMany({
       where: {
@@ -2148,6 +2156,8 @@ io.on("connection", (socket) => {
         }
       }
       socketToUser.delete(socket.id);
+      // Broadcast updated online count after disconnect
+      io.emit('online_count', { count: globalOnlineUsers.size });
     }
   });
 

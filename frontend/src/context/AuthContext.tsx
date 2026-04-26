@@ -119,6 +119,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUserState(newUser);
       localStorage.setItem('samarpanUser', JSON.stringify(newUser));
+      // BUG FIX: OAuth login must also set the session cookie for middleware
+      document.cookie = 'samarpan_session=1; path=/; max-age=604800; SameSite=Lax';
 
       // Clean URL so token doesn't leak in browser history
       const url = new URL(window.location.href);
@@ -132,7 +134,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedUser = localStorage.getItem('samarpanUser');
     if (savedUser) {
       try {
-        setUserState(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        setUserState(parsed);
+        // Ensure the session cookie is set (may be missing after browser restart)
+        document.cookie = 'samarpan_session=1; path=/; max-age=604800; SameSite=Lax';
       } catch (e) {
         console.error('Failed to parse saved user', e);
       }
@@ -146,9 +151,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncProfile = async () => {
       try {
-        // Sync profile data
+        // Sync profile data — explicitly preserve token so it is never overwritten
         const profileRes = await api.get(`/api/user/profile/${user.email}`);
-        let updatedUser = { ...user, ...profileRes.data };
+        let updatedUser = { ...profileRes.data, token: user.token, id: user.id, userId: user.userId };
 
         // Sync billing — may 401 on first OAuth login tick, that's OK
         try {
@@ -204,12 +209,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncE2EE();
   }, [user?.email, user?.publicKey]);
 
+  // ── Cookie helpers for middleware route-protection ────────────────────────
+  const setSessionCookie = (value: boolean) => {
+    if (typeof document === 'undefined') return; // SSR / edge guard
+    if (value) {
+      document.cookie = 'samarpan_session=1; path=/; max-age=604800; SameSite=Lax';
+    } else {
+      document.cookie = 'samarpan_session=; path=/; max-age=0; SameSite=Lax';
+    }
+  };
+
   const setUser = (user: User | null) => {
     setUserState(user);
     if (user) {
       localStorage.setItem('samarpanUser', JSON.stringify(user));
+      setSessionCookie(true);
     } else {
       localStorage.removeItem('samarpanUser');
+      setSessionCookie(false);
     }
   };
 

@@ -29,7 +29,7 @@ const PROTECTED_ROUTES = [
 
 const PUBLIC_ONLY_ROUTES = ['/auth'];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow Next.js internals and static assets

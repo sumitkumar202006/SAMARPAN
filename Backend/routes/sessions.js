@@ -209,4 +209,49 @@ router.get("/active/:email", async (req, res) => {
   }
 });
 
+// ─── GET /api/sessions/ratings/:email — Rating history for profile page ────────
+router.get("/ratings/:email", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: req.params.email.toLowerCase().trim() },
+      select: { id: true }
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Fetch last 30 completed sessions where the user was host or participant
+    const sessions = await prisma.gameSession.findMany({
+      where: {
+        status: "finished",
+        OR: [
+          { hostId: user.id },
+          { answerLogs: { some: { userId: user.id } } }
+        ]
+      },
+      select: {
+        mode:      true,
+        createdAt: true,
+        metadata:  true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 30
+    });
+
+    // Extract rating history from session metadata
+    const history = sessions
+      .filter(s => s.metadata?.ratingChange !== undefined)
+      .map(s => ({
+        mode:      s.mode,
+        createdAt: s.createdAt,
+        change:    s.metadata.ratingChange   || 0,
+        oldRating: s.metadata.oldRating      || 1200,
+        newRating: s.metadata.newRating      || 1200,
+      }));
+
+    return res.json({ history });
+  } catch (err) {
+    console.error("Ratings history error:", err);
+    return res.status(500).json({ error: "Failed to fetch rating history" });
+  }
+});
+
 module.exports = router;

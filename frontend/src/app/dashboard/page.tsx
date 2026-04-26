@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
       try {
         const [profileRes, quizzesRes] = await Promise.all([
-          api.get(`/api/profile/${user.email}`),
+          api.get(`/api/user/profile/${user.email}`),
           api.get(`/api/quizzes/user/${user.email}`)
         ]);
         

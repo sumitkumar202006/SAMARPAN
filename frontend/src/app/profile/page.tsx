@@ -72,16 +72,19 @@ export default function ProfilePage() {
     if (!user?.email) return;
     const fetchProfile = async () => {
       try {
-        const [profileRes, historyRes] = await Promise.all([
-          api.get(`/api/profile/${user.email}`),
-          api.get(`/ratings/${user.email}`)
-        ]);
+        // Fetch profile and history independently — one failing won't block the other
+        const profileRes = await api.get(`/api/user/profile/${user.email}`);
         setStats(profileRes.data);
         setEditName(profileRes.data.name);
         setTempAvatar(profileRes.data.avatar);
-        setHistory(historyRes.data.history || []);
       } catch (err) {
-        console.error("Failed to fetch profile data", err);
+        console.error("Failed to fetch profile", err);
+      }
+      try {
+        const historyRes = await api.get(`/api/sessions/ratings/${user.email}`);
+        setHistory(historyRes.data.history || []);
+      } catch {
+        setHistory([]); // graceful — show empty log, not blank page
       } finally {
         setLoading(false);
       }

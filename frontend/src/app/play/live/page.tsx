@@ -339,9 +339,9 @@ function LivePlayContent() {
             <ArrowLeft className="mr-2" size={20} />
             Back to Command Terminal
           </Button>
-          <Button onClick={() => router.push(`/host/results/${pin}`)} variant="outline" className="w-full sm:w-auto px-10 h-14 border-white/10 hover:bg-white/5">
-            <Trophy className="mr-2" size={20} />
-            Review Arena Performance
+          <Button onClick={() => router.push(`/analytics/${pin}`)} variant="outline" className="w-full sm:w-auto px-10 h-14 border-accent-alt/30 text-accent-alt hover:bg-accent-alt/10 transition-all">
+            <BarChart3 className="mr-2" size={20} />
+            Deep Analytics
           </Button>
         </div>
 

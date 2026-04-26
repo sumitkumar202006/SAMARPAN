@@ -161,4 +161,59 @@ async function callGroq(prompt) {
   throw new Error(`AI System exhausted: ${lastError?.message}`);
 }
 
-module.exports = { generateQuizQuestions, generateQuizFromText };
+
+async function generateSmartTags(title, questions = []) {
+  const sampleQs = questions.slice(0, 5).map(q => q.question).join("\n- ");
+  const prompt = `
+You are a quiz metadata classifier. Analyze this quiz and return ONLY a raw JSON object (no markdown).
+
+Quiz Title: "${title}"
+Sample Questions:
+- ${sampleQs || "No questions provided"}
+
+Return EXACTLY this JSON structure:
+{
+  "tags": ["tag1", "tag2", "tag3"],
+  "subject": "Primary Subject Area",
+  "difficulty": "easy|medium|hard",
+  "estimatedMinutes": 5,
+  "language": "English"
+}
+
+Rules:
+- tags: 3-5 concise lowercase tags (e.g. "physics", "newton-laws", "kinematics")
+- subject: one of [Mathematics, Computer Science, Physics, Chemistry, Biology, History, Geography, Economics, General Knowledge, Language, Engineering, Medicine]
+- difficulty: easy / medium / hard
+- estimatedMinutes: realistic time to complete (2-30)
+`;
+
+  try {
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 256,
+    });
+
+    let raw = response.choices[0].message.content.trim()
+      .replace(/```json|```/gi, "").trim();
+    const start = raw.indexOf("{");
+    const end   = raw.lastIndexOf("}");
+    if (start !== -1 && end !== -1) raw = raw.substring(start, end + 1);
+
+    const parsed = JSON.parse(raw);
+    return {
+      tags:             Array.isArray(parsed.tags) ? parsed.tags : [],
+      subject:          parsed.subject          || "General Knowledge",
+      difficulty:       parsed.difficulty        || "medium",
+      estimatedMinutes: parsed.estimatedMinutes  || 5,
+      language:         parsed.language          || "English",
+    };
+  } catch (err) {
+    console.warn("[SmartTag] Tagging failed, using defaults:", err.message);
+    return { tags: [], subject: "General Knowledge", difficulty: "medium", estimatedMinutes: 5, language: "English" };
+  }
+}
+
+module.exports = { generateQuizQuestions, generateQuizFromText, generateSmartTags };
+

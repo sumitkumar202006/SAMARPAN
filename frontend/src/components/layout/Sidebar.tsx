@@ -17,7 +17,11 @@ import {
   LogOut,
   ShieldCheck,
   Disc,
-  CreditCard
+  CreditCard,
+  Crown,
+  Store,
+  Calendar,
+  School
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
@@ -26,16 +30,20 @@ import { SidebarToggleArrow } from '@/components/ui/SidebarToggleArrow';
 import { PlanBadge, planRingClass } from '@/components/ui/PlanBadge';
 
 const navItems = [
-  { name: 'Dashboard',   icon: LayoutDashboard, href: '/dashboard' },
-  { name: 'Create',      icon: PlusSquare,      href: '/create' },
-  { name: 'Room Hub',    icon: ShieldCheck,     href: '/host' },
-  { name: 'Battles',     icon: Zap,             href: '/battles' },
-  { name: 'Leaderboard', icon: Trophy,          href: '/leaderboard' },
-  { name: 'Friends',     icon: Users,           href: '/friends' },
-  { name: 'Explore',     icon: Compass,         href: '/explore' },
-  { name: 'Billing',     icon: CreditCard,      href: '/billing' },
-  { name: 'Contact',     icon: MessageSquare,   href: '/contact' },
-  { name: 'About',       icon: Info,            href: '/about' },
+  { name: 'Dashboard',    icon: LayoutDashboard, href: '/dashboard'   },
+  { name: 'Create',       icon: PlusSquare,      href: '/create'       },
+  { name: 'Room Hub',     icon: ShieldCheck,     href: '/host'         },
+  { name: 'Battles',      icon: Zap,             href: '/battles'      },
+  { name: 'Tournaments',  icon: Crown,           href: '/tournaments'  },
+  { name: 'Marketplace',  icon: Store,           href: '/marketplace'  },
+  { name: 'Events',       icon: Calendar,        href: '/events'       },
+  { name: 'Institution',  icon: School,          href: '/institution'  },
+  { name: 'Leaderboard',  icon: Trophy,          href: '/leaderboard'  },
+  { name: 'Friends',      icon: Users,           href: '/friends'      },
+  { name: 'Explore',      icon: Compass,         href: '/explore'      },
+  { name: 'Billing',      icon: CreditCard,      href: '/billing'      },
+  { name: 'Contact',      icon: MessageSquare,   href: '/contact'      },
+  { name: 'About',        icon: Info,            href: '/about'        },
 ];
 
 export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boolean; onToggle?: () => void }) => {

@@ -170,6 +170,32 @@ export default function CreatePage() {
                 >
                    <Users size={18} /> Launch Session
                 </button>
+                <button 
+                   onClick={async () => {
+                     const id = createdQuiz._id || createdQuiz.id;
+                     if (!id || !user?.token) return;
+                     try {
+                       const res = await api.post('/api/ai/auto-tag', { quizId: id }, { headers: { Authorization: `Bearer ${user.token}` } });
+                       setAiStatus(`✨ Tagged: ${res.data.tags?.tags?.join(', ') || 'Done'}`);
+                     } catch { setAiStatus('Auto-tag failed'); }
+                   }}
+                   className="py-5 bg-accent/10 border border-accent/20 text-accent font-black text-xs uppercase tracking-[0.3em] rounded-3xl hover:bg-accent hover:text-white transition-all flex items-center justify-center gap-3"
+                >
+                   <Activity size={18} /> Auto-Tag
+                </button>
+                <button 
+                   onClick={async () => {
+                     const id = createdQuiz._id || createdQuiz.id;
+                     if (!id || !user?.token) return;
+                     try {
+                       await api.post(`/api/marketplace/${id}/list`, {}, { headers: { Authorization: `Bearer ${user.token}` } });
+                       setAiStatus('✅ Published to Marketplace!');
+                     } catch { setAiStatus('Publish failed'); }
+                   }}
+                   className="py-5 bg-accent-alt/10 border border-accent-alt/20 text-accent-alt font-black text-xs uppercase tracking-[0.3em] rounded-3xl hover:bg-accent-alt hover:text-white transition-all flex items-center justify-center gap-3"
+                >
+                   <Trophy size={18} /> Publish to Market
+                </button>
               </div>
 
               <button 

@@ -11,7 +11,36 @@ const debugLog = (msg) => {
   fs.appendFileSync(path.join(__dirname, "../debug.log"), logMsg);
 };
 const pdfParse = require("pdf-parse");
-const { generateQuizQuestions, generateQuizFromText } = require("../services/gptService");
+const { generateQuizQuestions, generateQuizFromText, generateSmartTags } = require("../services/gptService");
+
+// ─── POST /api/ai/auto-tag — AI smart tagging for any quiz ────────────────────
+router.post("/auto-tag", authenticate, async (req, res) => {
+  try {
+    const { quizId } = req.body;
+    if (!quizId) return res.status(400).json({ error: "quizId required" });
+
+    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+    if (!quiz) return res.status(404).json({ error: "Quiz not found" });
+    if (quiz.authorId !== req.user.id) return res.status(403).json({ error: "Not your quiz" });
+
+    const tags = await generateSmartTags(quiz.title, quiz.questions);
+
+    await prisma.quiz.update({
+      where: { id: quizId },
+      data: {
+        tags:       tags.tags,
+        difficulty: tags.difficulty,
+        topic:      quiz.topic || tags.subject,
+      }
+    });
+
+    return res.json({ tags });
+  } catch (err) {
+    console.error("Auto-tag error:", err);
+    res.status(500).json({ error: "Auto-tagging failed" });
+  }
+});
+
 
 // Configure multer for memory storage
 const upload = multer({ 

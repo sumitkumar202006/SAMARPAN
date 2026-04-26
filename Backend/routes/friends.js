@@ -206,4 +206,32 @@ router.get('/messages/:userId/:friendId', async (req, res) => {
   }
 });
 
+// 6. Mark messages from a friend as read
+router.post('/messages/mark-read', async (req, res) => {
+  try {
+    const { userId, friendId } = req.body;
+    if (!userId || !friendId) return res.status(400).json({ error: 'Missing IDs' });
+    await prisma.message.updateMany({
+      where: { senderId: friendId, receiverId: userId, isRead: false },
+      data:  { isRead: true }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Mark read error:', err);
+    res.status(500).json({ error: 'Failed to mark as read' });
+  }
+});
+
+// 7. Get total unread count for a user (across all friends)
+router.get('/unread/:userId', async (req, res) => {
+  try {
+    const count = await prisma.message.count({
+      where: { receiverId: req.params.userId, isRead: false }
+    });
+    res.json({ unread: count });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch unread count' });
+  }
+});
+
 module.exports = router;

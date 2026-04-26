@@ -1,10 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const prisma = require("../services/db");
-const { mapId } = require("../services/compatibility");
-const { sendOTPEmail } = require("../services/emailService");
+const express  = require('express');
+const router   = express.Router();
+const bcrypt   = require('bcrypt');
+const jwt      = require('jsonwebtoken');
+const prisma   = require('../services/db');
+const { mapId } = require('../services/compatibility');
+const { sendOTPEmail } = require('../services/emailService');
+const { checkBruteForce, recordFailedLogin, clearFailedLogins } = require('../middleware/security');
 
 // Helper: Create JWT
 function createJwtForUser(user) {
@@ -107,8 +108,16 @@ router.post('/signup', async (req, res) => {
 // 4. Login
 router.post('/login', async (req, res) => {
   try {
-    const { identifier, password } = req.body; // identifier can be email or username
-    if (!identifier || !password) return res.status(400).json({ error: "Missing identifier or password" });
+    const { identifier, password } = req.body;
+    if (!identifier || !password) return res.status(400).json({ error: 'Missing identifier or password' });
+
+    // — Brute-force lockout check —
+    const bf = checkBruteForce(identifier);
+    if (bf.locked) {
+      return res.status(429).json({
+        error: `Account temporarily locked after too many failed attempts. Try again in ${bf.minsLeft} minute(s).`
+      });
+    }
 
     const user = await prisma.user.findFirst({
       where: {
@@ -120,21 +129,33 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user || !user.passwordHash) {
-      return res.status(400).json({ error: "Invalid credentials" });
+      recordFailedLogin(identifier);
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // — Check if account is suspended —
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Your account has been suspended. Contact support.' });
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ error: "Invalid credentials" });
+    if (!ok) {
+      recordFailedLogin(identifier);
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // — Success: clear lockout —
+    clearFailedLogins(identifier);
 
     const token = createJwtForUser(user);
     res.json({
-      message: "Login successful",
+      message: 'Login successful',
       user: mapId(user),
       token
     });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Login failed" });
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 

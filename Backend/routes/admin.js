@@ -433,12 +433,49 @@ router.put('/plan-config/prices', async (req, res) => {
       }
     }
 
+    // ── CRITICAL: Clear cached Razorpay Plan IDs for plans whose price changed ──
+    // Razorpay Plans are immutable — changing price requires creating a new Plan.
+    // We detect which plans changed and remove only those keys from the cache.
+    try {
+      const oldPrices = await getConfigKey('plan_prices', DEFAULT_PLAN_PRICES);
+      const cachedPlanIds = await getConfigKey('razorpay_plan_ids', {});
+      const updatedCache = { ...cachedPlanIds };
+      let cacheChanged = false;
+
+      for (const plan of required) {
+        for (const interval of ['monthly', 'yearly']) {
+          const oldAmt = oldPrices[plan]?.[interval];
+          const newAmt = prices[plan]?.[interval];
+          if (oldAmt !== newAmt) {
+            // Price changed → invalidate the cached Razorpay Plan ID for this combo
+            const key = `${plan}_${interval}`;
+            if (updatedCache[key]) {
+              delete updatedCache[key];
+              cacheChanged = true;
+              console.log(`[Admin] Price changed for ${plan}/${interval}: ₹${oldAmt} → ₹${newAmt}. Cleared cached Razorpay plan ID.`);
+            }
+          }
+        }
+      }
+
+      if (cacheChanged) {
+        await prisma.systemConfig.upsert({
+          where:  { key: 'razorpay_plan_ids' },
+          update: { value: updatedCache },
+          create: { key: 'razorpay_plan_ids', value: updatedCache },
+        });
+      }
+    } catch (cacheErr) {
+      // Non-fatal — log but proceed with price update
+      console.warn('[Admin] Could not clear Razorpay plan ID cache:', cacheErr.message);
+    }
+
     await prisma.systemConfig.upsert({
       where: { key: 'plan_prices' },
       update: { value: prices },
       create: { key: 'plan_prices', value: prices },
     });
-    res.json({ message: 'Plan prices updated', prices });
+    res.json({ message: 'Plan prices updated. Razorpay plan IDs refreshed for changed prices.', prices });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

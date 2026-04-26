@@ -72,6 +72,28 @@ export default function BattlesPage() {
   const [activeTab, setActiveTab] = useState<Tab>('quickmatch');
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
+  // Computed real stats from user profile
+  const computedRank = (() => {
+    const r = user?.globalRating || 1200;
+    if (r >= 2200) return 'Grandmaster';
+    if (r >= 2000) return 'Master';
+    if (r >= 1800) return 'Diamond';
+    if (r >= 1600) return 'Platinum';
+    if (r >= 1400) return 'Gold';
+    if (r >= 1200) return 'Silver II';
+    if (r >= 1100) return 'Silver I';
+    if (r >= 1000) return 'Bronze II';
+    return 'Bronze I';
+  })();
+
+  const computedWinRate = (() => {
+    const wins   = user?.totalWins   || 0;
+    const losses = user?.totalLosses || 0;
+    const total  = wins + losses;
+    if (total === 0) return '--';
+    return `${Math.round((wins / total) * 100)}%`;
+  })();
+
   // PIN join state
   const [pin, setPin] = useState('');
   const [joinName, setJoinName] = useState(user?.name || '');
@@ -318,7 +340,7 @@ export default function BattlesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-text-soft uppercase font-black">Rank</p>
-                      <p className="text-xl font-black italic uppercase">Silver II</p>
+                      <p className="text-xl font-black italic uppercase">{computedRank}</p>
                     </div>
                   </div>
                   <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2">
@@ -332,7 +354,10 @@ export default function BattlesPage() {
                 </div>
               </CollapsibleCard>
               <div className="grid grid-cols-2 gap-4">
-                {[{ icon: Users, label: 'Squad', val: 'Active' }, { icon: Sword, label: 'Win Rate', val: '64%' }].map((s, i) => (
+                {[
+                  { icon: Sword,  label: 'Win Rate', val: computedWinRate },
+                  { icon: Trophy, label: 'Best Streak', val: user?.bestWinStreak ? `${user.bestWinStreak}W` : '--' }
+                ].map((s, i) => (
                   <div key={i} className="glass p-5 rounded-3xl border-white/5 text-center space-y-1">
                     <s.icon className="mx-auto text-text-soft opacity-40 mb-2" size={16} />
                     <p className="text-[8px] text-text-soft uppercase font-black">{s.label}</p>

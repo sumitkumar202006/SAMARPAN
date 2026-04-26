@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/lib/axios';
+import { logger } from '@/lib/logger';
 
 interface User {
   id: string;
@@ -30,6 +31,14 @@ interface User {
   // Subscription
   plan?: string;        // 'free' | 'pro' | 'elite' | 'institution'
   planStatus?: string;  // 'active' | 'trialing' | 'cancelled'
+  // Gamification
+  avatarFrame?: string;    // 'none' | 'bronze' | 'gold' | 'diamond' | 'champion'
+  totalWins?: number;
+  totalLosses?: number;
+  winStreak?: number;
+  bestWinStreak?: number;
+  dailyStreak?: number;
+  lastPlayedAt?: string;
 }
 
 interface AuthContextType {
@@ -149,13 +158,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let keys = getLocalKeys();
         
         if (!keys) {
-          console.log("[E2EE] No local keys found. Generating new neural pair...");
+          logger.debug('[E2EE] No local keys found. Generating new neural pair...');
           const newKeys = await generateChatKeyPair();
           keys = newKeys;
         }
 
         // Always register public key with backend to ensure synchronization
-        console.log("[E2EE] Synchronizing neural public key with server...");
+        logger.debug('[E2EE] Synchronizing neural public key with server...');
         await api.put('/api/user/public-key', {
           email: user.email,
           publicKey: JSON.stringify(keys.publicKey)

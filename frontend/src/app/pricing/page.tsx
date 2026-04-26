@@ -158,6 +158,9 @@ export default function PricingPage() {
       const rzp = new window.Razorpay({
         key:             data.key,
         subscription_id: data.subscriptionId, // ← recurring auto-pay
+        // NOTE: Do NOT pass `amount` or `currency` with subscription_id.
+        // Razorpay reads the amount from the Plan linked to the subscription.
+        // Passing amount here causes Razorpay to fall back to one-time order mode.
         name:            'Samarpan Arena',
         description:     `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${interval} (Auto-pay)`,
         image:           '/icon.png',

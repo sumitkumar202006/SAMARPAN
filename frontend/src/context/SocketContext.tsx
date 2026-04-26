@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import socket from '@/lib/socket';
 import { useAuth } from './AuthContext';
+import { logger } from '@/lib/logger';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -35,20 +36,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     function onConnect() {
       setIsConnected(true);
       setConnectionStatus('connected');
-      console.log("[Socket] Connected to Arena Server");
+      logger.debug('[Socket] Connected to Arena Server');
       if (user?.id) {
         socket.emit('social_connect', { userId: user.id });
       }
     }
 
     function onDisconnect() {
-      console.log("[Socket] Disconnected from Arena Server");
+      logger.debug('[Socket] Disconnected from Arena Server');
       setIsConnected(false);
       setConnectionStatus('disconnected');
     }
 
     function onConnectError(err: any) {
-      console.error("[Socket] Connection error:", err.message);
+      logger.error('[Socket] Connection error:', err.message);
       setConnectionStatus('disconnected');
     }
 

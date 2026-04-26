@@ -1,9 +1,18 @@
-// server.js — cleaned & commented (small, human-friendly comments)
+// server.js — Samarpan Backend
 require("dotenv").config();
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
+const { validateEnv } = require("./services/validateEnv");
+validateEnv(); // Exits immediately if critical env vars are missing
+const express     = require("express");
+const http        = require("http");
+const { Server }  = require("socket.io");
+const cors        = require("cors");
+const helmet      = require("helmet");
+const compression = require("compression");
+const rateLimit   = require("express-rate-limit");
+const {
+  sanitizeInput, securityHeaders, helmetOptions,
+  cacheFor, noCache, enableStrongEtag, strictAuthLimiter, jsonLimit
+} = require('./middleware/security');
 console.log("Setting up Express and Socket.io...");
 const app = express();
 const server = http.createServer(app);
@@ -36,16 +45,40 @@ const RatingEngine = require("./services/RatingEngine");
 const { generateQuizQuestions } = require("./services/gptService");
 
 // Routes
-const aiQuizRoutes = require("./routes/aiQuiz");
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/user");
-const adminRoutes = require("./routes/admin");
-const friendsRoutes = require("./routes/friends");
-const billingRoutes = require("./routes/billing");
+const aiQuizRoutes      = require("./routes/aiQuiz");
+const authRoutes        = require("./routes/auth");
+const userRoutes        = require("./routes/user");
+const adminRoutes       = require("./routes/admin");
+const friendsRoutes     = require("./routes/friends");
+const billingRoutes     = require("./routes/billing");
+const quizRoutes        = require("./routes/quizzes");
+const exploreRoutes     = require("./routes/explore");
+const sessionsRoutes    = require("./routes/sessions");
+const { router: notifRoutes, createNotification } = require("./routes/notifications");
+const tournamentRoutes  = require("./routes/tournaments");
+const marketplaceRoutes = require("./routes/marketplace");
+const eventsRoutes      = require("./routes/events");
+const institutionRoutes = require("./routes/institution");
 const { authenticate, checkQuota, getEffectivePlan, PLAN_LIMITS } = require("./middleware/planGate");
 
 // Basic middleware
 console.log("Registering global middleware...");
+
+// ─── Performance: Gzip compression ───────────────────────────────────────────
+app.use(compression({
+  level: 6,  // Good balance: ~65% size reduction, minimal CPU
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
+
+// ─── Security headers ─────────────────────────────────────────────────────────
+app.use(helmet(helmetOptions));
+app.use(securityHeaders);
+enableStrongEtag(app);
+
 app.use(cors({ 
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -57,11 +90,36 @@ app.use(cors({
   credentials: true 
 }));
 
+// ─── Rate Limiters ───────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: "Too many requests from this IP. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: "AI generation rate limit reached. Please slow down." },
+});
+
+const billingLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: "Too many billing requests. Please slow down." },
+});
+
 app.use(express.json({
+  limit: jsonLimit,  // 50kb limit — prevents payload flooding
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
-}));app.use("/uploads", express.static("uploads"));
+}));
+app.use(express.urlencoded({ extended: true, limit: jsonLimit }));
+app.use(sanitizeInput); // Strip $-prefixed keys + null bytes from all inputs
+app.use("/uploads", express.static("uploads"));
 app.use(passport.initialize());
 console.log("Passport initialized.");
 
@@ -91,17 +149,27 @@ const FRONTEND_URL =
 
 // ---------- Health ----------
 app.get("/api/health", (_req, res) => {
-  res.json({ server: "Samarpan Backend", status: "running" });
+  res.json({ server: "Samarpan Backend", status: "running", uptime: process.uptime() });
 });
 
-// -------------------------------
-// Authentication Routes (Signup, Login, OTP, etc.)
-// -------------------------------
-app.use("/api/auth", authRoutes);
-app.use("/api/friends", friendsRoutes);
-// Forward compatible legacy routes (optional, but good for stability)
+// ─── Route registrations ─────────────────────────────────────────────────────
+app.use("/api/auth",          strictAuthLimiter, authLimiter, authRoutes);
+app.use("/api/friends",       noCache, friendsRoutes);
+app.use("/api/ai",            aiLimiter, aiQuizRoutes);
+app.use("/api/billing",       noCache, billingLimiter, billingRoutes);
+app.use("/api/user",          noCache, userRoutes);
+app.use("/api/quizzes",       noCache, quizRoutes);
+app.use("/api/explore",       cacheFor(120), exploreRoutes);
+app.use("/api/sessions",      noCache, sessionsRoutes);
+app.use("/api/notifications", noCache, notifRoutes);
+app.use("/api/tournaments",   cacheFor(30), tournamentRoutes);
+app.use("/api/marketplace",   cacheFor(60), marketplaceRoutes);
+app.use("/api/events",        cacheFor(30), eventsRoutes);
+app.use("/api/institution",   noCache, institutionRoutes);
+
+// Legacy redirect shims
 app.use("/api/signup", (req, res) => res.redirect(307, "/api/auth/signup"));
-app.use("/api/login", (req, res) => res.redirect(307, "/api/auth/login"));
+app.use("/api/login",  (req, res) => res.redirect(307, "/api/auth/login"));
 
 // -------------------------------
 // Quiz creation (manual)
@@ -788,12 +856,7 @@ app.delete("/api/host/session/:pin", async (req, res) => {
   }
 });
 
-// -------------------------------
-// AI & User routes (mounted)
-// -------------------------------
-app.use("/api/ai", aiQuizRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/billing", billingRoutes);
+// (These routes are now mounted at top with rate limiters — kept here for reference only)
 
 // Admin Auth Middleware
 async function isAdmin(req, res, next) {
@@ -892,42 +955,68 @@ function generateMatchPin() {
 
 /**
  * Core matchmaking processor — runs every 2 seconds.
- * Matches queued players and creates sessions automatically.
+ * Matches queued players using ELO window matching.
+ * Window starts at ±200, expands by 100 every 15s to prevent endless waiting.
  */
 async function processQueues() {
   for (const [key, queue] of matchmakingQueues.entries()) {
+    // Expand rating windows over time (every 15s add 100 to window)
+    const now = Date.now();
+    queue.forEach(p => {
+      const waitedSeconds = (now - p.joinedAt) / 1000;
+      p.ratingWindow = 200 + Math.floor(waitedSeconds / 15) * 100;
+    });
+
     if (queue.length < 2) {
       // Handle long-waiting solo players (> 60s) — create 1-player match
-      if (queue.length === 1 && Date.now() - queue[0].joinedAt > 60000) {
+      if (queue.length === 1 && now - queue[0].joinedAt > 60000) {
         await createMatchFromQueue(key, queue.splice(0, 1));
       }
       // 30s: relax category, try to merge with adjacent difficulty
-      else if (queue.length === 1 && Date.now() - queue[0].joinedAt > 30000) {
+      else if (queue.length === 1 && now - queue[0].joinedAt > 30000) {
         const player = queue[0];
-        const relaxedKey = `${player.category}:any`;
-        const relaxedQueue = matchmakingQueues.get(relaxedKey) || [];
-        // Try opposite difficulty
         const difficulties = ['easy', 'medium', 'hard'];
         for (const diff of difficulties) {
           if (diff === player.difficulty) continue;
           const altKey = `${player.category}:${diff}`;
           const altQueue = matchmakingQueues.get(altKey) || [];
-          if (altQueue.length > 0) {
-            // Merge: take this player + first from alt queue
+          // ELO check even on relaxed match
+          const compatible = altQueue.find(p2 => Math.abs((p2.rating || 1200) - (player.rating || 1200)) <= Math.max(player.ratingWindow, p2.ratingWindow));
+          if (compatible) {
             queue.splice(0, 1);
-            const matched = [player, altQueue.splice(0, 1)[0]];
+            const idx = altQueue.indexOf(compatible);
+            altQueue.splice(idx, 1);
             if (altQueue.length === 0) matchmakingQueues.delete(altKey);
-            await createMatchFromQueue(key, matched);
+            await createMatchFromQueue(key, [player, compatible]);
             break;
           }
         }
       }
       continue;
+
     }
-    // Standard: batch up to 6 players per match
-    const batch = queue.splice(0, Math.min(queue.length, 6));
+    // Standard ELO batch: group players within each other's rating windows
+    // Sort by rating so similar players are adjacent
+    queue.sort((a, b) => (a.rating || 1200) - (b.rating || 1200));
+
+    const matched = [queue.shift()]; // Take first (lowest rated)
+    const anchor  = matched[0];
+
+    // Add players within ELO window of anchor (up to 6 total)
+    let i = 0;
+    while (i < queue.length && matched.length < 6) {
+      const candidate = queue[i];
+      const ratingDiff = Math.abs((candidate.rating || 1200) - (anchor.rating || 1200));
+      const window     = Math.max(anchor.ratingWindow || 200, candidate.ratingWindow || 200);
+      if (ratingDiff <= window) {
+        matched.push(queue.splice(i, 1)[0]);
+      } else {
+        i++;
+      }
+    }
+
     if (queue.length === 0) matchmakingQueues.delete(key);
-    await createMatchFromQueue(key, batch);
+    await createMatchFromQueue(key, matched);
   }
 }
 
@@ -1736,7 +1825,7 @@ function endSessionImmediately(pin, reason) {
   setTimeout(() => liveSessions.delete(pin), 5 * 60 * 1000);
 }
 
-function advanceQuestion(pin) {
+async function advanceQuestion(pin) {
   const session = liveSessions.get(pin);
   if (!session || session.status !== 'running') return;
   if (session.timerHandle) clearTimeout(session.timerHandle);
@@ -1776,7 +1865,7 @@ function advanceQuestion(pin) {
   }
 
   // Auto-advance delay — let clients see the correct answer before moving on
-  setTimeout(() => {
+  setTimeout(async () => {
     session.currentQ++;
     session.timeLeft = session.timerSeconds;
     session.optionStats = [0, 0, 0, 0];
@@ -1815,6 +1904,95 @@ function advanceQuestion(pin) {
       }).catch(console.error);
 
       RatingEngine.processGameResults(pin, session.players, session.rated !== false);
+      
+      // ── Daily Streak + Win/Loss tracking ────────────────────────────────────
+      const finalLeaderboard = getLeaderboard(session);
+      const winner = finalLeaderboard[0] || null;
+
+      await Promise.all(Object.values(session.players)
+        .filter(p => p.userId && !p.isBot)
+        .map(async (p) => {
+          try {
+            const user = await prisma.user.findUnique({ where: { id: p.userId } });
+            if (!user) return;
+
+            const now = new Date();
+            const isWinner = winner?.name === p.name;
+            const isLoser  = !isWinner;
+
+            // ── Daily streak logic ────────────────────────────────────────────
+            let newStreak = user.dailyStreak || 0;
+            if (user.lastPlayedAt) {
+              const lastDate   = new Date(user.lastPlayedAt);
+              const diffMs     = now.getTime() - lastDate.getTime();
+              const diffHours  = diffMs / (1000 * 60 * 60);
+              const diffDays   = diffMs / (1000 * 60 * 60 * 24);
+
+              if (diffHours < 24) {
+                // Played within 24h — same day, streak unchanged
+              } else if (diffDays <= 2) {
+                // Played yesterday — extend streak
+                newStreak += 1;
+              } else {
+                // Missed a day — reset streak
+                newStreak = 1;
+              }
+            } else {
+              newStreak = 1; // First game
+            }
+
+            // ── Win/Loss counters & win streak ────────────────────────────────
+            const newTotalWins   = (user.totalWins   || 0) + (isWinner ? 1 : 0);
+            const newTotalLosses = (user.totalLosses || 0) + (isLoser  ? 1 : 0);
+            const currentWinStreak = isWinner ? (user.winStreak || 0) + 1 : 0;
+            const newBestWinStreak = Math.max(user.bestWinStreak || 0, currentWinStreak);
+
+            // ── Avatar frame unlocks ──────────────────────────────────────────
+            let newFrame = user.avatarFrame || "none";
+            const sub = await prisma.subscription.findUnique({ where: { userId: user.id } });
+            const plan = sub?.plan || "free";
+            if (plan === "elite" || plan === "institution") newFrame = "gold";
+            else if (plan === "pro" && newFrame === "none") newFrame = "bronze";
+            if (newBestWinStreak >= 25) newFrame = "champion";
+
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                dailyStreak: newStreak,
+                lastPlayedAt: now,
+                totalWins:    newTotalWins,
+                totalLosses:  newTotalLosses,
+                winStreak:    currentWinStreak,
+                bestWinStreak: newBestWinStreak,
+                avatarFrame:  newFrame,
+              }
+            });
+
+            // ── Notify winner ────────────────────────────────────────────────
+            if (isWinner && createNotification) {
+              createNotification(user.id, {
+                type:    "match_result",
+                title:   "🏆 Victory!",
+                message: `You won the quiz "${session.quiz.title}"! Your streak is now ${newStreak} days.`,
+                link:    `/dashboard`
+              }).catch(() => {});
+            }
+
+            // ── Streak milestone notifications ────────────────────────────────
+            if ([7, 14, 30, 50, 100].includes(newStreak) && createNotification) {
+              createNotification(user.id, {
+                type:    "streak",
+                title:   `🔥 ${newStreak}-Day Streak!`,
+                message: `Amazing! You've played Samarpan for ${newStreak} days in a row!`,
+                link:    `/dashboard`
+              }).catch(() => {});
+            }
+          } catch (streakErr) {
+            console.error(`[Streak] Error updating user ${p.userId}:`, streakErr.message);
+          }
+        })
+      ).catch(() => {}); // Non-blocking — don't fail the game if DB update fails
+
       // SYNC FIX (Issue 1): Send full answer review on quiz_finished so clients can
       // reveal all correct answers at the end of the match.
       io.in(pin).emit("quiz_finished", { 
@@ -3043,10 +3221,19 @@ io.on("connection", (socket) => {
    * quick_match — Add player to matchmaking queue.
    * Emits: matchmaking_searching (position), match_found (on match), matchmaking_error
    */
-  socket.on("quick_match", (data) => {
+  socket.on("quick_match", async (data) => {
     const { name, category, difficulty, userId } = data;
     if (!name || !category || !difficulty) {
       return socket.emit("matchmaking_error", { message: "Missing required fields: name, category, difficulty." });
+    }
+
+    // Fetch real ELO rating from DB for skill-based matching
+    let playerRating = 1200; // Default ELO
+    if (userId) {
+      try {
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { globalRating: true } });
+        if (u?.globalRating) playerRating = u.globalRating;
+      } catch {}
     }
 
     const key = `${category}:${difficulty}`;
@@ -3062,7 +3249,16 @@ io.on("connection", (socket) => {
 
     if (!matchmakingQueues.has(key)) matchmakingQueues.set(key, []);
     const queue = matchmakingQueues.get(key);
-    queue.push({ socketId: socket.id, userId: userId || null, name, category, difficulty, joinedAt: Date.now() });
+    queue.push({
+      socketId:     socket.id,
+      userId:       userId || null,
+      name,
+      category,
+      difficulty,
+      joinedAt:     Date.now(),
+      rating:       playerRating,      // ← ELO rating for skill-matching
+      ratingWindow: 200,               // Initial ±200 window, expands over time
+    });
 
     const position = queue.length;
     socket.emit("matchmaking_searching", {
@@ -3072,7 +3268,7 @@ io.on("connection", (socket) => {
       estimatedWait: position <= 1 ? 30 : 5 * position
     });
 
-    console.log(`[Matchmaking] ${name} queued for ${key}. Queue size: ${queue.length}`);
+    console.log(`[Matchmaking] ${name} (ELO:${playerRating}) queued for ${key}. Queue size: ${queue.length}`);
   });
 
   /**

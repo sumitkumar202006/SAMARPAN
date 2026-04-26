@@ -16,7 +16,12 @@ import {
   ChevronUp,
   Activity,
   Settings,
-  Shield
+  Shield,
+  Flame,
+  Store,
+  Calendar,
+  School,
+  Sparkles
 } from 'lucide-react';
 import { UpdatesStrip } from '@/components/dashboard/UpdatesStrip';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
@@ -53,6 +58,9 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [showAllIntel, setShowAllIntel] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3500); };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,6 +94,13 @@ export default function DashboardPage() {
   return (
     <AuthGuard>
       <div className="py-2 lg:py-10 space-y-12">
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 backdrop-blur-xl text-[11px] font-black uppercase tracking-widest transition-all">
+          {toastMsg}
+        </div>
+      )}
 
       <UpdatesStrip />
 
@@ -147,12 +162,26 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-4">
                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
                       <p className="text-[9px] text-text-soft uppercase font-black mb-1">Global Rating</p>
-                      <p className="text-2xl font-black text-accent-alt">{stats?.globalRating || 1200}</p>
+                      <p className="text-2xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</p>
                    </div>
                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
                       <p className="text-[9px] text-text-soft uppercase font-black mb-1">XP Points</p>
-                      <p className="text-2xl font-black">{stats?.xp || 0}</p>
+                      <p className="text-2xl font-black">{stats?.xp || user?.xp || 0}</p>
                    </div>
+                </div>
+
+                {/* Gamification mini-stats */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Wins',   val: user?.totalWins || 0,    color: 'text-yellow-400', icon: Trophy },
+                    { label: 'Streak', val: `${user?.dailyStreak || 0}🔥`, color: 'text-orange-400', icon: Flame },
+                    { label: 'Best',   val: `${user?.bestWinStreak || 0}W`, color: 'text-accent', icon: Zap },
+                  ].map((s, i) => (
+                    <div key={i} className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
+                      <p className="text-[8px] text-text-soft uppercase font-black">{s.label}</p>
+                      <p className={`font-black text-sm mt-0.5 ${s.color}`}>{s.val}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="space-y-3">
@@ -216,14 +245,30 @@ export default function DashboardPage() {
                   )}>
                     {filteredQuizzes.map((q) => {
                       const isRecent = (new Date().getTime() - new Date(q.createdAt).getTime()) < 15 * 60 * 1000;
+                      const qid = q.id || q._id;
                       return (
-                        <QuizCard 
-                          key={q._id}
-                          title={q.title} 
-                          description={`${q.questions.length} Questions • ${q.aiGenerated ? 'AI Neural' : 'Manual Asset'}`}
+                        <QuizCard
+                          key={qid}
+                          title={q.title}
+                          description={`${q.questions?.length || 0} Questions • ${q.aiGenerated ? 'AI Neural' : 'Manual Asset'}`}
                           lastPlayed={isRecent ? 'Recently Decrypted ✨' : new Date(q.createdAt).toLocaleDateString()}
-                          onPlay={() => router.push(`/play/solo?quiz=${q._id}`)}
-                          onHost={() => router.push(`/host?quiz=${q._id}`)}
+                          quizId={qid}
+                          isPublished={q.isMarketplace}
+                          onPlay={() => router.push(`/play/solo?quiz=${qid}`)}
+                          onHost={() => router.push(`/host?quiz=${qid}`)}
+                          onAutoTag={user?.token ? async () => {
+                            try {
+                              const res = await api.post('/api/ai/auto-tag', { quizId: qid }, { headers: { Authorization: `Bearer ${user.token}` } });
+                              showToast(`✨ Tagged: ${res.data.tags?.tags?.slice(0,3).join(', ') || 'Done'}`);
+                            } catch { showToast('Auto-tag failed'); }
+                          } : undefined}
+                          onPublish={user?.token ? async () => {
+                            try {
+                              const res = await api.post(`/api/marketplace/${qid}/list`, {}, { headers: { Authorization: `Bearer ${user.token}` } });
+                              showToast(res.data.isMarketplace ? '✅ Published to Marketplace!' : '📦 Removed from Marketplace');
+                              setQuizzes(prev => prev.map(pq => (pq.id || pq._id) === qid ? { ...pq, isMarketplace: res.data.isMarketplace } : pq));
+                            } catch { showToast('Publish failed'); }
+                          } : undefined}
                         />
                       );
                     })}
@@ -305,19 +350,18 @@ export default function DashboardPage() {
             
             <div className="space-y-4">
               {[
-                { title: 'Room Hub', sub: 'Host Competitive Session', icon: Trophy, href: '/host', color: 'accent' },
-                { title: 'Neural Forge', sub: 'AI Automated Generation', icon: Zap, href: '/create', color: 'accent-alt' },
-                { title: 'Training Grounds', sub: 'Friendly/Solo Practice', icon: Users, href: '/host?friendly=true', color: 'emerald-500' },
-                { title: 'Command Center', sub: 'Account & Neural Config', icon: Settings, href: '/settings', color: 'white' },
+                { title: 'Room Hub',        sub: 'Host Competitive Session',  icon: Trophy,   href: '/host',         color: 'accent' },
+                { title: 'Neural Forge',    sub: 'AI Automated Generation',   icon: Zap,      href: '/create',       color: 'accent-alt' },
+                { title: 'Marketplace',     sub: 'Browse Community Quizzes',  icon: Store,    href: '/marketplace',  color: 'accent' },
+                { title: 'Events',          sub: 'Scheduled Quiz Events',     icon: Calendar, href: '/events',       color: 'accent-alt' },
+                { title: 'Institution',     sub: 'Class Dashboard & Assigns', icon: School,   href: '/institution',  color: 'emerald-500' },
+                { title: 'Command Center',  sub: 'Account & Neural Config',   icon: Settings, href: '/settings',     color: 'white' },
               ].map((tool, i) => (
                 <Link key={i} href={tool.href} className="flex items-center gap-4 p-5 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all group overflow-hidden relative">
-                   {/* Mini glow element */}
-                  <div className={cn("absolute -right-4 -top-4 w-12 h-12 blur-2xl opacity-0 group-hover:opacity-40 transition-all", `bg-${tool.color}`)} />
-
-                  <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-all",
-                    i % 2 === 0 ? "bg-accent/10 text-accent" : "bg-accent-alt/10 text-accent-alt"
-                  )}>
+                  <div className={`absolute -right-4 -top-4 w-12 h-12 blur-2xl opacity-0 group-hover:opacity-40 transition-all bg-${tool.color}`} />
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-all ${
+                    i % 2 === 0 ? 'bg-accent/10 text-accent' : 'bg-accent-alt/10 text-accent-alt'
+                  }`}>
                     <tool.icon size={22} strokeWidth={2.5} />
                   </div>
                   <div className="flex flex-col">

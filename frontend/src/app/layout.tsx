@@ -12,6 +12,7 @@ import { UpgradeModalProvider } from "@/components/ui/UpgradeModal";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://samarpan-quiz.vercel.app'),
   title: "Samarpan Arena | The Ultimate Multi-Arena Quiz Platform",
   description: "Experience the next generation of competitive learning. AI-powered rapid generation, high-fidelity squad battles, and global ranking tournaments.",
   keywords: ["Quiz", "Multiplayer", "Tournament", "Education", "Competitive", "Gamification", "AI Quiz"],

@@ -18,22 +18,13 @@ router.get('/profile/:email', async (req, res) => {
 });
 
 const multer = require('multer');
-const path = require('path');
+const { uploadToCloudinary } = require('../services/cloudinary');
+const USE_CLOUDINARY = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY);
 
-// Configure Multer for Avatar Uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB Limit
+// Multer: memory storage (buffer passed to Cloudinary, or saved locally as fallback)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Only images are allowed'));
@@ -85,16 +76,27 @@ router.put('/profile', async (req, res) => {
   }
 });
 
-// Physical Avatar Upload
+// Avatar Upload — Cloudinary (prod) or local /uploads (dev)
 router.post('/upload-avatar', upload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    
-    // Return the stable URL path
-    const avatarUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
+
+    let avatarUrl;
+    if (USE_CLOUDINARY) {
+      // Upload buffer to Cloudinary — persistent, CDN-served
+      avatarUrl = await uploadToCloudinary(req.file.buffer, 'samarpan/avatars');
+    } else {
+      // Fallback: save locally (dev only — not persistent across server restarts)
+      const fs   = require('fs');
+      const path = require('path');
+      const filename = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(req.file.originalname)}`;
+      fs.writeFileSync(path.join('uploads', filename), req.file.buffer);
+      avatarUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${filename}`;
+    }
+
     res.json({ url: avatarUrl });
   } catch (err) {
-    console.error("Avatar upload error:", err);
+    console.error('Avatar upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
   }
 });

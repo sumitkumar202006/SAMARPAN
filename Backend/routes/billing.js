@@ -4,6 +4,12 @@ const Razorpay = require("razorpay");
 const crypto   = require("crypto");
 const prisma   = require("../services/db");
 const { authenticate, getEffectivePlan, getEffectiveLimits, getNextMonthReset } = require("../middleware/planGate");
+const {
+  sendSubscriptionConfirmationEmail,
+  sendSubscriptionCancelledEmail,
+  sendPaymentFailedEmail,
+  sendTrialActivatedEmail,
+} = require("../services/emailService");
 
 // ─── Lazy Razorpay client ─────────────────────────────────────────────────────
 let _rzp = null;
@@ -43,15 +49,34 @@ async function getConfigKey(key, fallback) {
 async function getPlanPrices()  { return getConfigKey("plan_prices",  DEFAULT_PLAN_PRICES);  }
 async function getTrialConfig() { return getConfigKey("trial_config", DEFAULT_TRIAL_CONFIG); }
 
+// ─── Calculate correct periodEnd based on interval ───────────────────────────
+function calcPeriodEnd(interval) {
+  const d = new Date();
+  if (interval === "yearly") d.setFullYear(d.getFullYear() + 1);
+  else                       d.setMonth(d.getMonth() + 1);
+  return d;
+}
+
 // ─── Razorpay Plan management ─────────────────────────────────────────────────
-// Razorpay subscriptions require a Plan object. We store plan IDs in SystemConfig
-// so they are shared across instances. If a plan doesn't exist yet, we create it.
+// Razorpay Plans are immutable — validate cached plan amount before reusing.
+// If price changed, cache is stale → create a new plan.
 async function getOrCreateRazorpayPlan(planKey, interval, amount) {
   const planIdsRow = await prisma.systemConfig.findUnique({ where: { key: "razorpay_plan_ids" } });
   const stored     = (planIdsRow?.value) || {};
   const lookupKey  = `${planKey}_${interval}`;
 
-  if (stored[lookupKey]) return stored[lookupKey];
+  if (stored[lookupKey]) {
+    try {
+      const existingPlan = await getRzp().plans.fetch(stored[lookupKey]);
+      const existingAmtInr = existingPlan?.item?.amount / 100; // paise → INR
+      if (existingAmtInr === amount) {
+        return stored[lookupKey]; // ✅ Cache hit, amount matches
+      }
+      console.log(`[Billing] Stale plan cache for ${lookupKey}: ₹${existingAmtInr} ≠ ₹${amount}. Creating new plan.`);
+    } catch (fetchErr) {
+      console.warn(`[Billing] Could not validate cached plan ${stored[lookupKey]}: ${fetchErr.message}. Creating new plan.`);
+    }
+  }
 
   // Create new plan in Razorpay
   const rzpPlan = await getRzp().plans.create({
@@ -120,7 +145,6 @@ router.get("/status", authenticate, async (req, res) => {
 
 // ─── POST /api/billing/create-subscription ───────────────────────────────────
 // Creates a Razorpay RECURRING subscription (auto-pay every month/year).
-// Replace the old create-order → this is the new primary payment entry point.
 router.post("/create-subscription", authenticate, async (req, res) => {
   try {
     const { plan, interval } = req.body;
@@ -132,10 +156,7 @@ router.post("/create-subscription", authenticate, async (req, res) => {
     const amount     = planPrices[plan]?.[interval === "yearly" ? "yearly" : "monthly"];
     if (!amount) return res.status(400).json({ error: "Invalid plan/interval" });
 
-    // Get or create Razorpay plan for this price
-    const rzpPlanId = await getOrCreateRazorpayPlan(plan, interval, amount);
-
-    // How many billing cycles: 10 years (effectively unlimited)
+    const rzpPlanId  = await getOrCreateRazorpayPlan(plan, interval, amount);
     const totalCount = interval === "yearly" ? 10 : 120;
 
     const subscription = await getRzp().subscriptions.create({
@@ -152,11 +173,12 @@ router.post("/create-subscription", authenticate, async (req, res) => {
       },
     });
 
+    // NOTE: Do NOT include `amount` or `currency` with subscription_id in checkout.
+    // Razorpay reads the amount from the Plan. Passing amount causes one-time order mode.
     res.json({
       subscriptionId: subscription.id,
       key:            process.env.RAZORPAY_KEY_ID,
-      amount:         amount * 100,
-      currency:       "INR",
+      displayAmount:  amount, // for UI display only
       plan,
       interval,
       prefill: { name: req.user.name, email: req.user.email },
@@ -168,7 +190,6 @@ router.post("/create-subscription", authenticate, async (req, res) => {
 });
 
 // ─── POST /api/billing/verify-subscription ───────────────────────────────────
-// Verifies Razorpay subscription payment and activates the plan in DB.
 router.post("/verify-subscription", authenticate, async (req, res) => {
   try {
     const {
@@ -190,9 +211,8 @@ router.post("/verify-subscription", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Signature mismatch — payment verification failed." });
     }
 
-    const periodEnd = new Date();
-    if (interval === "yearly") periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-    else                       periodEnd.setMonth(periodEnd.getMonth() + 1);
+    // FIX: Correctly calculate period end based on interval (was always +1 month before)
+    const periodEnd = calcPeriodEnd(interval || "monthly");
 
     await prisma.subscription.upsert({
       where:  { userId },
@@ -213,11 +233,16 @@ router.post("/verify-subscription", authenticate, async (req, res) => {
       },
     });
 
+    // FIX: Reset quota aligned to billing date (not 1st of month)
+    const quotaResetDate = calcPeriodEnd(interval || "monthly");
     await prisma.usageQuota.upsert({
       where:  { userId },
-      update: { aiGenerations: 0, pdfUploads: 0, resetAt: getNextMonthReset() },
-      create: { userId, resetAt: getNextMonthReset() },
+      update: { aiGenerations: 0, pdfUploads: 0, resetAt: quotaResetDate },
+      create: { userId, resetAt: quotaResetDate },
     });
+
+    // Send confirmation email (non-blocking)
+    sendSubscriptionConfirmationEmail(req.user.email, req.user.name, plan, periodEnd).catch(() => {});
 
     res.json({
       success: true,
@@ -234,7 +259,6 @@ router.post("/verify-subscription", authenticate, async (req, res) => {
 
 // ─── POST /api/billing/create-trial-mandate ──────────────────────────────────
 // Creates a ₹1 Razorpay order to authorize the trial auto-pay mandate.
-// User pays ₹1 now → trial activated → real amount auto-debited after trial ends.
 router.post("/create-trial-mandate", authenticate, async (req, res) => {
   try {
     const { fingerprint } = req.body;
@@ -248,7 +272,6 @@ router.post("/create-trial-mandate", authenticate, async (req, res) => {
       return res.status(403).json({ error: "trial_disabled", message: "Free trials are currently disabled." });
     }
 
-    // Device lock check
     if (trialConfig.deviceLocked !== false) {
       const existing = await prisma.deviceTrial.findUnique({ where: { fingerprint } });
       if (existing) return res.status(409).json({ error: "trial_used", message: "This device has already used the free trial." });
@@ -263,7 +286,6 @@ router.post("/create-trial-mandate", authenticate, async (req, res) => {
     const planPrices = await getPlanPrices();
     const realAmount = planPrices[trialPlan]?.monthly || 99;
 
-    // ₹1 order for mandate authorization
     const order = await getRzp().orders.create({
       amount:   100, // ₹1 in paise
       currency: "INR",
@@ -296,14 +318,11 @@ router.post("/create-trial-mandate", authenticate, async (req, res) => {
 });
 
 // ─── POST /api/billing/verify-trial-mandate ──────────────────────────────────
-// Verifies ₹1 payment, activates trial in DB, and schedules a real-price
-// Razorpay subscription that starts automatically after the trial ends.
 router.post("/verify-trial-mandate", authenticate, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, fingerprint } = req.body;
     const userId = req.user.id;
 
-    // Verify ₹1 payment signature (order flow)
     const expectedSig = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -320,7 +339,6 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + durationDays);
 
-    // Register device fingerprint
     if (trialConfig.deviceLocked !== false && fingerprint) {
       await prisma.deviceTrial.upsert({
         where:  { fingerprint },
@@ -329,7 +347,6 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
       });
     }
 
-    // Activate trial subscription
     await prisma.subscription.upsert({
       where:  { userId },
       update: {
@@ -348,15 +365,14 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
       },
     });
 
-    // Reset usage quota
+    // Reset usage quota (aligned to trial period end)
     await prisma.usageQuota.upsert({
       where:  { userId },
-      update: { aiGenerations: 0, pdfUploads: 0, resetAt: getNextMonthReset() },
-      create: { userId, resetAt: getNextMonthReset() },
+      update: { aiGenerations: 0, pdfUploads: 0, resetAt: trialEnd },
+      create: { userId, resetAt: trialEnd },
     });
 
     // Schedule a Razorpay subscription to auto-start AFTER the trial ends
-    // (so the user is auto-charged the real price from month 2 onwards)
     let autopayScheduled = false;
     let futureSubId      = null;
     try {
@@ -364,7 +380,6 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
       const realAmount = planPrices[trialPlan]?.monthly || 99;
       const rzpPlanId  = await getOrCreateRazorpayPlan(trialPlan, "monthly", realAmount);
 
-      // start_at = trial end date + 1 day (Unix timestamp)
       const startAt = Math.floor(trialEnd.getTime() / 1000) + 86400;
 
       const futureSub = await getRzp().subscriptions.create({
@@ -377,8 +392,6 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
       });
 
       futureSubId = futureSub.id;
-
-      // Store future subscription ID for webhook renewals
       await prisma.subscription.update({
         where: { userId },
         data:  { razorpaySubId: futureSubId },
@@ -386,9 +399,25 @@ router.post("/verify-trial-mandate", authenticate, async (req, res) => {
 
       autopayScheduled = true;
     } catch (subErr) {
-      // Non-fatal: trial still works; subscription just needs manual setup later
-      console.warn("[Billing] Post-trial subscription scheduling failed:", subErr.message);
+      // IMPORTANT: Log & alert — trial works but revenue risk if not fixed
+      console.error("[Billing] CRITICAL: Post-trial subscription scheduling failed:", subErr.message);
+      // Send admin alert email
+      if (process.env.ADMIN_EMAIL) {
+        const { sendOTPEmail } = require("../services/emailService");
+        // Reuse transporter via a raw admin alert
+        const nodemailer = require("nodemailer");
+        nodemailer.createTransport({ service:'gmail', auth:{ user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } })
+          .sendMail({
+            from: `"SAMARPAN System" <${process.env.EMAIL_USER}>`,
+            to: process.env.ADMIN_EMAIL,
+            subject: `[CRITICAL] Post-trial autopay scheduling failed for user ${userId}`,
+            text: `Post-trial subscription scheduling failed for user ${userId} (${req.user.email}).\n\nError: ${subErr.message}\n\nManual intervention required.`
+          }).catch(() => {});
+      }
     }
+
+    // Send trial activation email (non-blocking)
+    sendTrialActivatedEmail(req.user.email, req.user.name, durationDays, trialPlan, trialEnd).catch(() => {});
 
     res.json({
       success:         true,
@@ -421,12 +450,11 @@ router.post("/cancel", authenticate, async (req, res) => {
     const sub    = await prisma.subscription.findUnique({ where: { userId } });
     if (!sub) return res.status(404).json({ error: "No active subscription" });
 
-    // Cancel Razorpay subscription so auto-debit stops
     if (sub.razorpaySubId) {
       try {
         await getRzp().subscriptions.cancel(sub.razorpaySubId, { cancel_at_cycle_end: 1 });
       } catch (rzpErr) {
-        console.warn("[Billing] Razorpay cancel failed (may be already cancelled):", rzpErr.message);
+        console.warn("[Billing] Razorpay cancel failed:", rzpErr.message);
       }
     }
 
@@ -435,9 +463,12 @@ router.post("/cancel", authenticate, async (req, res) => {
       data:  { cancelAtPeriodEnd: true },
     });
 
+    // Send cancellation email (non-blocking)
+    sendSubscriptionCancelledEmail(req.user.email, req.user.name, sub.currentPeriodEnd).catch(() => {});
+
     res.json({
-      success:         true,
-      message:         "Subscription will cancel at end of billing period. Auto-pay stopped.",
+      success:          true,
+      message:          "Subscription will cancel at end of billing period. Auto-pay stopped.",
       currentPeriodEnd: sub.currentPeriodEnd,
     });
   } catch (err) {
@@ -460,23 +491,29 @@ router.post("/webhook", async (req, res) => {
     console.log(`[Billing Webhook] Event: ${event.event}`);
 
     if (event.event === "subscription.activated") {
-      // Subscription is now live (first charge succeeded or post-trial start)
-      const subId = event.payload?.subscription?.entity?.id;
+      const subEntity = event.payload?.subscription?.entity;
+      const subId     = subEntity?.id;
       if (subId) {
-        const periodEnd = new Date();
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
-        const notes = event.payload?.subscription?.entity?.notes || {};
+        const notes    = subEntity?.notes || {};
+        const interval = notes.interval || "monthly";
+        // FIX: Use actual interval from notes to calculate correct period end
+        const periodEnd = calcPeriodEnd(interval);
+
         await prisma.subscription.updateMany({
           where: { razorpaySubId: subId },
           data:  { status: "active", currentPeriodEnd: periodEnd, trialEndsAt: null },
         });
       }
     } else if (event.event === "subscription.charged") {
-      // Monthly/yearly renewal
-      const subId = event.payload?.subscription?.entity?.id;
+      // Monthly/yearly renewal — use interval from notes
+      const subEntity = event.payload?.subscription?.entity;
+      const subId     = subEntity?.id;
       if (subId) {
-        const periodEnd = new Date();
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        const notes    = subEntity?.notes || {};
+        const interval = notes.interval || "monthly";
+        // FIX: Correctly extend by year if yearly plan
+        const periodEnd = calcPeriodEnd(interval);
+
         await prisma.subscription.updateMany({
           where: { razorpaySubId: subId },
           data:  { status: "active", currentPeriodEnd: periodEnd },
@@ -489,6 +526,12 @@ router.post("/webhook", async (req, res) => {
           where: { razorpaySubId: subId },
           data:  { status: "cancelled", plan: "free", cancelAtPeriodEnd: false },
         });
+
+        // Fetch user to send email
+        const sub = await prisma.subscription.findFirst({ where: { razorpaySubId: subId }, include: { user: true } });
+        if (sub?.user) {
+          sendSubscriptionCancelledEmail(sub.user.email, sub.user.name, sub.currentPeriodEnd).catch(() => {});
+        }
       }
     } else if (event.event === "subscription.halted") {
       // Payment failed for renewal
@@ -498,10 +541,13 @@ router.post("/webhook", async (req, res) => {
           where: { razorpaySubId: subId },
           data:  { status: "past_due" },
         });
+
+        // Send payment failed email
+        const sub = await prisma.subscription.findFirst({ where: { razorpaySubId: subId }, include: { user: true } });
+        if (sub?.user) {
+          sendPaymentFailedEmail(sub.user.email, sub.user.name).catch(() => {});
+        }
       }
-    } else if (event.event === "payment.captured") {
-      // Check if this is a ₹1 trial mandate — nothing extra needed as
-      // verify-trial-mandate already handled DB state
     }
 
     res.json({ status: "ok" });
@@ -511,10 +557,9 @@ router.post("/webhook", async (req, res) => {
   }
 });
 
-// ─── Legacy: POST /api/billing/create-order & verify-payment ─────────────────
+// ─── Legacy: POST /api/billing/create-order ──────────────────────────────────
 // Kept for backward compatibility. New flow uses create-subscription instead.
 router.post("/create-order", authenticate, async (req, res) => {
-  // Redirect to subscription flow response format
   return res.status(410).json({
     error:    "deprecated",
     message:  "Use /api/billing/create-subscription for recurring auto-pay.",

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, MessageSquare, X, Sparkles } from 'lucide-react';
+import { Search, Menu, User as UserIcon, LogOut, Settings, BarChart, Volume2, VolumeX, Shield, Users, X, Sparkles } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ import api from '@/lib/axios';
 import { UserPlus, UserCheck, CheckCircle2, XCircle, ChevronLeft, CreditCard } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
 import { PlanBadge, planRingClass } from '@/components/ui/PlanBadge';
+import { NotificationBell } from '@/components/ui/NotificationBell';
+import { AvatarFrame } from '@/components/ui/AvatarFrame';
 
 export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMobileMenu?: () => void, isMatchOrLobby?: boolean }) => {
   const router = useRouter();
@@ -394,85 +396,8 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
             <Users size={18} />
           </Link>
 
-          <div className="relative" ref={notificationsRef}>
-            <button 
-              onClick={() => {
-                setIsNotificationsOpen(!isNotificationsOpen);
-                if (!isNotificationsOpen) setUnreadNotifications(0);
-              }}
-              className="flex p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none"
-            >
-              <Bell size={18} />
-              {unreadNotifications > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background animate-pulse" />
-              )}
-            </button>
-
-            <AnimatePresence>
-              {isNotificationsOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 mt-3 w-80 glass rounded-[24px] border border-white/10 shadow-2xl z-[150] overflow-hidden"
-                >
-                  <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <h3 className="text-xs font-black uppercase tracking-widest italic">Neural Alerts</h3>
-                    <button 
-                      onClick={handleClearAll}
-                      className="text-[9px] font-black uppercase tracking-widest text-accent hover:text-white transition-colors"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                    {pendingRequests.length === 0 ? (
-                      <div className="p-12 text-center text-text-soft italic text-[10px] space-y-3">
-                        <Bell className="mx-auto opacity-20" size={24} />
-                        <p>No new cognitive synchronizations detected.</p>
-                      </div>
-                    ) : (
-                      <div className="p-2 space-y-1">
-                        {pendingRequests.map((req) => (
-                          <div key={req.id} className="p-3 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group/rect">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center overflow-hidden">
-                                {req.avatar ? <img src={req.avatar} className="w-full h-full object-cover" /> : <UserIcon size={14} />}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[11px] font-black leading-tight uppercase tracking-tighter italic">{req.name}</span>
-                                <span className="text-[9px] text-text-soft">wants to connect</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button 
-                                onClick={() => handleAcceptRequest(req.id)}
-                                className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"
-                              >
-                                <CheckCircle2 size={14} />
-                              </button>
-                              <button className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-                                <XCircle size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Link 
-                    href="/friends" 
-                    onClick={() => setIsNotificationsOpen(false)}
-                    className="block p-3 text-center text-[10px] font-black uppercase tracking-widest text-text-soft hover:bg-white/5 transition-colors border-t border-white/5"
-                  >
-                    View Social Hub
-                  </Link>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Notification Bell — Real API-backed */}
+          <NotificationBell />
 
           {/* ── Premium Button (only for free/unauthenticated users) ── */}
           {user && (user.plan === 'free' || !user.plan) && (
@@ -494,34 +419,14 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 lg:gap-3 p-1 rounded-xl lg:rounded-2xl hover:bg-white/5 transition-all outline-none group/profile"
               >
-                <div className={cn(
-                  "relative w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center"
-                )}>
-                  {/* Plan-coloured ring */}
-                  <svg className="absolute inset-0 w-full h-full -rotate-90 transform" viewBox="0 0 36 36">
-                    <circle className="text-white/5" strokeWidth="2" stroke="currentColor" fill="transparent" r="16" cx="18" cy="18" />
-                    <motion.circle
-                      initial={{ strokeDasharray: "0 100" }}
-                      animate={{ strokeDasharray: `${profileCompletion} 100` }}
-                      className={cn(
-                        "transition-all duration-1000",
-                        profileCompletion === 100 ? "text-emerald-500" : profileCompletion > 50 ? "text-accent" : "text-amber-500"
-                      )}
-                      strokeWidth="2.5" strokeLinecap="round" stroke="currentColor"
-                      fill="transparent" r="16" cx="18" cy="18"
-                      style={{ filter: `drop-shadow(0 0 2px currentColor)` }}
-                    />
-                  </svg>
-                  <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg lg:rounded-xl bg-gradient-to-tr from-accent to-accent-alt p-0.5 shadow-lg relative z-10 transition-transform group-hover/profile:scale-105">
-                    <div className="w-full h-full rounded-md lg:rounded-lg bg-background flex items-center justify-center overflow-hidden">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <UserIcon size={16} className="text-text-soft" />
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <AvatarFrame
+                  src={user?.avatar}
+                  name={user?.name}
+                  size="sm"
+                  frame={(user as any)?.avatarFrame}
+                  plan={user?.plan}
+                  className="shrink-0"
+                />
                 
                 <div className="hidden md:flex flex-col items-start leading-none gap-1">
                   <div className="flex items-center gap-2">

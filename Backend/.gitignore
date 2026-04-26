@@ -1,5 +1,15 @@
 node_modules
-# Keep environment variables out of version control
 .env
-
 /generated/prisma
+uploads/
+
+# Debug / scratch files
+*.log
+debug.log
+check.js
+check_models.js
+inspect_db.js
+scratch_*.js
+verify_*.js
+scratch/
+scripts/seed*.js

@@ -15,6 +15,7 @@ import api from '@/lib/axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { encryptChatMessage, decryptChatMessage } from '@/lib/crypto';
+import { logger } from '@/lib/logger';
 
 export default function FriendsPage() {
   const { user } = useAuth();
@@ -56,7 +57,7 @@ export default function FriendsPage() {
     if (!socket) return;
 
     const handleInitialOnline = (ids: string[]) => {
-      console.log("[Social] Received initial online list:", ids);
+      logger.debug('[Social] Received initial online list:', ids);
       setOnlineUsers(new Set(ids));
     };
 
@@ -142,7 +143,7 @@ export default function FriendsPage() {
 
       // Encrypt if friend has a public key registered
       if (selectedFriend.publicKey) {
-        console.log("[E2EE] Encrypting for @", selectedFriend.username);
+        logger.debug('[E2EE] Encrypting for @', selectedFriend.username);
         finalContent = await encryptChatMessage(textToSend, selectedFriend.publicKey);
         isEncrypted = true;
       }

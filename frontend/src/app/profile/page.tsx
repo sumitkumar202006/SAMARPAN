@@ -35,6 +35,8 @@ import { cn } from '@/lib/utils';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
+import { AvatarFrame } from '@/components/ui/AvatarFrame';
+import { PlanBadge } from '@/components/ui/PlanBadge';
 
 // Avatar Presets Matrix (DiceBear Collections)
 const AVATAR_STUFF = [
@@ -157,20 +159,22 @@ export default function ProfilePage() {
              
              <div className="relative z-10 flex flex-col items-center gap-6">
                 <div className="relative">
-                   <div className="w-28 h-28 rounded-[40px] bg-gradient-to-tr from-accent to-accent-alt p-1 shadow-2xl relative">
-                      <div className="w-full h-full rounded-[36px] bg-background flex items-center justify-center overflow-hidden border-2 border-background">
-                         <img src={stats?.avatar || user?.avatar || '/favicon.ico'} className="w-full h-full object-cover scale-110" />
-                      </div>
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-accent flex items-center justify-center border-4 border-background text-white shadow-lg">
-                         <Check size={14} />
-                      </div>
-                   </div>
+                  <AvatarFrame
+                    src={stats?.avatar || user?.avatar}
+                    name={stats?.name || user?.name}
+                    size="xl"
+                    frame={user?.avatarFrame}
+                    plan={user?.plan}
+                  />
                 </div>
 
                 <div className="text-center">
                    <h3 className="text-2xl font-black uppercase italic tracking-tight">{stats?.name || user?.name}</h3>
-                   <div className={cn("mt-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] inline-block", rank.bg, rank.color)}>
+                   <div className={cn("mt-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] inline-block", rank.bg, rank.color)}>
                       {rank.label} PILOT
+                   </div>
+                   <div className="mt-2">
+                     <PlanBadge plan={user?.plan || 'free'} size="sm" />
                    </div>
                 </div>
              </div>
@@ -179,12 +183,25 @@ export default function ProfilePage() {
                 <div className="flex justify-between items-end">
                    <div>
                       <p className="text-[9px] text-text-soft uppercase font-black mb-1">Global Rating</p>
-                      <p className="text-3xl font-black text-accent-alt">{stats?.globalRating || 1200}</p>
+                      <p className="text-3xl font-black text-accent-alt">{stats?.globalRating || user?.globalRating || 1200}</p>
                    </div>
                    <div className="text-right">
                       <p className="text-[9px] text-text-soft uppercase font-black mb-1">Total XP</p>
-                      <p className="text-xl font-black italic">{stats?.xp || 0}</p>
+                      <p className="text-xl font-black italic">{stats?.xp || user?.xp || 0}</p>
                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Wins',   val: user?.totalWins    || 0, icon: Trophy,  color: 'text-yellow-400' },
+                    { label: 'Streak', val: `${user?.dailyStreak   || 0}🔥`, icon: Flame, color: 'text-orange-400' },
+                    { label: 'Best',   val: `${user?.bestWinStreak || 0}W`, icon: Sword, color: 'text-accent' },
+                  ].map((s, i) => (
+                    <div key={i} className="p-3 rounded-2xl bg-white/5 border border-white/5 text-center">
+                      <p className="text-[8px] text-text-soft uppercase font-black">{s.label}</p>
+                      <p className={cn('font-black text-sm mt-0.5', s.color)}>{s.val}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="p-5 rounded-3xl bg-white/5 border border-white/10 space-y-3 shadow-inner">
@@ -333,21 +350,37 @@ export default function ProfilePage() {
              </div>
              
              <div className="space-y-4">
-                <div className="flex justify-between items-center text-[9px] font-black uppercase">
-                   <span className="text-text-soft">Matches won</span>
-                   <span className="text-white">64%</span>
-                </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: '64%' }} />
-                </div>
-
-                <div className="flex justify-between items-center text-[9px] font-black uppercase">
-                   <span className="text-text-soft">Accuracy</span>
-                   <span className="text-white">82%</span>
-                </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                   <div className="h-full bg-accent-alt rounded-full" style={{ width: '82%' }} />
-                </div>
+                {(() => {
+                   const wins   = user?.totalWins   || 0;
+                   const losses = user?.totalLosses || 0;
+                   const total  = wins + losses;
+                   const winPct = total > 0 ? Math.round((wins / total) * 100) : 0;
+                   return (
+                     <>
+                       <div className="flex justify-between items-center text-[9px] font-black uppercase">
+                         <span className="text-text-soft">Win Rate</span>
+                         <span className="text-white">{winPct}% ({wins}W/{losses}L)</span>
+                       </div>
+                       <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${winPct}%` }} />
+                       </div>
+                       <div className="flex justify-between items-center text-[9px] font-black uppercase">
+                         <span className="text-text-soft">Best Streak</span>
+                         <span className="text-white">{user?.bestWinStreak || 0} Wins</span>
+                       </div>
+                       <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                         <div className="h-full bg-accent-alt rounded-full transition-all" style={{ width: `${Math.min((user?.bestWinStreak || 0) * 10, 100)}%` }} />
+                       </div>
+                       <div className="flex justify-between items-center text-[9px] font-black uppercase">
+                         <span className="text-text-soft">Daily Streak</span>
+                         <span className="text-orange-400">{user?.dailyStreak || 0} 🔥</span>
+                       </div>
+                       <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                         <div className="h-full bg-orange-400 rounded-full transition-all" style={{ width: `${Math.min((user?.dailyStreak || 0) * 10, 100)}%` }} />
+                       </div>
+                     </>
+                   );
+                 })()}
              </div>
           </div>
 

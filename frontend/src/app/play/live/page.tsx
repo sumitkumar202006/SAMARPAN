@@ -47,7 +47,8 @@ function LivePlayContent() {
         setQuiz(res.data.quiz);
         const playAsHost = searchParams.get('playAsHost') === 'true';
         const userId = user?.id || user?.userId;
-        if (user && res.data.hostId === userId && !playAsHost) {
+        // Never show host dashboard for matchmade sessions
+        if (!res.data.matchmade && user && res.data.hostId === userId && !playAsHost) {
           setIsHost(true);
         }
       }
@@ -88,9 +89,9 @@ function LivePlayContent() {
       if (data.examSettings) setExamSettings(data.examSettings);
       setLoading(false);
       setHasJoinedRoom(true);
-      // Determine host status from session data
+      // Never show host dashboard for matchmade sessions (no real host)
       const playAsHost = searchParams.get('playAsHost') === 'true';
-      if (user && data.hostId === user.userId && !playAsHost) {
+      if (!data.matchmade && user && data.hostId === (user.id || user.userId) && !playAsHost) {
         setIsHost(true);
       }
     };

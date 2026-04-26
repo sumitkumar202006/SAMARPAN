@@ -1785,16 +1785,18 @@ function buildFullStateSnapshot(session) {
   return {
     status: session.status,
     questionIndex: session.currentQ,
-    stateVersion: session.stateVersion || 0, // SYNC FIX: include version for monotonic guard
+    stateVersion: session.stateVersion || 0,
     timeLeft: session.timeLeft || 0,
     timerSeconds: session.timerSeconds,
     timerMode: session.timerMode || 'per-question',
     serverTs: Date.now(),
     mode: session.mode || 'hub',
+    matchmade: !!session.matchmade,   // ← tells frontend: no host dashboard
+    hostId: session.hostId || null,   // ← for host detection in regular sessions
     quiz: {
       id: session.quiz.id,
       title: session.quiz.title,
-      questions: safeQuestions(session.quiz.questions), // STRIPPED — no correctIndex
+      questions: safeQuestions(session.quiz.questions),
       totalQuestions: (session.quiz.questions || []).length
     },
     currentQuestion: safeQuestion(currentQ),
@@ -1804,6 +1806,7 @@ function buildFullStateSnapshot(session) {
     players: Object.values(session.players).length
   };
 }
+
 
 function endSessionImmediately(pin, reason) {
   const session = liveSessions.get(pin);

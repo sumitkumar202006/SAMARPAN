@@ -82,24 +82,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     setIsMounted(true);
-    // 1. Check URL for social login tokens
+    // 1. Check URL for social login tokens (OAuth callback drops ?token=JWT&user=JSON)
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     if (token) {
-      const uId = params.get('userId') || '';
+      let userData: any = {};
+
+      // Backend sends ?token=JWT&user=ENCODED_JSON
+      const userRaw = params.get('user');
+      if (userRaw) {
+        try {
+          userData = JSON.parse(decodeURIComponent(userRaw));
+        } catch {
+          // ignore parse failure — use individual params below
+        }
+      }
+
+      // Fallback: individual params (legacy)
+      if (!userData.email) {
+        userData = {
+          id:       params.get('userId') || '',
+          name:     params.get('name')   || '',
+          email:    params.get('email')  || '',
+          avatar:   params.get('avatar') || '',
+          username: params.get('username') || '',
+        };
+      }
+
       const newUser: User = {
         token,
-        id: uId,
-        userId: uId,
-        name: params.get('name') || '',
-        email: params.get('email') || '',
-        avatar: params.get('avatar') || '',
-        username: params.get('username') || '',
+        id:       userData.id || userData._id || '',
+        userId:   userData.id || userData._id || '',
+        name:     userData.name     || '',
+        email:    userData.email    || '',
+        avatar:   userData.avatar   || '',
+        username: userData.username || '',
+        plan:     userData.plan     || 'free',
+        role:     userData.role     || 'user',
       };
       setUserState(newUser);
       localStorage.setItem('samarpanUser', JSON.stringify(newUser));
-      
-      // Clear URL params
+
+      // Clean URL so token doesn't leak in browser history
       const url = new URL(window.location.href);
       url.search = '';
       window.history.replaceState({}, document.title, url.toString());
@@ -125,23 +149,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncProfile = async () => {
       try {
-        const [profileRes, billingRes] = await Promise.allSettled([
-          api.get(`/api/user/profile/${user.email}`),
-          api.get('/api/billing/status'),
-        ]);
+        // Sync profile data
+        const profileRes = await api.get(`/api/user/profile/${user.email}`);
+        let updatedUser = { ...user, ...profileRes.data };
 
-        let updatedUser = { ...user };
-        if (profileRes.status === 'fulfilled' && profileRes.value.data) {
-          updatedUser = { ...updatedUser, ...profileRes.value.data };
+        // Sync billing — may 401 on first OAuth login tick, that's OK
+        try {
+          const billingRes = await api.get('/api/billing/status');
+          if (billingRes.data) {
+            updatedUser.plan       = billingRes.data.plan       || 'free';
+            updatedUser.planStatus = billingRes.data.status     || 'none';
+          }
+        } catch {
+          // Billing 401 on first load — keep existing plan (default: 'free')
+          updatedUser.plan = updatedUser.plan || 'free';
         }
-        if (billingRes.status === 'fulfilled' && billingRes.value.data) {
-          updatedUser.plan = billingRes.value.data.plan || 'free';
-          updatedUser.planStatus = billingRes.value.data.status || 'none';
-        }
+
         setUserState(updatedUser);
         localStorage.setItem('samarpanUser', JSON.stringify(updatedUser));
       } catch (err) {
-        console.error('Profile sync failed', err);
+        logger.debug('[Auth] Profile sync failed silently', err);
       }
     };
 

@@ -464,9 +464,9 @@ export default function FriendsPage() {
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
                         className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-50 overflow-hidden"
                       >
-                        {/* Clear Chat */}
+                        {/* Clear Chat — one click, no confirm needed */}
                         <button
-                          onClick={() => { setShowOptionsMenu(false); setShowClearConfirm(true); }}
+                          onClick={clearChat}
                           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-orange-500/10 text-text-soft hover:text-orange-400 transition-all text-[10px] font-black uppercase tracking-widest"
                         >
                           <Eraser size={14} /> Clear Chat

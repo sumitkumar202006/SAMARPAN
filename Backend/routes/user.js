@@ -3,17 +3,51 @@ const router = express.Router();
 const prisma = require("../services/db");
 const { mapId } = require("../services/compatibility");
 
+// Safe user fields to expose publicly
+const USER_PUBLIC_SELECT = {
+  id:                true,
+  name:              true,
+  username:          true,
+  email:             true,
+  avatar:            true,
+  avatarFrame:       true,
+  college:           true,
+  course:            true,
+  customField:       true,
+  preferredField:    true,
+  interest:          true,
+  globalRating:      true,
+  xp:                true,
+  totalWins:         true,
+  totalLosses:       true,
+  winStreak:         true,
+  bestWinStreak:     true,
+  dailyStreak:       true,
+  role:              true,
+  status:            true,
+  settings:          true,
+  dob:               true,
+  publicKey:         true,
+  provider:          true,
+  lastUsernameChange:true,
+  lastPlayedAt:      true,
+  createdAt:         true,
+  updatedAt:         true,
+  // passwordHash, otp, otpExpires, googleId, facebookId intentionally omitted
+};
+
 // Get User Profile & Settings
 router.get('/profile/:email', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ 
-      where: { email: req.params.email.toLowerCase().trim() } 
+      where:  { email: req.params.email.toLowerCase().trim() },
+      select: USER_PUBLIC_SELECT,
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(mapId(user));
   } catch (err) {
     console.error("User profile fetch error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to fetch profile' }); // no err.message leak
   }
 });
 
@@ -150,7 +184,7 @@ router.put('/settings', async (req, res) => {
     res.json(mapId(user));
   } catch (err) {
     console.error("User settings update error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to update settings' }); // no err.message leak
   }
 });
 

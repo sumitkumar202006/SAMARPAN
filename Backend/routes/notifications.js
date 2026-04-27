@@ -94,6 +94,9 @@ async function notifyFriends(userId, notification) {
   }
 }
 
-module.exports.createNotification = createNotification;
-module.exports.notifyFriends      = notifyFriends;
-module.exports.router             = router;
+// ─── Single clean export — all consumers use the same object ─────────────────
+module.exports = {
+  router,
+  createNotification,
+  notifyFriends,
+};

@@ -5,13 +5,13 @@ const { mapId } = require("../services/compatibility");
 const { generateQuizQuestions } = require("../services/gptService");
 const { authenticate, getEffectivePlan, PLAN_LIMITS } = require("../middleware/planGate");
 
-// ─── POST /api/quizzes — Create quiz ─────────────────────────────────────────
-router.post("/", async (req, res) => {
+// ─── POST /api/quizzes — Create quiz (authenticated) ───────────────────────────
+router.post("/", authenticate, async (req, res) => {
   try {
     const { title, topic, authorId, questions, tags, aiGenerated } = req.body;
 
-    if (!title || !authorId || !questions || !questions.length) {
-      return res.status(400).json({ error: "title, authorId and at least 1 question required" });
+    if (!title || !questions || !questions.length) {
+      return res.status(400).json({ error: "title and at least 1 question required" });
     }
 
     // Validate question schema
@@ -27,12 +27,16 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Each question must have question, 4 options, and a valid correctIndex (0-3)" });
     }
 
-    let resolvedAuthorId = authorId;
-    if (typeof authorId === "string" && authorId.includes("@")) {
-      const user = await prisma.user.findUnique({ where: { email: authorId.toLowerCase().trim() } });
-      if (!user) return res.status(400).json({ error: "User not found for this authorId" });
-      resolvedAuthorId = user.id;
+    // Resolve authorId: prefer authenticated user, fall back to body (email lookup)
+    let resolvedAuthorId = req.user?.id;
+
+    // Resolve authorId fallback: body email lookup for legacy calls
+    if (!resolvedAuthorId && typeof authorId === "string" && authorId.includes("@")) {
+      const u = await prisma.user.findUnique({ where: { email: authorId.toLowerCase().trim() } });
+      if (!u) return res.status(400).json({ error: "User not found for this authorId" });
+      resolvedAuthorId = u.id;
     }
+    if (!resolvedAuthorId) return res.status(400).json({ error: "Could not resolve author" });
 
     // Deduplicate questions by text (AI quality control)
     const seen = new Set();

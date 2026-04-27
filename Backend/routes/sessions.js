@@ -2,13 +2,12 @@ const express = require("express");
 const router  = express.Router();
 const prisma  = require("../services/db");
 const { mapId } = require("../services/compatibility");
-const { authenticate } = require("../middleware/planGate");
-const { getEffectivePlan } = require("../middleware/planGate");
+const { authenticate, getEffectivePlan, getEffectiveLimits } = require("../middleware/planGate");
+const { generateQuizQuestions } = require("../services/gptService");
 
-// ─── POST /api/sessions/start — Host/create game session ─────────────────────
+
+// --- POST /api/sessions/start --- Host/create game session ---
 router.post("/start", async (req, res) => {
-  const { generateQuizQuestions } = require("../services/gptService");
-  const { PLAN_LIMITS } = require("../middleware/planGate");
   try {
     const {
       quizId,
@@ -31,7 +30,8 @@ router.post("/start", async (req, res) => {
 
     // Plan enforcement
     const plan   = await getEffectivePlan(user.id);
-    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    const allLimits = await getEffectiveLimits();
+    const limits = allLimits[plan] || allLimits.free;
 
     if (rated && !limits.ratedMatches) {
       return res.status(402).json({ error: "Rated matches require Blaze Pro or higher." });
@@ -117,7 +117,7 @@ router.post("/start", async (req, res) => {
   }
 });
 
-// ─── GET /api/sessions/analytics/:pin ────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ GET /api/sessions/analytics/:pin Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 router.get("/analytics/:pin", async (req, res) => {
   const { pin } = req.params;
   try {
@@ -168,7 +168,7 @@ router.get("/analytics/:pin", async (req, res) => {
   }
 });
 
-// ─── GET /api/sessions/session/:pin — Session by PIN ─────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ GET /api/sessions/session/:pin Ã¢â‚¬â€ Session by PIN Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 router.get("/session/:pin", async (req, res) => {
   try {
     const session = await prisma.gameSession.findUnique({
@@ -186,7 +186,7 @@ router.get("/session/:pin", async (req, res) => {
   }
 });
 
-// ─── GET /api/sessions/active/:email — Active sessions for host ───────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ GET /api/sessions/active/:email Ã¢â‚¬â€ Active sessions for host Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 router.get("/active/:email", async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { email: req.params.email.toLowerCase().trim() } });
@@ -209,7 +209,7 @@ router.get("/active/:email", async (req, res) => {
   }
 });
 
-// ─── GET /api/sessions/ratings/:email — Rating history for profile page ────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ GET /api/sessions/ratings/:email Ã¢â‚¬â€ Rating history for profile page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 router.get("/ratings/:email", async (req, res) => {
   try {
     const user = await prisma.user.findUnique({

@@ -1,23 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, 
-  Zap, 
-  FileText, 
-  Mic, 
-  Trash2, 
-  Save, 
-  ChevronDown, 
-  ChevronUp, 
-  HelpCircle,
-  Trophy,
-  Wand2,
-  ListPlus,
-  Users,
-  Check,
-  Activity
+  Plus, Zap, FileText, Trash2, HelpCircle, Trophy, Wand2,
+  ListPlus, Users, Check, Activity, ImageIcon, Upload,
+  Lock, AlertCircle, X, FileUp
 } from 'lucide-react';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +16,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { toast } from '@/lib/toast';
+import DocExtractor from '@/components/DocExtractor';
 
 interface Question {
   question: string;
@@ -41,11 +30,21 @@ export default function CreatePage() {
   const { playSuccess } = useAudio();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
-  
-  // AI Form State
+
+  // AI Forge State
+  const [aiForgeMode, setAiForgeMode] = useState<'topic' | 'pdf' | 'image'>('topic');
   const [aiData, setAiData] = useState({ topic: '', title: '', difficulty: 'medium', count: 5 });
   const [aiStatus, setAiStatus] = useState<string | null>(null);
   const [createdQuiz, setCreatedQuiz] = useState<any | null>(null);
+
+  // File upload state
+  const [pdfFile,   setPdfFile]   = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const pdfInputRef   = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const canUpload = user?.plan && user.plan !== 'free';
 
   // Manual Editor State
   const [manualTitle, setManualTitle] = useState('');
@@ -57,6 +56,19 @@ export default function CreatePage() {
     correctIndex: 0,
     explanation: ''
   });
+
+  // Doc Extractor
+  const [showDocExtractor, setShowDocExtractor] = useState(false);
+
+  const handleDocImport = (imported: Question[]) => {
+    setQuestions(prev => {
+      // Deduplicate by question text
+      const existing = new Set(prev.map(q => q.question.trim().toLowerCase()));
+      const fresh = imported.filter(q => !existing.has(q.question.trim().toLowerCase()));
+      return [...prev, ...fresh];
+    });
+    setShowDocExtractor(false);
+  };
 
   const handleAddQuestion = () => {
     if (!currentQ.question || currentQ.options.some(opt => !opt)) {
@@ -100,29 +112,71 @@ export default function CreatePage() {
   };
 
   const handleAiGenerate = async () => {
-    if (!aiData.topic || !aiData.title) {
-      toast.warn('Please provide a topic and title.');
-      return;
-    }
+    if (!aiData.topic || !aiData.title) { toast.warn('Please provide a topic and title.'); return; }
     setAiStatus('Initializing Neural Forge...');
     try {
       const res = await api.post('/api/ai/generate-quiz', {
-        ...aiData,
-        title: aiData.title.toUpperCase(),
-        userId: user?.email || user?.userId
+        ...aiData, title: aiData.title.toUpperCase(), userId: user?.email || user?.userId
       });
-      
-      if (res.data.quiz) {
-        setCreatedQuiz(res.data.quiz);
-        playSuccess();
-      }
+      if (res.data.quiz) { setCreatedQuiz(res.data.quiz); playSuccess(); }
       setAiStatus('Synthesis successful.');
     } catch (err: any) {
-      console.error("AI Gen error:", err);
-      const errorMsg = err.response?.data?.details || err.message || 'Unknown error';
-      setAiStatus(`Neural Failure: ${errorMsg}`);
+      setAiStatus(`Neural Failure: ${err.response?.data?.details || err.message}`);
     }
   };
+
+  const handlePdfGenerate = async () => {
+    if (!pdfFile)          { toast.warn('Please select a PDF file.'); return; }
+    if (!aiData.title)     { toast.warn('Please enter a quiz title.'); return; }
+    setAiStatus('Extracting PDF content...');
+    try {
+      const form = new FormData();
+      form.append('pdf', pdfFile);
+      form.append('title', aiData.title.toUpperCase());
+      form.append('difficulty', aiData.difficulty);
+      form.append('count', String(aiData.count));
+      form.append('userId', user?.email || user?.userId || '');
+      const res = await api.post('/api/ai/generate-from-pdf', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.quiz) { setCreatedQuiz(res.data.quiz); playSuccess(); }
+      setAiStatus('PDF synthesis complete.');
+    } catch (err: any) {
+      const msg = err.response?.data?.details || err.response?.data?.error || err.message;
+      toast.error(msg || 'PDF generation failed');
+      setAiStatus(null);
+    }
+  };
+
+  const handleImageGenerate = async () => {
+    if (!imageFile)    { toast.warn('Please select an image.'); return; }
+    if (!aiData.title) { toast.warn('Please enter a quiz title.'); return; }
+    setAiStatus('Analyzing image via Vision AI...');
+    try {
+      const form = new FormData();
+      form.append('image', imageFile);
+      form.append('title', aiData.title.toUpperCase());
+      form.append('difficulty', aiData.difficulty);
+      form.append('count', String(aiData.count));
+      form.append('userId', user?.email || user?.userId || '');
+      const res = await api.post('/api/ai/generate-from-image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.quiz) { setCreatedQuiz(res.data.quiz); playSuccess(); }
+      setAiStatus('Image synthesis complete.');
+    } catch (err: any) {
+      const msg = err.response?.data?.details || err.response?.data?.error || err.message;
+      toast.error(msg || 'Image generation failed');
+      setAiStatus(null);
+    }
+  };
+
+  const onImageSelected = useCallback((file: File) => {
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }, []);
 
   return (
     <AuthGuard>
@@ -177,7 +231,7 @@ export default function CreatePage() {
                      if (!id || !user?.token) return;
                      try {
                        const res = await api.post('/api/ai/auto-tag', { quizId: id }, { headers: { Authorization: `Bearer ${user.token}` } });
-                       setAiStatus(`✨ Tagged: ${res.data.tags?.tags?.join(', ') || 'Done'}`);
+                       setAiStatus(`âœ¨ Tagged: ${res.data.tags?.tags?.join(', ') || 'Done'}`);
                      } catch { setAiStatus('Auto-tag failed'); }
                    }}
                    className="py-5 bg-accent/10 border border-accent/20 text-accent font-black text-xs uppercase tracking-[0.3em] rounded-3xl hover:bg-accent hover:text-white transition-all flex items-center justify-center gap-3"
@@ -190,7 +244,7 @@ export default function CreatePage() {
                      if (!id || !user?.token) return;
                      try {
                        await api.post(`/api/marketplace/${id}/list`, {}, { headers: { Authorization: `Bearer ${user.token}` } });
-                       setAiStatus('✅ Published to Marketplace!');
+                       setAiStatus('âœ… Published to Marketplace!');
                      } catch { setAiStatus('Publish failed'); }
                    }}
                    className="py-5 bg-accent-alt/10 border border-accent-alt/20 text-accent-alt font-black text-xs uppercase tracking-[0.3em] rounded-3xl hover:bg-accent-alt hover:text-white transition-all flex items-center justify-center gap-3"
@@ -246,9 +300,9 @@ export default function CreatePage() {
                       <h4 className="text-[10px] font-black uppercase tracking-widest italic">Forge Protocol</h4>
                    </div>
                    <ul className="space-y-3 text-[9px] text-text-soft italic leading-relaxed border-l-2 border-white/10 pl-4">
-                      <li>• Mix Easy, Medium and Hard nodes for balance.</li>
-                      <li>• Precise explanations boost neural accuracy.</li>
-                      <li>• AI results can be patched after synthesis.</li>
+                      <li>â€¢ Mix Easy, Medium and Hard nodes for balance.</li>
+                      <li>â€¢ Precise explanations boost neural accuracy.</li>
+                      <li>â€¢ AI results can be patched after synthesis.</li>
                    </ul>
                 </div>
               </div>
@@ -324,42 +378,133 @@ export default function CreatePage() {
                               >
                                  <Plus size={16} /> Enlist Module
                               </button>
+                               {/* ── Import from Doc/PDF ───────────────────── */}
+                               <div className="pt-1">
+                                 <button
+                                   onClick={() => setShowDocExtractor(v => !v)}
+                                   className={cn(
+                                     "w-full py-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                                     showDocExtractor
+                                       ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-400"
+                                       : "border-white/10 bg-white/3 text-text-soft hover:text-white hover:border-white/20"
+                                   )}
+                                 >
+                                   <FileUp size={12} />
+                                   {showDocExtractor ? 'Hide Doc Importer' : 'Import from PDF / DOCX'}
+                                 </button>
+                                 <AnimatePresence>
+                                   {showDocExtractor && (
+                                     <motion.div
+                                       initial={{ height: 0, opacity: 0 }}
+                                       animate={{ height: 'auto', opacity: 1 }}
+                                       exit={{ height: 0, opacity: 0 }}
+                                       transition={{ duration: 0.25 }}
+                                       className="overflow-hidden"
+                                     >
+                                       <div className="pt-5 border-t border-white/5 mt-4">
+                                         <DocExtractor onImport={handleDocImport} />
+                                       </div>
+                                     </motion.div>
+                                   )}
+                                 </AnimatePresence>
+                               </div>
                            </div>
                         </motion.div>
                       ) : (
                         <motion.div 
                           key="ai"
                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                          className="space-y-8"
+                          className="space-y-5"
                         >
-                           <div className="space-y-2">
-                             <div className="px-3 py-1 bg-accent-alt/10 border border-accent-alt/30 rounded-lg inline-block">
-                                <span className="text-[9px] font-black uppercase text-accent-alt tracking-widest">Neural Forge Active</span>
-                             </div>
-                             <h3 className="text-xl font-black uppercase italic tracking-tighter">AI Synthesis</h3>
-                             <p className="text-[10px] text-text-soft leading-relaxed pr-4">Personalization context detected from your <span className="text-white">Profile Node</span>. AI will prioritize relevant challenges.</p>
-                           </div>
-
-                           <div className="space-y-6 pt-4">
-                              <Input label="Neural Topic" placeholder="Eg. Quantum Mechanics" value={aiData.topic} onChange={(e: any) => setAiData({...aiData, topic: e.target.value})} className="bg-background/20" />
-                              <Input label="Asset Title" placeholder="Eg. Custom AI Session" value={aiData.title} onChange={(e: any) => setAiData({...aiData, title: e.target.value})} className="bg-background/20" />
-                              
-                              <div className="grid grid-cols-2 gap-4">
-                                 <Select label="Complexity" value={aiData.difficulty} onChange={(e: any) => setAiData({...aiData, difficulty: e.target.value})}>
-                                    <option value="easy">RECRUIT</option>
-                                    <option value="medium">VETERAN</option>
-                                    <option value="hard">ELITE</option>
-                                 </Select>
-                                 <Input label="Module Count" type="number" value={aiData.count} onChange={(e: any) => setAiData({...aiData, count: parseInt(e.target.value)})} />
-                              </div>
-
-                              <button 
-                                onClick={handleAiGenerate}
-                                className="w-full py-5 bg-accent-alt font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl transition-all hover:scale-[1.02] shadow-xl flex items-center justify-center gap-3 group"
-                              >
-                                 <Wand2 size={18} className="group-hover:rotate-12 transition-transform" /> Start Synthesis
+                          {/* Mode selector */}
+                          <div className="grid grid-cols-3 gap-1.5 bg-white/5 p-1.5 rounded-2xl border border-white/5">
+                            {([
+                              { id: 'topic', label: 'Topic', icon: Wand2, locked: false },
+                              { id: 'pdf',   label: 'PDF',   icon: FileUp, locked: !canUpload },
+                              { id: 'image', label: 'Image', icon: ImageIcon, locked: !canUpload },
+                            ] as const).map((m) => (
+                              <button key={m.id} onClick={() => setAiForgeMode(m.id)}
+                                className={cn("py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
+                                  aiForgeMode === m.id ? "bg-accent text-white shadow-lg" : "text-text-soft hover:text-white")}>
+                                {m.locked ? <Lock size={10} /> : <m.icon size={10} />}
+                                {m.label}
+                                {m.locked && <span className="text-[7px] text-amber-400">PRO</span>}
                               </button>
-                           </div>
+                            ))}
+                          </div>
+                          {/* Shared fields */}
+                          <div className="space-y-3">
+                            <Input label="Quiz Title" placeholder="Eg. DBMS EXAM 2025" value={aiData.title} onChange={(e: any) => setAiData({...aiData, title: e.target.value})} className="bg-background/20" />
+                            <div className="grid grid-cols-2 gap-3">
+                              <Select label="Difficulty" value={aiData.difficulty} onChange={(e: any) => setAiData({...aiData, difficulty: e.target.value})}>
+                                <option value="easy">RECRUIT</option><option value="medium">VETERAN</option><option value="hard">ELITE</option>
+                              </Select>
+                              <Input label="Count" type="number" value={aiData.count} onChange={(e: any) => setAiData({...aiData, count: parseInt(e.target.value)||5})} />
+                            </div>
+                          </div>
+                          {/* TOPIC */}
+                          {aiForgeMode === 'topic' && (
+                            <div className="space-y-4">
+                              <Input label="Topic" placeholder="Eg. Quantum Mechanics" value={aiData.topic} onChange={(e: any) => setAiData({...aiData, topic: e.target.value})} className="bg-background/20" />
+                              <button onClick={handleAiGenerate} disabled={!!aiStatus && !['Synthesis successful.'].includes(aiStatus||'')}
+                                className="w-full py-5 bg-accent-alt font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 group disabled:opacity-60 disabled:scale-100">
+                                <Wand2 size={16} className="group-hover:rotate-12 transition-transform" />
+                                {aiStatus && aiStatus !== 'Synthesis successful.' ? aiStatus : 'Generate from Topic'}
+                              </button>
+                            </div>
+                          )}
+                          {/* PDF */}
+                          {aiForgeMode === 'pdf' && (canUpload ? (
+                            <div className="space-y-4">
+                              <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setPdfFile(e.target.files?.[0]||null)} />
+                              <button onClick={() => pdfInputRef.current?.click()}
+                                className={cn("w-full py-8 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group",
+                                  pdfFile ? "border-emerald-500/40 bg-emerald-500/5" : "border-white/10 hover:border-indigo-400/40 hover:bg-white/5")}>
+                                <FileUp size={28} className={pdfFile ? "text-emerald-400" : "text-text-soft group-hover:text-indigo-400 transition-colors"} />
+                                {pdfFile ? <div className="text-center"><p className="text-xs font-black text-emerald-400">{pdfFile.name}</p><p className="text-[9px] text-text-soft">{(pdfFile.size/1024).toFixed(0)} KB ï¿½ Click to change</p></div>
+                                  : <div className="text-center"><p className="text-xs font-black text-white">Click to upload PDF</p><p className="text-[9px] text-text-soft">Max 5 MB ï¿½ PDF only</p></div>}
+                              </button>
+                              {pdfFile && <button onClick={() => setPdfFile(null)} className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-1"><X size={10}/>Remove file</button>}
+                              <button onClick={handlePdfGenerate} disabled={!pdfFile || (!!aiStatus && aiStatus !== 'PDF synthesis complete.')}
+                                className="w-full py-5 bg-indigo-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
+                                <Upload size={16} />{aiStatus && aiStatus !== 'PDF synthesis complete.' ? aiStatus : 'Generate from PDF'}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="py-10 rounded-3xl border border-amber-500/20 bg-amber-500/5 flex flex-col items-center gap-4 text-center">
+                              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400"><Lock size={24}/></div>
+                              <div><p className="font-black text-white text-sm">PDF Forge is Pro+</p><p className="text-[10px] text-text-soft mt-1">Upload PDFs to auto-generate quizzes.<br/>Available on Blaze Pro, Storm Elite & Institution.</p></div>
+                              <button onClick={() => router.push('/pricing')} className="px-6 py-3 rounded-2xl bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all">Upgrade Plan</button>
+                            </div>
+                          ))}
+                          {/* IMAGE */}
+                          {aiForgeMode === 'image' && (canUpload ? (
+                            <div className="space-y-4">
+                              <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
+                                onChange={(e) => { if (e.target.files?.[0]) onImageSelected(e.target.files[0]); }} />
+                              <button onClick={() => imageInputRef.current?.click()}
+                                className={cn("w-full rounded-3xl border-2 border-dashed transition-all flex flex-col items-center overflow-hidden group",
+                                  imageFile ? "border-emerald-500/40" : "border-white/10 hover:border-violet-400/40 py-8")}>
+                                {imagePreview ? (
+                                  <div className="relative w-full">
+                                    <img src={imagePreview} alt="Preview" className="w-full max-h-40 object-contain bg-black/20" />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center"><p className="text-white text-xs font-black">Click to change</p></div>
+                                  </div>
+                                ) : (<><ImageIcon size={28} className="text-text-soft group-hover:text-violet-400 transition-colors" /><div className="text-center mt-3"><p className="text-xs font-black text-white">Click to upload image</p><p className="text-[9px] text-text-soft">JPG, PNG, WEBP ï¿½ Max 5 MB</p></div></>)}
+                              </button>
+                              {imageFile && <div className="flex justify-between items-center"><p className="text-[9px] text-emerald-400 font-black">{imageFile.name}</p><button onClick={() => { setImageFile(null); setImagePreview(null); }} className="text-[9px] text-red-400 flex items-center gap-1"><X size={10}/>Remove</button></div>}
+                              <button onClick={handleImageGenerate} disabled={!imageFile || (!!aiStatus && aiStatus !== 'Image synthesis complete.')}
+                                className="w-full py-5 bg-violet-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
+                                <ImageIcon size={16} />{aiStatus && aiStatus !== 'Image synthesis complete.' ? aiStatus : 'Generate from Image'}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="py-10 rounded-3xl border border-violet-500/20 bg-violet-500/5 flex flex-col items-center gap-4 text-center">
+                              <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400"><Lock size={24}/></div>
+                              <div><p className="font-black text-white text-sm">Vision Forge is Pro+</p><p className="text-[10px] text-text-soft mt-1">Upload diagrams, notes & images to generate quizzes.<br/>Available on Blaze Pro, Storm Elite & Institution.</p></div>
+                              <button onClick={() => router.push('/pricing')} className="px-6 py-3 rounded-2xl bg-violet-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-violet-600 transition-all">Upgrade Plan</button>
+                            </div>
+                          ))}
                         </motion.div>
                       )}
                     </AnimatePresence>

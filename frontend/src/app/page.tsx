@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import AuthRedirect from '@/components/AuthRedirect';
 import {
   Zap, Trophy, Users, Brain, Shield, Star,
   ArrowRight, Play, ChevronRight, Globe, Award, TrendingUp
@@ -109,6 +110,9 @@ const TRUST_LOGOS = ['IIT', 'NIT', 'DU', 'BITS', 'VIT'];
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#020617] text-white overflow-x-hidden font-sans antialiased">
+
+      {/* Redirect logged-in users to dashboard — runs client-side, invisible to SSG/SEO */}
+      <AuthRedirect />
 
       {/* ── Structured Data (JSON-LD) ── */}
       <script

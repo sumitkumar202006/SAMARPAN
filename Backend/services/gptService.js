@@ -215,5 +215,119 @@ Rules:
   }
 }
 
-module.exports = { generateQuizQuestions, generateQuizFromText, generateSmartTags };
+async function generateQuizFromImage(base64Image, mimeType, difficulty, count = 5) {
+  const prompt = `You are a quiz generator. Analyze this image carefully and generate EXACTLY ${count} multiple-choice quiz questions based on the content visible in the image.
+Difficulty: ${difficulty}
+
+CRITICAL INSTRUCTIONS:
+1. You MUST generate EXACTLY ${count} questions based on what you see in the image.
+2. Questions must be directly answerable from the image content (text, diagrams, charts, equations, etc.).
+3. Return ONLY a raw JSON array. No markdown, no extra text.
+4. Each question must have exactly 4 options and a correct correctIndex (0-3).
+
+[
+  {
+    "question": "Question based on image content",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "explanation": "Explanation referencing what is visible in the image",
+    "difficulty": "${difficulty}"
+  }
+]`;
+
+  const visionModels = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"];
+  let lastError = null;
+
+  for (const model of visionModels) {
+    try {
+      console.log(`[AI-VISION] Attempting image analysis with model: ${model}`);
+      const response = await groq.chat.completions.create({
+        model,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${base64Image}` }
+            },
+            { type: "text", text: prompt }
+          ]
+        }],
+        temperature: 0.4,
+        max_tokens: 4096,
+      });
+
+      let rawText = response.choices[0].message.content.trim()
+        .replace(/```json|```/gi, "").trim();
+
+      const startIdx = rawText.indexOf("[");
+      const endIdx   = rawText.lastIndexOf("]");
+      if (startIdx !== -1 && endIdx !== -1) rawText = rawText.substring(startIdx, endIdx + 1);
+
+      rawText = rawText.replace(/,\s*\]/g, "]").replace(/,\s*\}/g, "}");
+
+      try {
+        const parsed = JSON.parse(rawText);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`[AI-VISION] Success with ${model}. Got ${parsed.length} questions.`);
+          return parsed;
+        }
+      } catch (_) {}
+
+      // Object-level recovery
+      const questionRegex = /\{[^{}]*"question"[^{}]*"options"[^{}]*"correctIndex"[^{}]*\}/gs;
+      const rawMatches = rawText.match(questionRegex) || [];
+      const recovered = [];
+      for (const match of rawMatches) {
+        try {
+          const q = JSON.parse(match);
+          if (q.question && Array.isArray(q.options) && typeof q.correctIndex === 'number') recovered.push(q);
+        } catch (_) {}
+      }
+      if (recovered.length > 0) return recovered;
+
+      throw new Error(`Vision parse failed for ${model}`);
+    } catch (err) {
+      console.warn(`[AI-VISION] Model ${model} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+
+  throw new Error(`Vision AI exhausted: ${lastError?.message}`);
+}
+
+/**
+ * EXTRACT — find existing Q&A already written in a document.
+ * Unlike generateQuizFromText (which creates new questions), this reads
+ * what the document already contains and structures it.
+ */
+async function extractQuizFromText(textContent) {
+  const prompt = `You are a quiz data extractor. The following text is from a document that already contains quiz questions, options, and answers. Your task is to extract ALL of them exactly as written — do NOT rephrase, do NOT generate new questions.
+
+TEXT:
+${textContent.substring(0, 20000)}
+
+EXTRACTION RULES:
+1. Extract every question you find, preserving the original wording exactly.
+2. Each question must have exactly 4 options (A/B/C/D or 1/2/3/4 or similar). If the document has fewer options for a question, pad with empty strings.
+3. correctIndex is 0-based (0=A, 1=B, 2=C, 3=D).
+4. If the document marks the correct answer (e.g. "Answer: B", "Ans: 2", asterisk, bold), map it to correctIndex. If ambiguous, use 0.
+5. If an explanation or rationale is present in the document, include it in "explanation". Otherwise use "".
+6. Return ONLY a raw JSON array. No markdown. No extra text.
+
+[
+  {
+    "question": "Exact question text from document",
+    "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+    "correctIndex": 1,
+    "explanation": "Any explanation found in the document, or empty string"
+  }
+]`;
+
+  return await callGroq(prompt);
+}
+
+module.exports = { generateQuizQuestions, generateQuizFromText, generateSmartTags, generateQuizFromImage, extractQuizFromText };
+
+
 

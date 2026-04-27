@@ -11,7 +11,39 @@ const debugLog = (msg) => {
   fs.appendFileSync(path.join(__dirname, "../debug.log"), logMsg);
 };
 const pdfParse = require("pdf-parse");
-const { generateQuizQuestions, generateQuizFromText, generateSmartTags } = require("../services/gptService");
+const mammoth  = require("mammoth");
+const { generateQuizQuestions, generateQuizFromText, generateSmartTags, generateQuizFromImage, extractQuizFromText } = require("../services/gptService");
+
+// ─── Multer for extraction: PDF + DOCX, 10MB ──────────────────────────────────
+const ALLOWED_DOC_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/msword', // .doc (older)
+];
+
+const uploadDoc = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const isAllowed = ALLOWED_DOC_TYPES.includes(file.mimetype)
+      || file.originalname.match(/\.(pdf|docx|doc)$/i);
+    if (isAllowed) cb(null, true);
+    else cb(new Error('Only PDF or DOCX files are allowed'), false);
+  },
+});
+
+// ─── Configure multer: memory storage, 5MB limit ──────────────────────────────
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+const uploadImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPG, PNG, WEBP, or GIF images are allowed'), false);
+  },
+});
+
 
 // ─── POST /api/ai/auto-tag — AI smart tagging for any quiz ────────────────────
 router.post("/auto-tag", authenticate, async (req, res) => {
@@ -211,4 +243,97 @@ router.post("/generate-from-pdf", authenticate, checkQuota("pdfUploads"), upload
   }
 });
 
+
+// Generate AI Quiz from Image (vision)
+// 🔒 Gated: authenticate + pdfUploads quota (shared upload budget)
+router.post("/generate-from-image", authenticate, checkQuota("pdfUploads"), uploadImage.single("image"), async (req, res) => {
+  debugLog(`POST /api/ai/generate-from-image | File: ${req.file ? req.file.originalname : "NONE"} | UserID: ${req.body.userId}`);
+  try {
+    const { title, difficulty, userId } = req.body;
+    let { count } = req.body;
+    count = parseInt(count, 10) || 5;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No image uploaded", details: "Please attach a JPG, PNG, or WEBP image." });
+    }
+    if (!title || !difficulty) {
+      return res.status(400).json({ error: "title & difficulty required" });
+    }
+
+    const base64Image = req.file.buffer.toString("base64");
+    const mimeType    = req.file.mimetype;
+
+    debugLog(`Calling vision AI with ${mimeType}, ${req.file.buffer.length} bytes...`);
+    const questions = await generateQuizFromImage(base64Image, mimeType, difficulty, count);
+    debugLog(`Vision AI generated ${questions.length} questions.`);
+
+    const authorId = await ensureAuthorId(userId);
+    const newQuiz  = await prisma.quiz.create({
+      data: {
+        title,
+        topic:       `Image: ${req.file.originalname}`,
+        authorId,
+        questions,
+        difficulty,
+        aiGenerated: true,
+        tags:        ["image-upload"],
+      }
+    });
+
+    res.json({
+      message: "AI Image Questions Generated & Saved Successfully",
+      quiz:    require("../services/compatibility").mapId(newQuiz),
+    });
+  } catch (err) {
+    debugLog(`IMAGE AI GEN ERROR: ${err.message}\nStack: ${err.stack}`);
+    console.error("Image AI Quiz Error:", err);
+    res.status(500).json({ error: "AI Quiz generation from image failed", details: err.message });
+  }
+});
+
+
+// ─── POST /api/ai/extract-quiz ─────────────────────────────────────────────────
+// Extract EXISTING Q&A from a PDF or DOCX doc. No quota consumed — just parsing.
+// Returns raw question array for client-side review before saving.
+router.post("/extract-quiz", authenticate, uploadDoc.single("doc"), async (req, res) => {
+  debugLog(`POST /api/ai/extract-quiz | File: ${req.file?.originalname || 'NONE'} | User: ${req.user?.id}`);
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded", details: "Please attach a PDF or DOCX file." });
+    }
+
+    let textContent = '';
+    const mime = req.file.mimetype;
+    const name = req.file.originalname.toLowerCase();
+
+    if (mime === 'application/pdf' || name.endsWith('.pdf')) {
+      debugLog('Parsing PDF...');
+      const pdfData = await pdfParse(req.file.buffer);
+      textContent = pdfData.text;
+    } else {
+      debugLog('Parsing DOCX via mammoth...');
+      const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+      textContent = result.value;
+    }
+
+    debugLog(`Text extracted. Length: ${textContent?.length || 0}`);
+
+    if (!textContent || textContent.trim().length < 30) {
+      return res.status(400).json({ error: 'Document appears to be empty or unreadable.' });
+    }
+
+    const questions = await extractQuizFromText(textContent);
+    debugLog(`Extracted ${questions.length} questions.`);
+
+    // Return questions for client review — NOT saved to DB yet
+    res.json({ questions, count: questions.length });
+  } catch (err) {
+    debugLog(`EXTRACT ERROR: ${err.message}`);
+    console.error('Extract quiz error:', err);
+    res.status(500).json({ error: 'Extraction failed', details: err.message });
+  }
+});
+
 module.exports = router;
+
+

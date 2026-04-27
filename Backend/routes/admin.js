@@ -328,11 +328,13 @@ router.put('/subscriptions/:userId/override', async (req, res) => {
       },
     });
 
-    // 2. Also update User.plan so direct user.plan reads stay fresh
-    await prisma.user.update({
-      where: { id: userId },
-      data:  { plan: finalPlan },
-    });
+    // 2. Try to update User.plan directly (gracefully skip if not in schema on this deployment)
+    try {
+      await prisma.user.update({ where: { id: userId }, data: { plan: finalPlan } });
+    } catch (e) {
+      // Field may not exist on stale deployed Prisma client — Subscription is the source of truth
+      console.warn('[Admin] Could not update User.plan (field may not exist in deployed client):', e.message);
+    }
 
     // 3. Reset quota on override
     await prisma.usageQuota.upsert({
@@ -365,8 +367,12 @@ router.put('/users/:id/plan', async (req, res) => {
     const periodEnd = new Date();
     periodEnd.setDate(periodEnd.getDate() + (durationDays || 30));
 
-    // Update User.plan
-    await prisma.user.update({ where: { id: userId }, data: { plan } });
+    // Try to update User.plan directly (gracefully skip if field not in deployed client)
+    try {
+      await prisma.user.update({ where: { id: userId }, data: { plan } });
+    } catch (e) {
+      console.warn('[Admin] Could not update User.plan (field may not exist in deployed client):', e.message);
+    }
 
     // Upsert Subscription
     const sub = await prisma.subscription.upsert({

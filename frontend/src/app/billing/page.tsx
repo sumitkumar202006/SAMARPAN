@@ -23,6 +23,13 @@ interface BillingStatus {
     aiGenerations: { used: number; limit: number };
     pdfUploads:    { used: number; limit: number };
   };
+  features: {
+    aiGenerations: number;
+    pdfUploads: number;
+    ratedMatches: boolean;
+    allModes: boolean;
+    messaging: boolean;
+  };
   resetAt: string | null;
 }
 
@@ -296,12 +303,34 @@ export default function BillingPage() {
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
             {[
-              { label: 'AI Quiz Generations', value: (status?.usage.aiGenerations.limit ?? 0) >= 9999 ? 'Unlimited' : `${status?.usage.aiGenerations.limit ?? 5}/mo` },
-              { label: 'PDF Uploads',         value: (status?.usage.pdfUploads.limit ?? 5) >= 9999 ? 'Unlimited' : `${status?.usage.pdfUploads.limit ?? 5}/mo` },
-              { label: 'Rated Battles',       value: plan !== 'free' ? 'Included' : 'Not included' },
-              { label: 'All Battle Modes',    value: plan !== 'free' ? 'Included' : '1v1 only' },
-              { label: 'E2EE Messaging',      value: plan !== 'free' ? 'Included' : 'Not included' },
-              { label: 'XP Bonus',            value: plan === 'elite' ? '3× daily' : plan === 'pro' ? '2× daily' : '1×' },
+              {
+                label: 'AI Quiz Generations',
+                value: (status?.usage.aiGenerations.limit ?? 0) >= 9999
+                  ? 'Unlimited'
+                  : `${status?.usage.aiGenerations.limit ?? 5}/mo`,
+              },
+              {
+                label: 'PDF Uploads',
+                value: (status?.usage.pdfUploads.limit ?? 0) >= 9999
+                  ? 'Unlimited'
+                  : `${status?.usage.pdfUploads.limit ?? 0}/mo`,
+              },
+              {
+                label: 'Rated Battles',
+                value: status?.features?.ratedMatches ? 'Included' : 'Not included',
+              },
+              {
+                label: 'All Battle Modes',
+                value: status?.features?.allModes ? 'Included' : '1v1 only',
+              },
+              {
+                label: 'E2EE Messaging',
+                value: status?.features?.messaging ? 'Included' : 'Not included',
+              },
+              {
+                label: 'XP Bonus',
+                value: plan === 'elite' ? '3× daily' : plan === 'pro' ? '2× daily' : '1×',
+              },
             ].map((f) => (
               <div key={f.label} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                 <span className="text-sm text-text-soft font-medium">{f.label}</span>

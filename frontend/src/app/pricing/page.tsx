@@ -31,7 +31,14 @@ const DEFAULT_PLAN_PRICES = {
   institution: { monthly: 4999, yearly: 49999 },
 };
 
-const PLAN_CONFIGS = [
+const DEFAULT_PLAN_LIMITS: Record<string, any> = {
+  free:        { aiGenerations: 5,     pdfUploads: 5,     ratedMatches: false, allModes: false, messaging: false },
+  pro:         { aiGenerations: 50,    pdfUploads: 10,    ratedMatches: true,  allModes: true,  messaging: true  },
+  elite:       { aiGenerations: 99999, pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
+  institution: { aiGenerations: 500,   pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
+};
+
+const PLAN_STATIC = [
   {
     id: 'free',
     name: 'Spark',
@@ -41,16 +48,6 @@ const PLAN_CONFIGS = [
     glow: 'rgba(100,116,139,0.2)',
     icon: Shield,
     tag: null,
-    features: [
-      { text: '5 AI Quiz Generations / month',    ok: true  },
-      { text: 'PDF-to-Quiz Upload',                ok: false },
-      { text: 'All Battle Modes (1v1, 2v2, 4v4)',  ok: false },
-      { text: 'Rated Matches',                     ok: false },
-      { text: 'Full Post-Match Analytics',         ok: false },
-      { text: 'E2EE Social Messaging',             ok: false },
-      { text: 'Daily 2x XP Bonus',                 ok: false },
-      { text: 'Custom Avatar Frame',               ok: false },
-    ],
   },
   {
     id: 'pro',
@@ -61,16 +58,6 @@ const PLAN_CONFIGS = [
     glow: 'rgba(99,102,241,0.25)',
     icon: Zap,
     tag: 'MOST POPULAR',
-    features: [
-      { text: '50 AI Quiz Generations / month',   ok: true  },
-      { text: '10 PDF-to-Quiz Uploads / month',   ok: true  },
-      { text: 'All Battle Modes (1v1, 2v2, 4v4)', ok: true  },
-      { text: 'Rated Matches',                    ok: true  },
-      { text: 'Full Post-Match Analytics',        ok: true  },
-      { text: 'E2EE Social Messaging',            ok: true  },
-      { text: 'Daily 2x XP Bonus',               ok: true  },
-      { text: 'Bronze Avatar Frame',              ok: true  },
-    ],
   },
   {
     id: 'elite',
@@ -81,20 +68,61 @@ const PLAN_CONFIGS = [
     glow: 'rgba(245,158,11,0.25)',
     icon: Crown,
     tag: 'POWER USER',
-    features: [
-      { text: 'Unlimited AI Generations',         ok: true  },
-      { text: 'Unlimited PDF Uploads',            ok: true  },
-      { text: 'All Battle Modes',                 ok: true  },
-      { text: 'Rated Matches',                    ok: true  },
-      { text: 'Full Analytics + Export',          ok: true  },
-      { text: 'E2EE Social Messaging',            ok: true  },
-      { text: 'Daily 3x XP Bonus',               ok: true  },
-      { text: 'Gold Avatar Frame',               ok: true  },
-      { text: 'Tournament Hosting',              ok: true  },
-      { text: 'Priority Support',               ok: true  },
-    ],
   },
 ];
+
+// Dynamically build feature bullets from live limits
+function buildFeatures(planId: string, limits: Record<string, any>) {
+  const l = limits[planId] || DEFAULT_PLAN_LIMITS[planId] || {};
+  const isUnlimited = (v: number) => v >= 9999;
+
+  const aiText = isUnlimited(l.aiGenerations)
+    ? 'Unlimited AI Generations'
+    : `${l.aiGenerations ?? 0} AI Quiz Generations / month`;
+  const pdfText = isUnlimited(l.pdfUploads)
+    ? 'Unlimited PDF Uploads'
+    : l.pdfUploads > 0
+      ? `${l.pdfUploads} PDF-to-Quiz Uploads / month`
+      : 'PDF-to-Quiz Upload';
+
+  if (planId === 'free') {
+    return [
+      { text: aiText,                              ok: true             },
+      { text: pdfText,                             ok: l.pdfUploads > 0 },
+      { text: 'All Battle Modes (1v1, 2v2, 4v4)', ok: !!l.allModes     },
+      { text: 'Rated Matches',                    ok: !!l.ratedMatches },
+      { text: 'Full Post-Match Analytics',        ok: false            },
+      { text: 'E2EE Social Messaging',            ok: !!l.messaging    },
+      { text: 'Daily 2x XP Bonus',               ok: false            },
+      { text: 'Custom Avatar Frame',              ok: false            },
+    ];
+  }
+  if (planId === 'pro') {
+    return [
+      { text: aiText,                              ok: true          },
+      { text: pdfText,                             ok: true          },
+      { text: 'All Battle Modes (1v1, 2v2, 4v4)', ok: !!l.allModes  },
+      { text: 'Rated Matches',                    ok: !!l.ratedMatches },
+      { text: 'Full Post-Match Analytics',        ok: true          },
+      { text: 'E2EE Social Messaging',            ok: !!l.messaging },
+      { text: 'Daily 2x XP Bonus',               ok: true          },
+      { text: 'Bronze Avatar Frame',              ok: true          },
+    ];
+  }
+  // elite / institution
+  return [
+    { text: aiText,                  ok: true },
+    { text: pdfText,                 ok: true },
+    { text: 'All Battle Modes',      ok: !!l.allModes     },
+    { text: 'Rated Matches',         ok: !!l.ratedMatches },
+    { text: 'Full Analytics + Export', ok: true },
+    { text: 'E2EE Social Messaging', ok: !!l.messaging },
+    { text: 'Daily 3x XP Bonus',     ok: true },
+    { text: 'Gold Avatar Frame',     ok: true },
+    { text: 'Tournament Hosting',   ok: true },
+    { text: 'Priority Support',     ok: true },
+  ];
+}
 
 declare global {
   interface Window { Razorpay: any; }
@@ -109,13 +137,15 @@ export default function PricingPage() {
   const [trialState, setTrialState] = useState<'idle' | 'loading' | 'activating' | 'done' | 'used' | 'disabled'>('idle');
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [livePrices, setLivePrices] = useState<Record<string, { monthly: number; yearly: number }> | null>(null);
+  const [liveLimits, setLiveLimits] = useState<Record<string, any>>(DEFAULT_PLAN_LIMITS);
 
-  // Build PLANS with live prices merged in
-  const PLANS = PLAN_CONFIGS.map(p => ({
+  // Build PLANS with live prices + live limits merged in
+  const PLANS = PLAN_STATIC.map(p => ({
     ...p,
     price: p.id === 'free'
       ? p.defaultPrice
       : (livePrices?.[p.id] ?? p.defaultPrice),
+    features: buildFeatures(p.id, liveLimits),
   }));
 
   // Load current plan
@@ -126,14 +156,22 @@ export default function PricingPage() {
       .catch(() => {});
   }, [user]);
 
-  // Load live prices + trial config from backend
+  // Load live prices + limits + trial config from backend
   useEffect(() => {
+    // Fetch prices & trial config (public endpoint)
     api.get('/api/billing/plan-prices')
       .then(r => {
         if (r.data.prices) setLivePrices(r.data.prices);
         if (r.data.trial?.enabled === false) setTrialState('disabled');
       })
       .catch(() => {});
+
+    // Fetch live plan limits from admin config endpoint
+    api.get('/api/admin/plan-config')
+      .then(r => {
+        if (r.data.limits) setLiveLimits(r.data.limits);
+      })
+      .catch(() => {}); // falls back to DEFAULT_PLAN_LIMITS silently
   }, []);
 
   // Load Razorpay script

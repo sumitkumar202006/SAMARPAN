@@ -58,8 +58,8 @@ export function OnboardingBanner() {
     if (!isDismissed) setDismissed(false);
     // Mark steps as completed based on user data
     const done: number[] = [];
-    if (user.totalWins > 0 || user.xp > 0) done.push(0); // has created/played
-    if (user.totalWins > 0) done.push(1, 2);
+    if ((user.totalWins ?? 0) > 0 || (user.xp ?? 0) > 0) done.push(0); // has created/played
+    if ((user.totalWins ?? 0) > 0) done.push(1, 2);
     setCompleted(done);
   }, [user]);
 

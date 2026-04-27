@@ -10,7 +10,6 @@ import { DynamicBackground } from "@/components/ui/DynamicBackground";
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FloatingChat } from '@/components/social/FloatingChat';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { useAuth } from '@/context/AuthContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -175,11 +174,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       
       <div className="fixed inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-white/5 to-transparent pointer-events-none" />
 
-      <Suspense fallback={null}>
-        {!isMatchOrLobby && (
-          <FloatingChat />
-        )}
-      </Suspense>
 
       <MobileSidebar isOpen={isMobileSidebarOpen} onClose={() => setIsMobileSidebarOpen(false)} />
     </div>

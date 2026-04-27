@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import api from '@/lib/axios';
 import { UserPlus, UserCheck, CheckCircle2, XCircle, ChevronLeft, CreditCard } from 'lucide-react';
 import { useSocket } from '@/context/SocketContext';
@@ -25,6 +25,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [currentToast, setCurrentToast] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -90,6 +91,26 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
       console.error("Failed to load notifications", err);
     }
   };
+
+  // ── Unread message count (poll every 30s) ──────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await api.get(`/api/friends/unread/${user.id}`);
+        setUnreadMessages(res.data.unread ?? 0);
+      } catch { /* silent */ }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
+  // Clear unread dot when on /friends page
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname === '/friends') setUnreadMessages(0);
+  }, [pathname]);
 
   const handleAcceptRequest = async (friendId: string) => {
     try {
@@ -392,8 +413,17 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           
-          <Link href="/friends" className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none" title="Friends Hub">
+          <Link
+            href="/friends"
+            className="p-2 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/5 hover:bg-white/10 text-text-soft hover:text-white transition-all relative outline-none"
+            title="Friends Hub"
+          >
             <Users size={18} />
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse">
+                {unreadMessages > 9 ? '9+' : unreadMessages}
+              </span>
+            )}
           </Link>
 
           {/* Notification Bell — Real API-backed */}

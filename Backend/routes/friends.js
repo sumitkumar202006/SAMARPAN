@@ -267,28 +267,18 @@ router.get(
 );
 
 // ─── 8. Clear Chat — permanently delete all messages between caller & friend ──
-// Both the caller's sent AND received messages in that conversation are deleted.
-// The friend's copy is also wiped (shared conversation — either party can clear).
 router.delete(
   '/messages/:friendId',
   authenticate,
   async (req, res) => {
     try {
-      const userId   = req.user.id;
+      const userId    = req.user.id;
       const { friendId } = req.params;
       if (!friendId) return res.status(400).json({ error: 'friendId required' });
+      if (userId === friendId) return res.status(400).json({ error: 'Invalid request' });
 
-      // Verify they are actually friends (prevent clearing stranger's chat)
-      const friendship = await prisma.friendship.findFirst({
-        where: {
-          OR: [
-            { userId, friendId, status: 'accepted' },
-            { userId: friendId, friendId: userId, status: 'accepted' },
-          ],
-        },
-      });
-      if (!friendship) return res.status(403).json({ error: 'Not friends with this user.' });
-
+      // Delete all messages in this conversation — caller must be a participant
+      // (enforced by the WHERE clause — only their sent/received rows are touched)
       const { count } = await prisma.message.deleteMany({
         where: {
           OR: [
@@ -298,7 +288,7 @@ router.delete(
         },
       });
 
-      res.json({ cleared: count });
+      res.json({ cleared: count, ok: true });
     } catch (err) {
       console.error('Clear chat error:', err);
       res.status(500).json({ error: 'Failed to clear chat' });

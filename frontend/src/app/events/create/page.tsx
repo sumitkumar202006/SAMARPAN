@@ -84,7 +84,7 @@ export default function CreateEventPage() {
             </div>
             <div>
               <label className="text-[9px] font-black uppercase tracking-widest text-text-soft mb-1.5 block">Max Players</label>
-              <input type="number" value={form.maxPlayers} onChange={e => setForm({...form, maxPlayers: parseInt(e.target.value)})} min={2} max={500} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:border-accent/40 text-sm transition-all" />
+              <input type="number" value={form.maxPlayers} onChange={e => setForm({...form, maxPlayers: parseInt(e.target.value) || 100})} min={2} max={500} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:border-accent/40 text-sm transition-all" />
             </div>
           </div>
           <div>

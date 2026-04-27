@@ -27,6 +27,7 @@ import { useAudio } from '@/context/AudioContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import { toast } from '@/lib/toast';
 
 interface Question {
   question: string;
@@ -59,7 +60,7 @@ export default function CreatePage() {
 
   const handleAddQuestion = () => {
     if (!currentQ.question || currentQ.options.some(opt => !opt)) {
-      alert('Please fill in the question and all 4 options.');
+      toast.warn('Please fill in the question and all 4 options.');
       return;
     }
     setQuestions([...questions, currentQ]);
@@ -73,7 +74,7 @@ export default function CreatePage() {
 
   const handleSaveQuiz = async () => {
     if (!manualTitle || questions.length === 0) {
-      alert('Please provide a title and at least one question.');
+      toast.warn('Please provide a title and at least one question.');
       return;
     }
     
@@ -94,13 +95,13 @@ export default function CreatePage() {
       setAiStatus('Deployment sequence complete.');
     } catch (err) {
       console.error("Save error:", err);
-      alert('Failed to save quiz. Please ensure you are logged in.');
+      toast.error('Failed to save quiz. Please ensure you are logged in.');
     }
   };
 
   const handleAiGenerate = async () => {
     if (!aiData.topic || !aiData.title) {
-      alert('Please provide a topic and title.');
+      toast.warn('Please provide a topic and title.');
       return;
     }
     setAiStatus('Initializing Neural Forge...');

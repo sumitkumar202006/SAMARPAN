@@ -155,7 +155,7 @@ export default function FriendsPage() {
         type: 'text'
       };
 
-      socket.emit('private_message', msgData);
+      socket?.emit('private_message', msgData);
       if (!contentOverride) setNewMessage('');
     } catch (err) {
       console.error("Secure transmission failed", err);

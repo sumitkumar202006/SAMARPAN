@@ -122,9 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // BUG FIX: OAuth login must also set the session cookie for middleware
       document.cookie = 'samarpan_session=1; path=/; max-age=604800; SameSite=Lax';
 
-      // Clean URL so token doesn't leak in browser history
+      // Clean URL: remove only OAuth params — preserve any other query params (e.g. ?pin=...)
       const url = new URL(window.location.href);
-      url.search = '';
+      ['token', 'user', 'userId', 'name', 'email', 'avatar', 'username'].forEach(p => url.searchParams.delete(p));
       window.history.replaceState({}, document.title, url.toString());
       setIsLoading(false);
       return;

@@ -193,8 +193,14 @@ function AuthContent() {
         setResetStep('otp');
         setStatus({ type: 'success', msg: 'OTP sent to your email' });
       } else if (resetStep === 'otp') {
-        // We verify during final reset or separately? Let's just go to next step
+        // Verify OTP with backend before advancing — prevents client-side bypass
+        if (!otp || otp.length !== 6) {
+          setStatus({ type: 'error', msg: 'Please enter the 6-digit OTP' });
+          return;
+        }
+        await api.post('/api/auth/verify-otp', { email: formData.email, otp });
         setResetStep('password');
+        setStatus({ type: 'success', msg: 'OTP verified. Set your new password.' });
       } else {
         await api.post('/api/auth/reset-password', { 
           email: formData.email, 
@@ -214,9 +220,11 @@ function AuthContent() {
   };
 
   const handleSocialAuth = (provider: 'google' | 'facebook') => {
-    const API_BASE = window.location.hostname === 'samarpan-quiz.vercel.app'
-      ? 'https://samarpan-9rt8.onrender.com'
-      : 'http://127.0.0.1:5001';
+    // Use the same env var as axios.ts — works on localhost, staging, and production
+    const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://samarpan-9rt8.onrender.com'
+        : 'http://localhost:5001');
     window.location.href = `${API_BASE}/auth/${provider}`;
   };
 

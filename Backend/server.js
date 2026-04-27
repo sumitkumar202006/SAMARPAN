@@ -171,49 +171,9 @@ app.use("/api/institution",   noCache, institutionRoutes);
 app.use("/api/signup", (req, res) => res.redirect(307, "/api/auth/signup"));
 app.use("/api/login",  (req, res) => res.redirect(307, "/api/auth/login"));
 
-// -------------------------------
-// Quiz creation (manual)
-// -------------------------------
-app.post("/api/quizzes", async (req, res) => {
-  try {
-    const { title, topic, authorId, questions, tags, aiGenerated } = req.body;
-
-    if (!title || !authorId || !questions || !questions.length) {
-      return res
-        .status(400)
-        .json({ error: "title, authorId and at least 1 question required" });
-    }
-
-    let resolvedAuthorId = authorId;
-
-    // If caller passed an email instead of UUID/ObjectId, resolve it
-    if (typeof authorId === "string" && authorId.includes("@")) {
-      const user = await prisma.user.findUnique({ where: { email: authorId.toLowerCase().trim() } });
-      if (!user) {
-        return res
-          .status(400)
-          .json({ error: "User not found for this authorId" });
-      }
-      resolvedAuthorId = user.id;
-    }
-
-    const quiz = await prisma.quiz.create({
-      data: {
-        title,
-        topic: topic || "",
-        authorId: resolvedAuthorId,
-        questions,
-        aiGenerated: !!aiGenerated,
-        tags: tags || (topic ? [topic.toLowerCase()] : []),
-      }
-    });
-
-    return res.json({ message: "Quiz created", quizId: quiz.id, quiz: mapId(quiz) });
-  } catch (err) {
-    console.error("Create quiz error:", err);
-    return res.status(500).json({ error: "Failed to create quiz" });
-  }
-});
+// NOTE: Quiz creation (POST /api/quizzes) is handled by routes/quizzes.js
+// which includes additional validation (4-option schema check, deduplication).
+// The duplicate handler that was here has been removed to prevent shadowing.
 
 // -------------------------------
 // Quiz fetching
@@ -1333,13 +1293,14 @@ function simulateBotAnswers(pin) {
     const delayMs = Math.floor(delayFraction * timerSecs * 1000);
     const timeTaken = delayFraction * timerSecs;
 
+    const capturedQ = session.currentQ; // Capture question index at scheduling time
     setTimeout(() => {
       const liveSession = liveSessions.get(pin);
       if (!liveSession || liveSession.status !== 'running') return;
       const liveBot = liveSession.players[botId];
       if (!liveBot || liveBot.answeredThisQ) return;
-      // Guard: make sure we're still on the same question
-      if (liveSession.currentQ !== liveSession.currentQ) return; // Always true but defensive
+      // Guard: reject if question already advanced since bot was scheduled
+      if (liveSession.currentQ !== capturedQ) return;
 
       // Decide if bot answers correctly using its per-match random accuracy
       const botAccuracyRate = bot.botAccuracy !== undefined
@@ -1595,7 +1556,7 @@ async function logAnswerToDb(session, player, data) {
       data: {
         sessionId: dbSession.id,
         questionIndex: session.currentQ,
-        userId: player.id || null,
+        userId: player.userId || null, // FIX: was player.id (undefined) — must be player.userId
         playerName: player.name,
         selectedIdx: data.optionIdx,
         isCorrect: data.isCorrect,
@@ -2256,6 +2217,7 @@ io.on("connection", (socket) => {
       strikeCount: 0
     };
     socket.emit("host_ready", { pin, mode: session.mode || 'hub', playAsHost: session.playAsHost });
+    broadcastPlayerList(pin, session); // FIX: send initial player list so frontend shows host in grid
     console.log(`Host joined/created room ${pin} (mode: ${session.mode || 'hub'})`);
   });
 
@@ -2417,17 +2379,38 @@ io.on("connection", (socket) => {
   socket.on("start_game", async (data) => {
     const pin = typeof data === 'string' ? data : data.pin;
     const session = liveSessions.get(pin);
-    if (!session || session.hostSocketId !== socket.id) return;
+    // FIX: If hostSocketId is stale (page reload), allow if socket is the registered host player
+    // This prevents silent rejection of start_game after browser refresh
+    const isHostSocket = session.hostSocketId === socket.id;
+    const isHostByUserId = !isHostSocket && Object.values(session.players).some(
+      p => p.isHost && p.userId && p.userId === (socket.data?.userId || null)
+    );
+    if (!isHostSocket && !isHostByUserId) {
+      // Try to match by the most recent host entry in players map
+      const hostEntry = Object.entries(session.players).find(([, p]) => p.isHost);
+      if (hostEntry) {
+        // Reclaim host — update hostSocketId so subsequent events work
+        session.players[socket.id] = { ...session.players[hostEntry[0]], isHost: true };
+        if (hostEntry[0] !== socket.id) delete session.players[hostEntry[0]];
+        session.hostSocketId = socket.id;
+        console.log(`[RECOVERY] Reclaimed host socket for PIN ${pin} → ${socket.id}`);
+      } else {
+        console.warn(`[start_game] Unauthorized attempt from ${socket.id} for PIN ${pin}`);
+        return;
+      }
+    } else if (!isHostSocket && isHostByUserId) {
+      session.hostSocketId = socket.id;
+    }
     if (session.status !== 'waiting') { socket.emit("error_msg", { message: "Game already started." }); return; }
+
+    // Count all connected participants including host
+    const playerCount = Object.keys(session.players).length;
     
-    // Friendly Participation: Count host as player if they have joined a slot
-    const playersAsParticipants = Object.values(session.players);
-    const playerCount = playersAsParticipants.filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
-    
-    // Count bots as valid participants (host-added bots satisfy the 2-player minimum)
+    // Count bots as valid participants (host-added bots satisfy the minimum)
     const botCount = session.botIds ? session.botIds.length : 0;
-    if (!session.matchmade && (playerCount + botCount) < 2) { 
-      socket.emit("error_msg", { message: "Arena requires at least 2 players (or add bots via the lobby) to initiate." }); 
+    // Require at least 1 participant (host alone is valid — bots provide opponents)
+    if (!session.matchmade && (playerCount + botCount) < 1) { 
+      socket.emit("error_msg", { message: "Session has no participants. Please join the lobby first." }); 
       return; 
     }
 

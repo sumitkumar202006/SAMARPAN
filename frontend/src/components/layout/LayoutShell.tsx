@@ -40,6 +40,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const isAdminPath = pathname?.startsWith('/admin');
+  // Landing page renders its own full-width layout — no shell
+  const isLandingPage = pathname === '/';
 
   // Force override the sidebar visually during tactical engagements
   const perfClass = user?.settings?.performanceMode ? `perf-${user.settings.performanceMode}` : 'perf-high';
@@ -65,7 +67,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 2. Admin Interface
+  // 2. Landing Page — render naked, no shell (has its own layout)
+  if (isLandingPage) {
+    return <>{children}</>;
+  }
+
+  // 3. Admin Interface
   if (isAdminPath) {
     return (
       <div className={cn("flex flex-col min-h-screen", perfClass)}>
@@ -104,7 +111,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         )}>
           <Topbar onOpenMobileMenu={() => setIsMobileSidebarOpen(true)} isMatchOrLobby={isMatchOrLobby} />
           
-          <main className={cn(
+          <main
+            id="main-content"
+            className={cn(
             "flex-1 flex flex-col pt-4 relative",
             !effectiveSidebarCollapsed && "lg:pt-6",
             !isMatchOrLobby ? "pb-40 lg:pb-10" : "pb-10"

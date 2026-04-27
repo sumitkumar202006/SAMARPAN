@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/axios';
 import Link from 'next/link';
+import { toast } from '@/lib/toast';
 
 interface BillingStatus {
   plan: string;
@@ -99,7 +100,7 @@ export default function BillingPage() {
       await fetchBillingStatus();
       setShowCancelConfirm(false);
     } catch {
-      alert('Failed to cancel. Please try again.');
+      toast.error('Failed to cancel. Please try again.');
     } finally {
       setCancelling(false);
     }

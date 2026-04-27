@@ -34,7 +34,7 @@ function LivePlayContent() {
 
   // join_ack unblocks this — prevents rendering with stale/null state
   const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
-  const joinedRef = useRef(false); // guard against double-join on re-render
+  const joinedSocketRef = useRef<string | null>(null); // tracks socket.id to detect reconnects
 
   // -----------------------------------------------------------------------
   // Fetch session via REST (fallback — used if socket join_ack times out)
@@ -65,9 +65,9 @@ function LivePlayContent() {
   useEffect(() => {
     if (!isConnected || !socket || !pin || !user) return;
 
-    // --- Emit join_room exactly once per connection ---
-    if (!joinedRef.current) {
-      joinedRef.current = true;
+    // --- Emit join_room once per unique socket connection ---
+    if (joinedSocketRef.current !== socket.id) {
+      joinedSocketRef.current = socket.id ?? null;
       const playAsHost = searchParams.get('playAsHost') === 'true';
       socket.emit('join_room', {
         pin,
@@ -167,10 +167,10 @@ function LivePlayContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, socket, pin, user]);
 
-  // Reset join guard when socket reconnects after a disconnect
+  // Reset join guard when socket reconnects with a new socket ID
   useEffect(() => {
     if (!isConnected) {
-      joinedRef.current = false;
+      joinedSocketRef.current = null;
     }
   }, [isConnected]);
 

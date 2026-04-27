@@ -15,11 +15,11 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
-const BASE_URL  = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
 const TEST_USER = {
-  name:     'Test Arena User',
+  name: 'Test Arena User',
   username: `testuser${Date.now()}`,
-  email:    `test${Date.now()}@samarpan.test`,
+  email: `test${Date.now()}@samarpan.test`,
   password: 'Test@1234',
 };
 
@@ -63,11 +63,11 @@ test.describe('Auth Flow', () => {
 // ─── 2. Navigation — all major pages load (no hard 404s) ─────────────────────
 test.describe('Public Page Navigation', () => {
   const publicPages = [
-    { path: '/',           title: 'Samarpan' },
-    { path: '/auth',       title: 'Samarpan' },
-    { path: '/about',      title: 'Samarpan' },
-    { path: '/contact',    title: 'Samarpan' },
-    { path: '/pricing',    title: 'Samarpan' },
+    { path: '/', title: 'Samarpan' },
+    { path: '/auth', title: 'Samarpan' },
+    { path: '/about', title: 'Samarpan' },
+    { path: '/contact', title: 'Samarpan' },
+    { path: '/pricing', title: 'Samarpan' },
     { path: '/marketplace', title: 'Samarpan' },
     { path: '/leaderboard', title: 'Samarpan' },
   ];
@@ -88,8 +88,8 @@ test.describe('Marketplace', () => {
     await page.goto(`${BASE_URL}/marketplace`);
     await page.waitForLoadState('networkidle');
     // Either shows quiz cards or shows a "no quizzes" empty state
-    const hasCards    = await page.locator('[data-testid="quiz-card"], .quiz-card, [class*="quiz"]').count();
-    const hasEmpty    = await page.locator('text=/no quizzes|empty|nothing/i').count();
+    const hasCards = await page.locator('[data-testid="quiz-card"], .quiz-card, [class*="quiz"]').count();
+    const hasEmpty = await page.locator('text=/no quizzes|empty|nothing/i').count();
     expect(hasCards + hasEmpty).toBeGreaterThan(0);
   });
 

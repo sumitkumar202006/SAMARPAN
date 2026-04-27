@@ -186,7 +186,25 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// 6. Reset Password
+// 6a. Verify OTP (pre-flight before reset-password — prevents client-side bypass)
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user || user.otp !== otp || user.otpExpires < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    res.json({ message: 'OTP verified' });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 6b. Reset Password
 router.post('/reset-password', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;

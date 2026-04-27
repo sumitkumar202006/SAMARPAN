@@ -149,7 +149,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       socket?.emit('submit_answer', { 
         pin, 
         optionIdx: idx, 
-        timeTaken: 30 - timeLeft,
+        timeTaken: (examSettings?.timerSeconds ?? 30) - timeLeft,
         questionIndex: currentIndexRef.current 
       });
       // Lock UI so player can't change answer (no correctness feedback yet)
@@ -184,7 +184,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         explanation: q.explanation
       };
     }
-  }, [isLive, socket, pin, playClick, playSuccess, playError, quiz.questions, timeLeft]);
+  }, [isLive, socket, pin, playClick, playSuccess, playError, quiz.questions, timeLeft, examSettings]);
 
   // --- Timer urgency: shake animation + sound at < 5s ---
   useEffect(() => {
@@ -554,8 +554,9 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
       // Reset monotonic guard for fresh question
-      lastTimerRef.current = 30;
-      if (timerMode === 'per-question') setTimeLeft(30);
+      const questionTimer = examSettings?.timerSeconds || 30;
+      lastTimerRef.current = questionTimer;
+      if (timerMode === 'per-question') setTimeLeft(questionTimer);
       setSelectedIdx(null);
       selectedIdxRef.current = null;
       setIsLocked(false);

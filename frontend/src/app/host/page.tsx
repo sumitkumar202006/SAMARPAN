@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from '@/components/ui/Button';
+import { toast } from '@/lib/toast';
 
 function HostContent() {
   const { user, isLoading: authLoading } = useAuth();
@@ -85,7 +86,7 @@ function HostContent() {
         setSearchLoading(false);
       }
     };
-    const timer = setTimeout(searchCommunity, 500);
+    const searchTimer = setTimeout(searchCommunity, 500);
 
     // Handle Mode Logic
     if (!isCompetition) {
@@ -110,13 +111,13 @@ function HostContent() {
     };
     if (!authLoading) fetchActiveSessions();
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(searchTimer);
   }, [user, authLoading, searchParams, isCompetition, searchQuery, repoTab]);
 
   const handleHost = async () => {
     // Validation: Require either a selected quiz OR a topic OR a queue
     if (!selectedQuiz && !topic && quizQueue.length === 0) {
-      alert("Please select a quiz, enter a topic, or add quizzes to your tournament queue!");
+      toast.warn("Please select a quiz, enter a topic, or add quizzes to your tournament queue!");
       return;
     }
     
@@ -128,8 +129,8 @@ function HostContent() {
       setStatus(selectedQuiz || quizQueue.length > 0 ? "Initializing Operations..." : "Synthesizing Nexus via AI...");
       
       const res = await api.post('/api/host/start', {
-        quizId: quizQueue.length > 0 ? quizQueue[0]._id : (selectedQuiz || null),
-        quizQueue: quizQueue.length > 1 ? quizQueue.slice(1).map(q => q._id) : [],
+        quizId: quizQueue.length > 0 ? (quizQueue[0]._id || quizQueue[0].id) : (selectedQuiz || null),
+        quizQueue: quizQueue.length > 1 ? quizQueue.slice(1).map(q => q._id || q.id) : [],
         // New Rapid Gen Params
         topic: (selectedQuiz || quizQueue.length > 0) ? null : topic, 
         numQuestions: selectedQuiz ? null : numQuestions,
@@ -154,7 +155,7 @@ function HostContent() {
     } catch (err: any) {
       console.error("Failed to host quiz", err);
       setStatus(null); // Clear status so button is clickable again
-      alert(err.response?.data?.error || "Error initializing session. Please check your connection.");
+      toast.error(err.response?.data?.error || "Error initializing session. Please check your connection.");
     }
   };
 
@@ -165,7 +166,7 @@ function HostContent() {
       setActiveSessions(prev => prev.filter(s => s.pin !== pin));
     } catch (err) {
       console.error("Termination failed", err);
-      alert("Failed to terminate session. It may have already expired.");
+      toast.error("Failed to terminate session. It may have already expired.");
     }
   };
 

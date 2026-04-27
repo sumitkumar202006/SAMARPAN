@@ -109,6 +109,11 @@ router.put('/manage', async (req, res) => {
   try {
     const { userId, friendId, action } = req.body;
     // action: 'accept', 'block', 'remove', 'pin', 'unpin'
+    if (!userId || !friendId) return res.status(400).json({ error: 'userId and friendId are required' });
+    const validActions = ['accept', 'block', 'remove', 'pin', 'unpin'];
+    if (!action || !validActions.includes(action)) {
+      return res.status(400).json({ error: `action must be one of: ${validActions.join(', ')}` });
+    }
     
     if (action === 'remove') {
       await prisma.friendship.deleteMany({

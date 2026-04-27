@@ -9,6 +9,7 @@ import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
+import { toast } from '@/lib/toast';
 
 interface Player {
   name: string;
@@ -165,9 +166,12 @@ function LobbyContent() {
     return map;
   }, [players]);
 
-  const joinedRef = React.useRef(false);
+  // Track which socket ID we last joined with — re-join if socket reconnects with new ID
+  const joinedSocketRef = React.useRef<string | null>(null);
   useEffect(() => {
-    if (!isConnected || !socket || joinedRef.current) return;
+    if (!isConnected || !socket) return;
+    // Skip if we already joined with this exact socket ID (avoid duplicate joins)
+    if (joinedSocketRef.current === socket.id) return;
 
     const name = searchParams.get('name') || user?.name || 'Guest';
     const password = searchParams.get('password');
@@ -211,7 +215,7 @@ function LobbyContent() {
       });
     }
 
-    joinedRef.current = true;
+    joinedSocketRef.current = socket.id ?? null;
 
     socket.on('player_list_update', (data) => {
       setPlayers(data.players);
@@ -232,12 +236,12 @@ function LobbyContent() {
     });
 
     socket.on('kicked', (data) => {
-      alert(data.message || 'You were removed from the room.');
+      toast.warn(data.message || 'You were removed from the room.');
       router.push('/dashboard');
     });
 
     socket.on('host_left', () => {
-      alert('Host ended the session.');
+      toast.info('Host ended the session.');
       router.push('/dashboard');
     });
 
@@ -255,21 +259,23 @@ function LobbyContent() {
     });
 
     socket.on('game_started', (data) => {
-      const playAsHost = searchParams.get('playAsHost') === 'true';
+      const hostPlaying = searchParams.get('playAsHost') === 'true' || playAsHost;
       // Navigate after a brief moment to show "GO!" state
       setTimeout(() => {
-        if (role === 'host' && data.rated !== false && !playAsHost) {
+        if (role === 'host' && !hostPlaying) {
+          // Host is spectating/moderating — go to live host control panel
           router.push(`/host/live/${pin}`);
         } else {
+          // Host playing as player, or regular player
           const roleParam = role === 'host' ? '&role=host' : '';
-          const playParam = playAsHost ? '&playAsHost=true' : '';
+          const playParam = hostPlaying ? '&playAsHost=true' : '';
           router.push(`/play/live?pin=${pin}${roleParam}${playParam}`);
         }
       }, 600);
     });
 
     socket.on('error_msg', (data) => {
-      alert(data.message);
+      toast.error(data.message);
     });
 
     socket.on('join_success', (data) => {
@@ -306,9 +312,9 @@ function LobbyContent() {
       socket.off('host_ready');
       socket.off('bot_added');
       socket.off('bot_removed');
-      joinedRef.current = false;
+      joinedSocketRef.current = null;
     };
-  }, [isConnected, pin, socket, user?.userId, user?.name, router, searchParams]);
+  }, [isConnected, pin, socket?.id, user?.userId, user?.name, router, searchParams]);
 
   const sendChatMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -372,7 +378,10 @@ function LobbyContent() {
   };
 
   const slotCount = getSlotCount(battleType);
-  const playerCount = Object.values(players).filter(p => !p.isHost || (p.slotIndex !== null && p.slotIndex !== undefined)).length;
+  // Count all players (bots are already in the players map with isBot flag)
+  // A host-only lobby with 0 guests but bots added should still be startable
+  const playerCount = Object.keys(players).length;
+  const nonHostCount = Object.values(players).filter(p => !p.isHost).length;
 
   const renderSlot = (team: 'Team A' | 'Team B', index: number) => {
     const data = slotMap[`${team}_${index}`];
@@ -489,7 +498,7 @@ function LobbyContent() {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
                       <Users size={12} className="text-accent" />
-                      <span className="text-[10px] font-black tracking-widest uppercase text-accent-alt">{playerCount} Active</span>
+                      <span className="text-[10px] font-black tracking-widest uppercase text-accent-alt">{nonHostCount} Active</span>
                     </div>
                     <span className="text-[10px] font-black tracking-widest uppercase text-white/20 italic">200 Slots Capacity</span>
                   </div>
@@ -525,11 +534,11 @@ function LobbyContent() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
                   <p className="text-[9px] font-black uppercase text-white/40 mb-1">Players</p>
-                  <p className="text-xl font-black text-accent">{playerCount}</p>
+                  <p className="text-xl font-black text-accent">{nonHostCount}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
                   <p className="text-[9px] font-black uppercase text-white/40 mb-1">Slots Left</p>
-                  <p className="text-xl font-black text-accent-alt">{200 - playerCount}</p>
+                  <p className="text-xl font-black text-accent-alt">{200 - nonHostCount}</p>
                 </div>
               </div>
 
@@ -537,7 +546,7 @@ function LobbyContent() {
                 {isHost && (
                   <Button
                     onClick={handleStartGame}
-                    disabled={playerCount < 2}
+                    disabled={playerCount < 1}
                     className="w-full h-14 bg-gradient-to-tr from-accent to-accent-alt text-lg font-black italic shadow-2xl hover:scale-[1.02] transition-transform"
                   >
                     <Play size={20} fill="currentColor" className="mr-1" />
@@ -797,7 +806,7 @@ function LobbyContent() {
                 {isHost && (
                   <Button
                     onClick={handleStartGame}
-                    disabled={playerCount < 2}
+                    disabled={playerCount < 1}
                     className="w-full bg-gradient-to-tr from-accent to-accent-alt shadow-[0_0_20px_rgba(99,102,241,0.2)]"
                   >
                     <Play size={18} fill="currentColor" />

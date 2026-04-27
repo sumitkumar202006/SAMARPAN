@@ -387,7 +387,7 @@ const DEFAULT_PLAN_PRICES = {
 
 // Default plan limits (used if not overridden in DB)
 const DEFAULT_PLAN_LIMITS = {
-  free:        { aiGenerations: 5,     pdfUploads: 0,     ratedMatches: false, allModes: false, messaging: false },
+  free:        { aiGenerations: 5,     pdfUploads: 5,     ratedMatches: false, allModes: false, messaging: false },
   pro:         { aiGenerations: 50,    pdfUploads: 10,    ratedMatches: true,  allModes: true,  messaging: true  },
   elite:       { aiGenerations: 99999, pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
   institution: { aiGenerations: 500,   pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },

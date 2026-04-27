@@ -44,7 +44,9 @@ export default function CreatePage() {
   const pdfInputRef   = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const canUpload = user?.plan && user.plan !== 'free';
+  // PDF uploads: free users get 5/mo; Image Vision: Pro+ only
+  const canUploadPdf   = true;                                    // free tier now includes 5 PDF uploads
+  const canUploadImage = user?.plan && user.plan !== 'free';      // Vision AI stays Pro+
 
   // Manual Editor State
   const [manualTitle, setManualTitle] = useState('');
@@ -420,8 +422,8 @@ export default function CreatePage() {
                           <div className="grid grid-cols-3 gap-1.5 bg-white/5 p-1.5 rounded-2xl border border-white/5">
                             {([
                               { id: 'topic', label: 'Topic', icon: Wand2, locked: false },
-                              { id: 'pdf',   label: 'PDF',   icon: FileUp, locked: !canUpload },
-                              { id: 'image', label: 'Image', icon: ImageIcon, locked: !canUpload },
+                              { id: 'pdf',   label: 'PDF',   icon: FileUp,    locked: !canUploadPdf   },
+                              { id: 'image', label: 'Image', icon: ImageIcon, locked: !canUploadImage },
                             ] as const).map((m) => (
                               <button key={m.id} onClick={() => setAiForgeMode(m.id)}
                                 className={cn("py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
@@ -454,15 +456,15 @@ export default function CreatePage() {
                             </div>
                           )}
                           {/* PDF */}
-                          {aiForgeMode === 'pdf' && (canUpload ? (
+                          {aiForgeMode === 'pdf' && (canUploadPdf ? (
                             <div className="space-y-4">
                               <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setPdfFile(e.target.files?.[0]||null)} />
                               <button onClick={() => pdfInputRef.current?.click()}
                                 className={cn("w-full py-8 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group",
                                   pdfFile ? "border-emerald-500/40 bg-emerald-500/5" : "border-white/10 hover:border-indigo-400/40 hover:bg-white/5")}>
                                 <FileUp size={28} className={pdfFile ? "text-emerald-400" : "text-text-soft group-hover:text-indigo-400 transition-colors"} />
-                                {pdfFile ? <div className="text-center"><p className="text-xs font-black text-emerald-400">{pdfFile.name}</p><p className="text-[9px] text-text-soft">{(pdfFile.size/1024).toFixed(0)} KB ï¿½ Click to change</p></div>
-                                  : <div className="text-center"><p className="text-xs font-black text-white">Click to upload PDF</p><p className="text-[9px] text-text-soft">Max 5 MB ï¿½ PDF only</p></div>}
+                                {pdfFile ? <div className="text-center"><p className="text-xs font-black text-emerald-400">{pdfFile.name}</p><p className="text-[9px] text-text-soft">{(pdfFile.size/1024).toFixed(0)} KB · Click to change</p></div>
+                                  : <div className="text-center"><p className="text-xs font-black text-white">Click to upload PDF</p><p className="text-[9px] text-text-soft">Max 5 MB · PDF only · 5 free uploads/mo</p></div>}
                               </button>
                               {pdfFile && <button onClick={() => setPdfFile(null)} className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-1"><X size={10}/>Remove file</button>}
                               <button onClick={handlePdfGenerate} disabled={!pdfFile || (!!aiStatus && aiStatus !== 'PDF synthesis complete.')}
@@ -473,12 +475,12 @@ export default function CreatePage() {
                           ) : (
                             <div className="py-10 rounded-3xl border border-amber-500/20 bg-amber-500/5 flex flex-col items-center gap-4 text-center">
                               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400"><Lock size={24}/></div>
-                              <div><p className="font-black text-white text-sm">PDF Forge is Pro+</p><p className="text-[10px] text-text-soft mt-1">Upload PDFs to auto-generate quizzes.<br/>Available on Blaze Pro, Storm Elite & Institution.</p></div>
+                              <div><p className="font-black text-white text-sm">PDF Quota Exceeded</p><p className="text-[10px] text-text-soft mt-1">You've used your 5 free PDF uploads this month.<br/>Upgrade to Blaze Pro for 10/mo, or Storm Elite for unlimited.</p></div>
                               <button onClick={() => router.push('/pricing')} className="px-6 py-3 rounded-2xl bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all">Upgrade Plan</button>
                             </div>
                           ))}
                           {/* IMAGE */}
-                          {aiForgeMode === 'image' && (canUpload ? (
+                          {aiForgeMode === 'image' && (canUploadImage ? (
                             <div className="space-y-4">
                               <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
                                 onChange={(e) => { if (e.target.files?.[0]) onImageSelected(e.target.files[0]); }} />

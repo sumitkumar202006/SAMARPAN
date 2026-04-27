@@ -297,7 +297,7 @@ export default function BillingPage() {
           <div className="grid sm:grid-cols-2 gap-3">
             {[
               { label: 'AI Quiz Generations', value: (status?.usage.aiGenerations.limit ?? 0) >= 9999 ? 'Unlimited' : `${status?.usage.aiGenerations.limit ?? 5}/mo` },
-              { label: 'PDF Uploads',         value: (status?.usage.pdfUploads.limit ?? 0) === 0 ? 'Not included' : (status?.usage.pdfUploads.limit ?? 0) >= 9999 ? 'Unlimited' : `${status?.usage.pdfUploads.limit ?? 0}/mo` },
+              { label: 'PDF Uploads',         value: (status?.usage.pdfUploads.limit ?? 5) >= 9999 ? 'Unlimited' : `${status?.usage.pdfUploads.limit ?? 5}/mo` },
               { label: 'Rated Battles',       value: plan !== 'free' ? 'Included' : 'Not included' },
               { label: 'All Battle Modes',    value: plan !== 'free' ? 'Included' : '1v1 only' },
               { label: 'E2EE Messaging',      value: plan !== 'free' ? 'Included' : 'Not included' },

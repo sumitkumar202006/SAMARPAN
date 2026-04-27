@@ -7,14 +7,7 @@ import { AudioProvider } from "@/context/AudioContext";
 import { InteractionListener } from "@/components/layout/InteractionListener";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { UpgradeModalProvider } from "@/components/ui/UpgradeModal";
-import dynamic from "next/dynamic";
-
-// Lazy-load AuraCursor — only ships to desktop (pointer:fine) devices
-// ssr:false ensures this ~6KB component never bloats the SSR/mobile bundle
-const AuraCursor = dynamic(
-  () => import("@/components/ui/AuraCursor").then(m => ({ default: m.AuraCursor })),
-  { ssr: false }
-);
+import { AuraCursorLoader } from "@/components/ui/AuraCursorLoader";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -81,7 +74,7 @@ export default function RootLayout({
             <SocketProvider>
               <UpgradeModalProvider>
                 <InteractionListener />
-                <AuraCursor />
+                <AuraCursorLoader />
                 <LayoutShell>{children}</LayoutShell>
               </UpgradeModalProvider>
             </SocketProvider>

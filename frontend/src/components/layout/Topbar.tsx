@@ -420,9 +420,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
           >
             <Users size={18} />
             {unreadMessages > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse">
-                {unreadMessages > 9 ? '9+' : unreadMessages}
-              </span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
             )}
           </Link>
 

@@ -196,12 +196,16 @@ export default function FriendsPage() {
 
   const clearChat = async () => {
     if (!selectedFriend) return;
+    // Optimistic clear — update UI immediately, restore if API fails
+    const backup = messages;
+    setMessages([]);
+    setShowClearConfirm(false);
+    setShowOptionsMenu(false);
     try {
       await api.delete(`/api/friends/messages/${selectedFriend.id}`);
-      setMessages([]);            // instant local clear
-      setShowClearConfirm(false);
     } catch (err) {
-      console.error('Clear chat failed', err);
+      console.error('Clear chat failed:', err);
+      setMessages(backup); // restore on failure
     }
   };
 

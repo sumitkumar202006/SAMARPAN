@@ -103,7 +103,9 @@ export default function LeaderboardPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.get('/api/explore/leaderboard');
+      const params = new URLSearchParams({ period: activePeriod.toLowerCase() });
+      if (activeCategory !== 'all') params.set('category', activeCategory);
+      const res = await api.get(`/api/explore/leaderboard?${params}`);
       setData(res.data.scores || []);
     } catch (err) {
       setError('Failed to load rankings.');

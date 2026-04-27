@@ -5,11 +5,24 @@ import { AuthProvider } from "@/context/AuthContext";
 import { SocketProvider } from "@/context/SocketContext";
 import { AudioProvider } from "@/context/AudioContext";
 import { InteractionListener } from "@/components/layout/InteractionListener";
-import { AuraCursor } from "@/components/ui/AuraCursor";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { UpgradeModalProvider } from "@/components/ui/UpgradeModal";
+import dynamic from "next/dynamic";
 
-const inter = Inter({ subsets: ["latin"] });
+// Lazy-load AuraCursor — only ships to desktop (pointer:fine) devices
+// ssr:false ensures this ~6KB component never bloats the SSR/mobile bundle
+const AuraCursor = dynamic(
+  () => import("@/components/ui/AuraCursor").then(m => ({ default: m.AuraCursor })),
+  { ssr: false }
+);
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "900"],
+  variable: "--font-inter",
+  display: "swap",   // Prevents invisible text during font load
+  preload: true,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://samarpan-quiz.vercel.app'),

@@ -80,38 +80,96 @@ router.get("/home", async (req, res) => {
 });
 
 // ─── GET /api/explore/leaderboard — Public leaderboard (top 50) ───────────────
-// Cached 60s — most expensive query on the platform
+// Supports ?period=weekly|monthly|all-time  and  ?category=<topic>
+// Each period+category combination is individually cached
 router.get("/leaderboard", async (req, res) => {
   try {
-    const scores = await cache.getOrSet('explore:leaderboard', 60, async () => {
-      const users = await prisma.user.findMany({
-        orderBy: { globalRating: "desc" },
-        take:    50,
-        select:  {
-          name:          true,
-          username:      true,
-          globalRating:  true,
-          xp:            true,
-          avatar:        true,
-          avatarFrame:   true,
-          totalWins:     true,
-          totalLosses:   true,
-          bestWinStreak: true,
-        }
+    const period   = (req.query.period   || 'all-time').toLowerCase();
+    const category = (req.query.category || 'all').toLowerCase();
+    const cacheKey = `explore:leaderboard:${period}:${category}`;
+
+    // Determine the date floor for period filtering
+    let dateFloor = null;
+    if (period === 'weekly')  dateFloor = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+    if (period === 'monthly') dateFloor = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const scores = await cache.getOrSet(cacheKey, 60, async () => {
+      // All-time global (no date/category filter) — simple user list
+      if (!dateFloor && category === 'all') {
+        const users = await prisma.user.findMany({
+          orderBy: { globalRating: "desc" },
+          take:    50,
+          select:  {
+            name:          true,
+            username:      true,
+            globalRating:  true,
+            xp:            true,
+            avatar:        true,
+            avatarFrame:   true,
+            totalWins:     true,
+            totalLosses:   true,
+            bestWinStreak: true,
+          }
+        });
+        return users.map((u, idx) => ({
+          rank:          idx + 1,
+          name:          u.name,
+          username:      u.username,
+          score:         u.globalRating,
+          xp:            u.xp,
+          avatar:        u.avatar,
+          avatarFrame:   u.avatarFrame || 'none',
+          totalWins:     u.totalWins    || 0,
+          totalLosses:   u.totalLosses  || 0,
+          bestWinStreak: u.bestWinStreak || 0,
+        }));
+      }
+
+      // Period / category filter — aggregate via RatingHistory
+      const historyWhere = {};
+      if (dateFloor)          historyWhere.createdAt = { gte: dateFloor };
+      if (category !== 'all') historyWhere.category  = { equals: category, mode: 'insensitive' };
+
+      // Group rating changes by userId, sum delta, join user
+      const history = await prisma.ratingHistory.findMany({
+        where:   historyWhere,
+        select:  { userId: true, delta: true, user: { select: { name: true, username: true, globalRating: true, xp: true, avatar: true, avatarFrame: true, totalWins: true, bestWinStreak: true } } }
       });
 
-      return users.map((u, idx) => ({
-        rank:          idx + 1,
-        name:          u.name,
-        username:      u.username,
-        score:         u.globalRating,
-        xp:            u.xp,
-        avatar:        u.avatar,
-        avatarFrame:   u.avatarFrame || 'none',
-        totalWins:     u.totalWins    || 0,
-        totalLosses:   u.totalLosses  || 0,
-        bestWinStreak: u.bestWinStreak || 0,
-      }));
+      const aggregated = {};
+      for (const h of history) {
+        if (!aggregated[h.userId]) {
+          aggregated[h.userId] = { ...h.user, score: 0, totalWins: h.user.totalWins || 0, bestWinStreak: h.user.bestWinStreak || 0 };
+        }
+        aggregated[h.userId].score += (h.delta || 0);
+      }
+
+      const sorted = Object.values(aggregated)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 50)
+        .map((u, idx) => ({
+          rank:          idx + 1,
+          name:          u.name,
+          username:      u.username,
+          score:         u.score,
+          xp:            u.xp,
+          avatar:        u.avatar,
+          avatarFrame:   u.avatarFrame || 'none',
+          totalWins:     u.totalWins,
+          bestWinStreak: u.bestWinStreak,
+        }));
+
+      // Fallback to global all-time if no history found
+      if (sorted.length === 0) {
+        const users = await prisma.user.findMany({
+          orderBy: { globalRating: "desc" },
+          take:    20,
+          select:  { name: true, username: true, globalRating: true, xp: true, avatar: true, avatarFrame: true, totalWins: true, bestWinStreak: true }
+        });
+        return users.map((u, idx) => ({ rank: idx + 1, name: u.name, username: u.username, score: u.globalRating, xp: u.xp, avatar: u.avatar, avatarFrame: u.avatarFrame || 'none', totalWins: u.totalWins || 0, bestWinStreak: u.bestWinStreak || 0 }));
+      }
+
+      return sorted;
     });
 
     return res.json({ scores });

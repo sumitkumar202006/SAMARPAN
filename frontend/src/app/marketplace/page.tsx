@@ -149,8 +149,7 @@ export default function MarketplacePage() {
   const filtered = quizzes.filter(q => !search || q.title.toLowerCase().includes(search.toLowerCase()) || q.tags?.some((t: string) => t.includes(search.toLowerCase())));
 
   return (
-    <AuthGuard>
-      <div className="py-2 lg:py-10 space-y-8">
+    <div className="py-2 lg:py-10 space-y-8">
         <AnimatePresence>
           {toast && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -211,7 +210,7 @@ export default function MarketplacePage() {
           <div className="glass rounded-[40px] border border-white/5 p-20 text-center space-y-4">
             <Store size={36} className="text-text-soft/30 mx-auto" />
             <h3 className="font-black text-lg uppercase italic">No quizzes found</h3>
-            <Link href="/create" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-accent text-white font-black uppercase text-sm hover:bg-accent/80 transition-all"><Sparkles size={16} /> Create Quiz</Link>
+            {user && <Link href="/create" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-accent text-white font-black uppercase text-sm hover:bg-accent/80 transition-all"><Sparkles size={16} /> Create Quiz</Link>}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -225,6 +224,5 @@ export default function MarketplacePage() {
           </div>
         )}
       </div>
-    </AuthGuard>
   );
 }

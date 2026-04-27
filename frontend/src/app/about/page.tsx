@@ -143,12 +143,12 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-wrap gap-12">
             <div>
-              <p className="text-4xl font-black text-accent mb-1">10k+</p>
-              <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Questions Generated</p>
+              <p className="text-4xl font-black text-accent mb-1">50k+</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Quizzes Generated</p>
             </div>
             <div>
-              <p className="text-4xl font-black text-accent-alt mb-1">500+</p>
-              <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Live Battles Hosted</p>
+              <p className="text-4xl font-black text-accent-alt mb-1">10,000+</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Active Learners</p>
             </div>
             <div>
               <p className="text-4xl font-black text-blue-400 mb-1">99.9%</p>

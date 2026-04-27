@@ -34,8 +34,8 @@ const DEFAULT_PLAN_PRICES = {
 };
 
 const DEFAULT_PLAN_LIMITS: Record<string, any> = {
-  free:        { aiGenerations: 5,     pdfUploads: 5,     ratedMatches: false, allModes: false, messaging: false },
-  pro:         { aiGenerations: 50,    pdfUploads: 10,    ratedMatches: true,  allModes: true,  messaging: true  },
+  free:        { aiGenerations: 50,    pdfUploads: 3,     ratedMatches: false, allModes: false, messaging: false },
+  pro:         { aiGenerations: 200,   pdfUploads: 20,    ratedMatches: true,  allModes: true,  messaging: true  },
   elite:       { aiGenerations: 99999, pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
   institution: { aiGenerations: 500,   pdfUploads: 99999, ratedMatches: true,  allModes: true,  messaging: true  },
 };

@@ -126,7 +126,7 @@ export default function DashboardPage() {
         {/* Rapid Deployment Buttons */}
         <div className="flex gap-3">
            <Link href="/create" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:border-accent/40 transition-all">
-              <Plus size={14} className="inline mr-2" /> Create Asset
+              <Plus size={14} className="inline mr-2" /> Create Quiz
            </Link>
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
         <div className="space-y-8">
            <div className="flex items-center gap-3 px-2">
             <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px]">1</div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Biological Status</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Your Profile</h2>
           </div>
 
           <div className="glass p-8 rounded-[40px] relative overflow-hidden group border-white/5 shadow-2xl">
@@ -232,7 +232,7 @@ export default function DashboardPage() {
         <div className="space-y-8 lg:mt-0">
           <div className="flex items-center gap-3 px-2">
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Match history</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Match History</h2>
           </div>
 
           <CollapsibleCard 
@@ -255,7 +255,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {loading ? (
                 <div className="flex items-center justify-center h-64 text-text-soft animate-pulse">
-                  Decrypting vault data...
+                  Loading your quizzes...
                 </div>
               ) : filteredQuizzes.length > 0 ? (
                 <div className="space-y-4">
@@ -359,7 +359,7 @@ export default function DashboardPage() {
         <div className="space-y-8">
            <div className="flex items-center gap-3 px-2">
             <div className="w-5 h-5 rounded-full bg-accent-alt/20 flex items-center justify-center text-accent-alt text-[10px]">3</div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Nexus Operations</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Quick Actions</h2>
           </div>
 
           <div className="glass p-8 rounded-[40px] border-white/5 space-y-8">

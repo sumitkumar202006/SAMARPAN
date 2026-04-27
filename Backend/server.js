@@ -60,6 +60,7 @@ const marketplaceRoutes = require("./routes/marketplace");
 const eventsRoutes      = require("./routes/events");
 const institutionRoutes = require("./routes/institution");
 const { authenticate, checkQuota, getEffectivePlan, PLAN_LIMITS } = require("./middleware/planGate");
+const contactRoutes = require("./routes/contact");
 
 // Basic middleware
 console.log("Registering global middleware...");
@@ -166,6 +167,7 @@ app.use("/api/tournaments",   cacheFor(30), tournamentRoutes);
 app.use("/api/marketplace",   cacheFor(60), marketplaceRoutes);
 app.use("/api/events",        cacheFor(30), eventsRoutes);
 app.use("/api/institution",   noCache, institutionRoutes);
+app.use("/api/contact",       contactRoutes);
 
 // Legacy redirect shims
 app.use("/api/signup", (req, res) => res.redirect(307, "/api/auth/signup"));

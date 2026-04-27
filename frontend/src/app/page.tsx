@@ -129,20 +129,31 @@ export default function LandingPage() {
       {/* Redirect logged-in users to dashboard — runs client-side, invisible to SSG/SEO */}
       <AuthRedirect />
 
-      {/* ── Structured Data (JSON-LD) ── */}
+      {/* ── Structured Data (JSON-LD) — App + Reviews ── */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'Samarpan Arena',
-            applicationCategory: 'EducationApplication',
-            operatingSystem: 'Web',
-            offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
-            aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', ratingCount: '1240' },
-            description: 'AI-powered live quiz platform for students, educators, and competitive learners.',
-          }),
+          __html: JSON.stringify([
+            {
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'Samarpan Arena',
+              applicationCategory: 'EducationApplication',
+              operatingSystem: 'Web',
+              url: 'https://samarpan-quiz.vercel.app',
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
+              aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', ratingCount: '1240', bestRating: '5' },
+              description: 'AI-powered live quiz platform for students, educators, and competitive learners in India.',
+            },
+            ...TESTIMONIALS.map(t => ({
+              '@context': 'https://schema.org',
+              '@type': 'Review',
+              reviewBody: t.quote,
+              reviewRating: { '@type': 'Rating', ratingValue: String(t.rating), bestRating: '5' },
+              author: { '@type': 'Person', name: t.name },
+              itemReviewed: { '@type': 'SoftwareApplication', name: 'Samarpan Arena' },
+            })),
+          ]),
         }}
       />
 
@@ -169,6 +180,7 @@ export default function LandingPage() {
             <Link href="/marketplace" className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Marketplace</Link>
             <Link href="/leaderboard"  className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Leaderboard</Link>
             <Link href="/pricing"      className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Pricing</Link>
+            <Link href="/blog"         className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Blog</Link>
             <Link href="/about"        className="text-sm text-white/60 hover:text-white transition-colors font-semibold">About</Link>
           </nav>
 

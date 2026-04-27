@@ -232,46 +232,70 @@ router.post('/settings', async (req, res) => {
 
 // ─── 6. Subscription Management ───────────────────────────────────────────────
 
-// List all subscriptions with user + usage
+// List ALL users with their subscription (free users show as virtual 'free' sub)
 router.get('/subscriptions', async (req, res) => {
   try {
     const { plan, status, q } = req.query;
 
-    const subs = await prisma.subscription.findMany({
-      where: {
-        ...(plan   ? { plan }   : {}),
-        ...(status ? { status } : {}),
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, avatar: true, createdAt: true },
-        }
-      },
-      orderBy: { createdAt: 'desc' }
+    // Fetch all users, then join subscriptions
+    const whereUser = {};
+    if (q) {
+      whereUser.OR = [
+        { name:  { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const allUsers = await prisma.user.findMany({
+      where: whereUser,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: { id: true, name: true, email: true, avatar: true, createdAt: true },
     });
 
-    // Enrich with quota
-    const enriched = await Promise.all(subs.map(async (sub) => {
-      const quota = await prisma.usageQuota.findUnique({ where: { userId: sub.userId } });
-      return { ...sub, quota };
-    }));
+    // Fetch all existing subscriptions in one query
+    const existingSubs = await prisma.subscription.findMany({
+      where: { userId: { in: allUsers.map(u => u.id) } },
+    });
+    const subByUser = Object.fromEntries(existingSubs.map(s => [s.userId, s]));
 
-    // Filter by search query
-    const filtered = q
-      ? enriched.filter(s =>
-          s.user.name.toLowerCase().includes(q.toLowerCase()) ||
-          s.user.email.toLowerCase().includes(q.toLowerCase())
-        )
-      : enriched;
+    // Fetch all quotas in one query
+    const quotas = await prisma.usageQuota.findMany({
+      where: { userId: { in: allUsers.map(u => u.id) } },
+    });
+    const quotaByUser = Object.fromEntries(quotas.map(q => [q.userId, q]));
 
-    res.json({ subscriptions: filtered });
+    // Build enriched list — every user gets a record
+    let enriched = allUsers.map(user => {
+      const sub = subByUser[user.id];
+      return {
+        id:               sub?.id          || `virtual_${user.id}`,
+        userId:           user.id,
+        plan:             sub?.plan         || 'free',
+        status:           sub?.status       || 'active',
+        currentPeriodEnd: sub?.currentPeriodEnd || null,
+        trialEndsAt:      sub?.trialEndsAt   || null,
+        cancelAtPeriodEnd: sub?.cancelAtPeriodEnd || false,
+        createdAt:        sub?.createdAt     || user.createdAt,
+        user,
+        quota: quotaByUser[user.id] || null,
+        isVirtual: !sub,  // true = no real sub row, they're on free
+      };
+    });
+
+    // Apply plan / status filters AFTER enrichment
+    if (plan)   enriched = enriched.filter(r => r.plan   === plan);
+    if (status) enriched = enriched.filter(r => r.status === status);
+
+    res.json({ subscriptions: enriched });
   } catch (err) {
-    console.error("Admin subscriptions list error:", err);
+    console.error('Admin subscriptions list error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Override a user's plan (admin superpower)
+// Also updates user.plan directly so JWT-less reads stay consistent
 router.put('/subscriptions/:userId/override', async (req, res) => {
   try {
     const { plan, status, durationDays } = req.body;
@@ -279,38 +303,100 @@ router.put('/subscriptions/:userId/override', async (req, res) => {
 
     const validPlans = ['free', 'pro', 'elite', 'institution'];
     if (plan && !validPlans.includes(plan)) {
-      return res.status(400).json({ error: "Invalid plan" });
+      return res.status(400).json({ error: 'Invalid plan' });
     }
 
-    const periodEnd = new Date();
+    const finalPlan   = plan   || 'pro';
+    const finalStatus = status || 'active';
+    const periodEnd   = new Date();
     periodEnd.setDate(periodEnd.getDate() + (durationDays || 30));
 
+    // 1. Update (or create) Subscription row
     const sub = await prisma.subscription.upsert({
-      where: { userId },
+      where:  { userId },
       update: {
-        plan: plan || 'pro',
-        status: status || 'active',
-        currentPeriodEnd: periodEnd,
+        plan:              finalPlan,
+        status:            finalStatus,
+        currentPeriodEnd:  periodEnd,
         cancelAtPeriodEnd: false,
       },
       create: {
         userId,
-        plan: plan || 'pro',
-        status: status || 'active',
+        plan:             finalPlan,
+        status:           finalStatus,
         currentPeriodEnd: periodEnd,
-      }
+      },
     });
 
-    // Reset quota on override
+    // 2. Also update User.plan so direct user.plan reads stay fresh
+    await prisma.user.update({
+      where: { id: userId },
+      data:  { plan: finalPlan },
+    });
+
+    // 3. Reset quota on override
     await prisma.usageQuota.upsert({
-      where: { userId },
-      update: { aiGenerations: 0, pdfUploads: 0 },
-      create: { userId, resetAt: periodEnd }
+      where:  { userId },
+      update: { aiGenerations: 0, pdfUploads: 0, resetAt: periodEnd },
+      create: { userId, aiGenerations: 0, pdfUploads: 0, resetAt: periodEnd },
     });
 
-    res.json({ message: `Plan overridden to ${plan} for ${durationDays || 30} days`, sub: mapId(sub) });
+    res.json({ message: `Plan set to ${finalPlan} for ${durationDays || 30} days`, sub: mapId(sub) });
   } catch (err) {
-    console.error("Admin plan override error:", err);
+    console.error('Admin plan override error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Assign Plan to user by ID (used by user management panel) ────────────────
+router.put('/users/:id/plan', async (req, res) => {
+  try {
+    const { plan, durationDays } = req.body;
+    const { id: userId } = req.params;
+
+    const validPlans = ['free', 'pro', 'elite', 'institution'];
+    if (!plan || !validPlans.includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan. Use: free, pro, elite, or institution' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const periodEnd = new Date();
+    periodEnd.setDate(periodEnd.getDate() + (durationDays || 30));
+
+    // Update User.plan
+    await prisma.user.update({ where: { id: userId }, data: { plan } });
+
+    // Upsert Subscription
+    const sub = await prisma.subscription.upsert({
+      where:  { userId },
+      update: {
+        plan,
+        status:            plan === 'free' ? 'cancelled' : 'active',
+        currentPeriodEnd:  plan === 'free' ? null : periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+      create: {
+        userId,
+        plan,
+        status:           plan === 'free' ? 'cancelled' : 'active',
+        currentPeriodEnd: plan === 'free' ? null : periodEnd,
+      },
+    });
+
+    // Reset quota when upgrading
+    if (plan !== 'free') {
+      await prisma.usageQuota.upsert({
+        where:  { userId },
+        update: { aiGenerations: 0, pdfUploads: 0, resetAt: periodEnd },
+        create: { userId, aiGenerations: 0, pdfUploads: 0, resetAt: periodEnd },
+      });
+    }
+
+    res.json({ message: `${user.name} assigned to ${plan} plan`, sub: mapId(sub) });
+  } catch (err) {
+    console.error('Admin assign plan error:', err);
     res.status(500).json({ error: err.message });
   }
 });

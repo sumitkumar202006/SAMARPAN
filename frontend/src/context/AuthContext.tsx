@@ -47,6 +47,7 @@ interface AuthContextType {
   isLoading: boolean;
   logout: () => void;
   profileCompletion: number;
+  refreshPlan: () => Promise<void>;  // force-syncs plan from server (useful after admin override)
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -177,6 +178,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncProfile();
   }, [user?.email, user?.token]);
 
+  // Expose plan refresh for post-admin-override sync
+  const refreshPlan = async () => {
+    if (!user?.token) return;
+    try {
+      const billingRes = await api.get('/api/billing/status');
+      if (billingRes.data) {
+        setUserState(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, plan: billingRes.data.plan || 'free', planStatus: billingRes.data.status || 'none' };
+          localStorage.setItem('samarpanUser', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    } catch { /* silent */ }
+  };
+
   // E2EE Key Sync Logic
   useEffect(() => {
     if (!user?.email || !user?.token || user.publicKey) return;
@@ -235,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading, logout, profileCompletion }}>
+    <AuthContext.Provider value={{ user, setUser, isLoading, logout, profileCompletion, refreshPlan }}>
       {children}
     </AuthContext.Provider>
   );

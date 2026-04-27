@@ -24,6 +24,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { UpdatesStrip } from '@/components/dashboard/UpdatesStrip';
+import { OnboardingBanner } from '@/components/dashboard/OnboardingBanner';
 import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 import { StatCard } from '@/components/ui/StatCard';
 import { QuizCard } from '@/components/ui/QuizCard';
@@ -31,8 +32,17 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
 import Link from 'next/link';
+import Image from 'next/image';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Search } from 'lucide-react';
+
+interface DashboardStats {
+  globalRating: number;
+  xp: number;
+  totalWins: number;
+  dailyStreak: number;
+  bestWinStreak: number;
+}
 
 const container = {
   hidden: { opacity: 0 },
@@ -52,7 +62,7 @@ const item = {
 export default function DashboardPage() {
   const { user, isLoading: authLoading, profileCompletion } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,8 +85,8 @@ export default function DashboardPage() {
         
         setStats(profileRes.data);
         setQuizzes(quizzesRes.data.quizzes || []);
-      } catch (err) {
-        console.error("Failed to fetch dashboard data", err);
+      } catch {
+        // Data unavailable — UI handles gracefully with empty states
       } finally {
         setLoading(false);
       }
@@ -104,10 +114,13 @@ export default function DashboardPage() {
 
       <UpdatesStrip />
 
+      {/* Onboarding checklist for new users — hides itself after dismissal */}
+      <OnboardingBanner />
+
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Nexus Hub</h1>
-          <p className="text-text-soft text-xs lg:text-sm">Strategic oversight of your session history and neural assets.</p>
+          <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">My Dashboard</h1>
+          <p className="text-text-soft text-xs lg:text-sm">Your quizzes, stats, and quick actions in one place.</p>
         </div>
         
         {/* Rapid Deployment Buttons */}
@@ -136,7 +149,7 @@ export default function DashboardPage() {
               
               <div className="relative z-10 space-y-8">
                 <div className="flex items-center justify-between">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-text-soft italic">Nexus Profile</p>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-text-soft italic">Profile</p>
                    <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase">
                       Operational
                    </div>
@@ -146,7 +159,14 @@ export default function DashboardPage() {
                   <div className="relative group/avatar">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-accent to-accent-alt p-1 relative z-10 transition-transform group-hover/avatar:scale-105">
                        <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden border-2 border-background">
-                         <img src={user?.avatar || '/favicon.ico'} className="w-full h-full object-cover" />
+                         <Image
+                           src={user?.avatar || '/favicon.ico'}
+                           alt={user?.name ? `${user.name}'s avatar` : 'User avatar'}
+                           width={96}
+                           height={96}
+                           className="w-full h-full object-cover"
+                           unoptimized={!!user?.avatar && !user.avatar.startsWith('/')}
+                         />
                        </div>
                     </div>
                     {/* Completion Ring Minimal */}

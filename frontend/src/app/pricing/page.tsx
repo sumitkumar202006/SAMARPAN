@@ -1,22 +1,24 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Zap, Crown, Building2, ArrowRight, X, Star, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { toast } from '@/lib/toast';
 import api from '@/lib/axios';
 
 // ── Device fingerprint (stable hash of browser signals) ──────────────────────
 async function getDeviceFingerprint(): Promise<string> {
+  const nav = navigator as Navigator & { deviceMemory?: number };
   const signals = [
-    navigator.userAgent,
-    navigator.language,
+    nav.userAgent,
+    nav.language,
     screen.width + 'x' + screen.height,
     screen.colorDepth,
     new Date().getTimezoneOffset(),
-    navigator.hardwareConcurrency || 0,
-    (navigator as any).deviceMemory || 0,
+    nav.hardwareConcurrency || 0,
+    nav.deviceMemory || 0,
   ].join('|');
 
   const buffer = new TextEncoder().encode(signals);
@@ -132,7 +134,7 @@ export default function PricingPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [loading, setLoading] = useState<string | null>(null);
   const [trialState, setTrialState] = useState<'idle' | 'loading' | 'activating' | 'done' | 'used' | 'disabled'>('idle');
   const [currentPlan, setCurrentPlan] = useState<string>('free');
@@ -147,6 +149,18 @@ export default function PricingPage() {
       : (livePrices?.[p.id] ?? p.defaultPrice),
     features: buildFeatures(p.id, liveLimits),
   }));
+
+  // Helper: load Razorpay script on demand (lazy, prevents 150 KB cold-load)
+  const ensureRazorpay = useCallback((): Promise<void> => {
+    if (window.Razorpay) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load Razorpay'));
+      document.head.appendChild(s);
+    });
+  }, []);
 
   // Load current plan
   useEffect(() => {
@@ -174,12 +188,8 @@ export default function PricingPage() {
       .catch(() => {}); // falls back to DEFAULT_PLAN_LIMITS silently
   }, []);
 
-  // Load Razorpay script
-  useEffect(() => {
-    const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    document.head.appendChild(s);
-  }, []);
+  // Load Razorpay script lazily — removed eager load (saves 150 KB on page open)
+  // Script is loaded on-demand inside handleSubscribe / handleStartTrial
 
   const handleSubscribe = async (planId: string) => {
     if (!user) { router.push('/auth'); return; }
@@ -187,41 +197,40 @@ export default function PricingPage() {
 
     setLoading(planId);
     try {
+      // Ensure Razorpay is loaded before proceeding
+      await ensureRazorpay();
+
       // Step 1: Create recurring Razorpay subscription
       const { data } = await api.post('/api/billing/create-subscription', {
         plan: planId,
-        interval,
+        interval: billingPeriod,
       });
 
       const rzp = new window.Razorpay({
         key:             data.key,
-        subscription_id: data.subscriptionId, // ← recurring auto-pay
-        // NOTE: Do NOT pass `amount` or `currency` with subscription_id.
-        // Razorpay reads the amount from the Plan linked to the subscription.
-        // Passing amount here causes Razorpay to fall back to one-time order mode.
+        subscription_id: data.subscriptionId,
         name:            'Samarpan Arena',
-        description:     `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${interval} (Auto-pay)`,
+        description:     `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${billingPeriod} (Auto-pay)`,
         image:           '/icon.png',
         prefill:         data.prefill,
         theme:           { color: '#6366f1' },
         handler: async (response: any) => {
           try {
-            // Step 2: Verify subscription & activate plan
             await api.post('/api/billing/verify-subscription', {
               ...response,
               plan: planId,
-              interval,
+              interval: billingPeriod,
             });
             router.push('/billing?success=true');
           } catch {
-            alert('Payment verified but activation failed. Contact support.');
+            toast.error('Payment verified but activation failed. Contact support.');
           }
         },
         modal: { ondismiss: () => setLoading(null) },
       });
       rzp.open();
     } catch (err: any) {
-      alert(err?.response?.data?.message || err?.response?.data?.error || 'Failed to initiate payment');
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Failed to initiate payment');
       setLoading(null);
     }
   };
@@ -231,6 +240,9 @@ export default function PricingPage() {
     setTrialState('loading');
 
     try {
+      // Ensure Razorpay is loaded before proceeding
+      await ensureRazorpay();
+
       const fp = await getDeviceFingerprint();
 
       // Step 1: Create ₹1 mandate order
@@ -244,13 +256,12 @@ export default function PricingPage() {
         amount:      100, // ₹1 in paise
         currency:    'INR',
         name:        'Samarpan Arena',
-        description: `Free ${data.trialDays}-Day Trial — ₹1 mandate (then ₹${data.realAmount}/mo after trial)`,
+        description: `${data.trialDays}-Day Free Trial — ₹1 authorization only (₹${data.realAmount}/mo charged after trial ends)`,
         image:       '/icon.png',
         prefill:     data.prefill,
         theme:       { color: '#6366f1' },
         handler: async (response: any) => {
           try {
-            // Step 2: Verify ₹1 payment + activate trial + schedule future subscription
             await api.post('/api/billing/verify-trial-mandate', {
               ...response,
               fingerprint: fp,
@@ -260,19 +271,17 @@ export default function PricingPage() {
           } catch (err: any) {
             const code = err?.response?.data?.error;
             if (code === 'trial_used') setTrialState('used');
-            else { alert('Trial activation failed. Contact support.'); setTrialState('idle'); }
+            else { toast.error('Trial activation failed. Contact support.'); setTrialState('idle'); }
           }
         },
-        modal: {
-          ondismiss: () => setTrialState('idle'),
-        },
+        modal: { ondismiss: () => setTrialState('idle') },
       });
       rzp.open();
     } catch (err: any) {
       const code = err?.response?.data?.error;
       if (code === 'trial_used')     { setTrialState('used'); return; }
       if (code === 'trial_disabled') { setTrialState('disabled'); return; }
-      alert(err?.response?.data?.message || 'Failed to initiate trial');
+      toast.error(err?.response?.data?.message || 'Failed to initiate trial');
       setTrialState('idle');
     }
   };
@@ -302,12 +311,12 @@ export default function PricingPage() {
           {/* Billing toggle */}
           <div className="flex items-center justify-center gap-4 mt-8">
             <button
-              onClick={() => setInterval('monthly')}
-              className={`px-5 py-2.5 rounded-2xl text-sm font-black transition-all ${interval === 'monthly' ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-text-soft hover:bg-white/10'}`}
+              onClick={() => setBillingPeriod('monthly')}
+              className={`px-5 py-2.5 rounded-2xl text-sm font-black transition-all ${billingPeriod === 'monthly' ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-text-soft hover:bg-white/10'}`}
             >Monthly</button>
             <button
-              onClick={() => setInterval('yearly')}
-              className={`px-5 py-2.5 rounded-2xl text-sm font-black transition-all relative ${interval === 'yearly' ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-text-soft hover:bg-white/10'}`}
+              onClick={() => setBillingPeriod('yearly')}
+              className={`px-5 py-2.5 rounded-2xl text-sm font-black transition-all relative ${billingPeriod === 'yearly' ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-text-soft hover:bg-white/10'}`}
             >
               Yearly
               <span className="absolute -top-2.5 -right-2.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-15%</span>
@@ -319,7 +328,7 @@ export default function PricingPage() {
         <div className="grid md:grid-cols-3 gap-6 mb-16">
           {PLANS.map((plan, i) => {
             const Icon = plan.icon;
-            const price = interval === 'yearly' ? plan.price.yearly : plan.price.monthly;
+            const price = billingPeriod === 'yearly' ? plan.price.yearly : plan.price.monthly;
             const isActive = currentPlan === plan.id;
             const isPro = plan.id === 'pro';
 
@@ -355,10 +364,10 @@ export default function PricingPage() {
                     <div className="flex items-end gap-1">
                       <span className="text-xl font-bold text-text-soft">₹</span>
                       <span className="text-5xl font-black tracking-tighter">{price}</span>
-                      <span className="text-text-soft text-sm font-bold mb-1">/{interval === 'yearly' ? 'yr' : 'mo'}</span>
+                      <span className="text-text-soft text-sm font-bold mb-1">/{billingPeriod === 'yearly' ? 'yr' : 'mo'}</span>
                     </div>
                   )}
-                  {interval === 'yearly' && price > 0 && (
+                  {billingPeriod === 'yearly' && price > 0 && (
                     <p className="text-emerald-400 text-xs font-bold mt-1">
                       Save ₹{(plan.price.monthly * 12) - plan.price.yearly} vs monthly
                     </p>
@@ -425,7 +434,8 @@ export default function PricingPage() {
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">for 30 Days</span>
           </h2>
           <p className="text-text-soft mb-8 max-w-md mx-auto">
-            One free trial per device. No credit card needed. Full Pro access — AI generations, rated battles, analytics, and messaging.
+            One free trial per device. Just ₹1 to authorize auto-pay — no further charge during trial.
+            Full Pro access: AI generations, rated battles, analytics, and messaging.
           </p>
 
           <AnimatePresence mode="wait">
@@ -452,7 +462,7 @@ export default function PricingPage() {
                 disabled={trialState !== 'idle'}
                 className="px-10 py-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-black uppercase tracking-widest text-sm flex items-center gap-3 mx-auto hover:opacity-90 transition-all shadow-[0_10px_40px_rgba(99,102,241,0.4)] disabled:opacity-60"
               >
-                {trialState === 'idle'      && <><Star size={16} fill="currentColor" /> Start Free Trial — Just ₹1 Now</>}
+                {trialState === 'idle'      && <><Star size={16} fill="currentColor" /> Start 30-Day Trial — Only ₹1 to Authorize</>}
                 {trialState === 'loading'   && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Opening payment…</>}
                 {trialState === 'activating' && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Activating trial…</>}
               </motion.button>
@@ -460,7 +470,9 @@ export default function PricingPage() {
           </AnimatePresence>
 
           <p className="text-text-soft text-xs mt-4">
-            Pay just ₹1 to authorize auto-pay. Full trial access immediately — real plan price auto-debited after trial ends. Cancel anytime.
+            ₹1 authorizes auto-pay — full Pro access unlocked immediately. Real plan price auto-debited only after trial ends.
+            Cancel anytime before trial ends and pay nothing more.{' '}
+            <a href="/terms" className="underline underline-offset-2 hover:text-white transition-colors">Refund policy</a>.
           </p>
         </motion.div>
 

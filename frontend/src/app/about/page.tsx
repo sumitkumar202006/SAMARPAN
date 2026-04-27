@@ -13,7 +13,7 @@ export default function AboutPage() {
         <div className="w-20 h-20 rounded-[32px] bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center font-bold text-4xl text-white shadow-2xl rotate-6 mb-4">
           S
         </div>
-        <h2 className="text-4xl lg:text-7xl font-black tracking-tight text-foreground">Changing the game.</h2>
+        <h1 className="text-4xl lg:text-7xl font-black tracking-tight text-foreground">Changing the game.</h1>
         <p className="text-text-soft text-lg lg:text-xl max-w-3xl leading-relaxed">
           Samarpan is an AI-powered e-sports style quiz arena designed to transform classroom engagement into a competitive, data-driven experience.
         </p>
@@ -101,10 +101,12 @@ export default function AboutPage() {
                 {/* Background Circle */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-accent/20 to-accent-alt/20 group-hover:scale-110 transition-transform duration-500" />
                 {/* Profile Image with pop-out effect */}
-                <motion.img
+                <img
                   src={member.img}
-                  alt={member.name}
+                  alt={`${member.name}, ${member.role} at Samarpan Arena`}
                   referrerPolicy="no-referrer"
+                  width={128}
+                  height={128}
                   className="relative z-10 w-full h-full rounded-full object-cover border-4 border-white/10 group-hover:border-accent group-hover:-translate-y-6 group-hover:scale-110 transition-all duration-500 shadow-2xl"
                 />
               </div>
@@ -118,13 +120,13 @@ export default function AboutPage() {
               <p className="text-xs text-text-soft mb-6">{member.edu}</p>
 
               <div className="flex gap-4">
-                <a href={member.link} target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl bg-white/5 hover:bg-accent hover:text-white transition-all">
+                <a href={member.link} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on LinkedIn`} className="p-2 rounded-xl bg-white/5 hover:bg-accent hover:text-white transition-all">
                   <Linkedin size={18} />
                 </a>
-                <a href={member.github} target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl bg-white/5 hover:bg-black hover:text-white transition-all">
+                <a href={member.github} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on GitHub`} className="p-2 rounded-xl bg-white/5 hover:bg-black hover:text-white transition-all">
                   <Github size={18} />
                 </a>
-                <a href={member.insta} target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl bg-white/5 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] hover:text-white transition-all">
+                <a href={member.insta} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on Instagram`} className="p-2 rounded-xl bg-white/5 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] hover:text-white transition-all">
                   <Instagram size={18} />
                 </a>
               </div>

@@ -7,11 +7,13 @@ export const AuraCursor = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
-  
+  // false = unknown (SSR), true = has fine pointer (mouse), false = touch-only
+  const [hasFinePointer, setHasFinePointer] = useState<boolean | null>(null);
+
   // Raw values for ZERO-DELAY tracking (feels like native cursor)
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
-  
+
   // High-performance spring physics for the trailing elements only
   const springConfig = { damping: 40, stiffness: 800, mass: 0.1 };
   const springX = useSpring(rawX, springConfig);
@@ -21,6 +23,8 @@ export const AuraCursor = () => {
 
   useEffect(() => {
     setIsMounted(true);
+    // Only enable cursor on devices with a precise pointer (mouse/trackpad)
+    setHasFinePointer(window.matchMedia('(pointer: fine)').matches);
   }, []);
 
   // Dedicated trail springs (slightly slower for the 'exhaust' effect)
@@ -62,7 +66,7 @@ export const AuraCursor = () => {
     };
   }, [isVisible, rawX, rawY, isMounted]);
 
-  if (!isMounted || !isVisible) return null;
+  if (!isMounted || !isVisible || hasFinePointer === false) return null;
 
   const sharedStyles: React.CSSProperties = {
     position: 'fixed',

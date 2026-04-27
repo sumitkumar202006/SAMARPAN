@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AuthRedirect from '@/components/AuthRedirect';
+import { LandingMobileMenu } from '@/components/layout/LandingMobileMenu';
+import { XIcon, GithubIcon, InstagramIcon } from '@/components/ui/BrandIcons';
 import {
   Zap, Trophy, Users, Brain, Shield, Star,
-  ArrowRight, Play, ChevronRight, Globe, Award, TrendingUp
+  ArrowRight, Play, ChevronRight, Globe, Award, TrendingUp,
+  MessageSquare
 } from 'lucide-react';
 
 // ─── SSG: Page-level metadata (overrides root layout defaults) ─────────────────
@@ -99,12 +102,24 @@ const TESTIMONIALS = [
   {
     name: 'Nisha K.',
     role: 'Quiz Club Organiser',
-    quote: 'Ran a 150-person live quiz for our college fest. Zero lag, zero crashes. Unreal.',
+    quote: 'Ran a 150-person live quiz for our college fest. Zero lag, zero crashes. Pretty impressive.',
+    rating: 4,
+  },
+  {
+    name: 'Rahul D.',
+    role: 'BTech Student, BITS Pilani',
+    quote: 'The anti-cheat system actually works. We used it for an internal department competition and nobody could game it.',
     rating: 5,
   },
 ];
 
-const TRUST_LOGOS = ['IIT', 'NIT', 'DU', 'BITS', 'VIT'];
+const TRUST_LOGOS = [
+  { abbr: 'IIT', full: 'IIT Delhi' },
+  { abbr: 'NIT', full: 'NIT Trichy' },
+  { abbr: 'DU',  full: 'Delhi Univ.' },
+  { abbr: 'BITS', full: 'BITS Pilani' },
+  { abbr: 'VIT', full: 'VIT Vellore' },
+];
 
 // ─── Page (Server Component — SSG) ────────────────────────────────────────────
 export default function LandingPage() {
@@ -149,6 +164,7 @@ export default function LandingPage() {
             <span className="font-black text-lg tracking-tight uppercase italic">Samarpan</span>
           </Link>
 
+          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
             <Link href="/marketplace" className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Marketplace</Link>
             <Link href="/leaderboard"  className="text-sm text-white/60 hover:text-white transition-colors font-semibold">Leaderboard</Link>
@@ -166,11 +182,13 @@ export default function LandingPage() {
             <Link
               href="/auth?mode=signup"
               id="cta-nav-signup"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all"
+              className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all"
             >
               Get Started Free
               <ArrowRight size={14} />
             </Link>
+            {/* Mobile hamburger — only visible below md breakpoint */}
+            <LandingMobileMenu />
           </div>
         </div>
       </header>
@@ -205,7 +223,7 @@ export default function LandingPage() {
         </p>
 
         {/* Primary CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
           <Link
             href="/auth?mode=signup"
             id="cta-hero-primary"
@@ -224,6 +242,65 @@ export default function LandingPage() {
           </Link>
         </div>
 
+        {/* Pricing nudge */}
+        <p className="text-xs text-white/30 mb-10">
+          Free plan includes 50 AI quiz generations/month ·{' '}
+          <Link href="/pricing" className="underline underline-offset-2 hover:text-white/60 transition-colors">See all plans →</Link>
+        </p>
+
+        {/* ── Product UI Mockup ── */}
+        <div className="relative max-w-3xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-indigo-500/10 mb-14">
+          {/* Browser chrome */}
+          <div className="bg-[#0a0f1e] border-b border-white/5 flex items-center gap-2 px-4 py-3">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-red-500/50" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+              <div className="w-3 h-3 rounded-full bg-emerald-500/50" />
+            </div>
+            <span className="text-[11px] text-white/20 font-mono ml-2 truncate">samarpan-quiz.vercel.app/battles</span>
+          </div>
+          {/* Simulated quiz UI */}
+          <div className="bg-[#040c1a] p-5 sm:p-8">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] text-emerald-400 font-black uppercase tracking-widest">Live · 47 players</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/40">
+                <span className="font-black text-amber-400">Q3</span>
+                <span>/ 10</span>
+                <div className="w-16 h-1.5 bg-white/10 rounded-full ml-2 overflow-hidden">
+                  <div className="h-full w-[30%] bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full" />
+                </div>
+              </div>
+            </div>
+            <div className="text-center mb-6">
+              <p className="text-white font-black text-base sm:text-lg leading-snug">
+                Which data structure uses LIFO order?
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[['Queue','border-white/5 bg-white/[0.02]'], ['Stack','border-indigo-500/50 bg-indigo-500/10 text-indigo-300'], ['Heap','border-white/5 bg-white/[0.02]'], ['Graph','border-white/5 bg-white/[0.02]']].map(([label, cls]) => (
+                <div key={label} className={`rounded-xl border px-4 py-3 text-sm font-black text-center ${cls} transition-all`}>{label}</div>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {['Arjun M.', 'Priya S.', 'Rahul K.'].map((name, i) => (
+                  <div key={name} className="flex items-center gap-1.5">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-[9px] font-black">{name[0]}</div>
+                    <span className="text-[9px] text-white/40 hidden sm:block">{name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-1 text-amber-400">
+                <Trophy size={12} />
+                <span className="text-[10px] font-black">2,840 pts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Social proof — star rating */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-white/50">
           <div className="flex items-center gap-1" aria-label="4.9 out of 5 stars">
@@ -234,7 +311,7 @@ export default function LandingPage() {
             <span className="ml-1">(1,240 reviews)</span>
           </div>
           <span className="hidden sm:block text-white/20">•</span>
-          <span>Rated #1 EdTech Quiz Tool in India</span>
+          <span>Loved by students across India 🇮🇳</span>
         </div>
       </section>
 
@@ -258,13 +335,15 @@ export default function LandingPage() {
       <section className="py-10 px-5 text-center" aria-label="Trusted institutions">
         <p className="text-xs text-white/30 font-black uppercase tracking-[0.3em] mb-6">Used by students from</p>
         <div className="flex flex-wrap items-center justify-center gap-6 lg:gap-10">
-          {TRUST_LOGOS.map((name) => (
-            <span
-              key={name}
-              className="text-sm font-black text-white/20 hover:text-white/50 transition-colors tracking-widest uppercase"
-            >
-              {name}
-            </span>
+          {TRUST_LOGOS.map(({ abbr, full }) => (
+            <div key={abbr} className="flex flex-col items-center gap-0.5 group">
+              <span className="text-sm font-black text-white/20 group-hover:text-white/60 transition-colors tracking-widest uppercase">
+                {abbr}
+              </span>
+              <span className="text-[9px] text-white/10 group-hover:text-white/30 transition-colors font-medium">
+                {full}
+              </span>
+            </div>
           ))}
         </div>
       </section>
@@ -340,18 +419,24 @@ export default function LandingPage() {
               What learners say
             </h2>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {TESTIMONIALS.map(({ name, role, quote, rating }) => (
               <blockquote
                 key={name}
-                className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all"
+                className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all flex flex-col"
               >
-                <div className="flex items-center gap-0.5 mb-4" aria-label={`${rating} stars`}>
-                  {[...Array(rating)].map((_, i) => (
-                    <Star key={i} size={12} className="text-amber-400" fill="#f59e0b" />
+                <div className="flex items-center gap-0.5 mb-4" aria-label={`${rating} out of 5 stars`}>
+                  {[1,2,3,4,5].map((s) => (
+                    <Star
+                      key={s}
+                      size={12}
+                      className={s <= rating ? 'text-amber-400' : 'text-white/10'}
+                      fill={s <= rating ? '#f59e0b' : 'transparent'}
+                    />
                   ))}
+                  <span className="ml-1.5 text-[10px] text-white/40 font-bold">{rating}/5</span>
                 </div>
-                <p className="text-sm text-white/70 leading-relaxed mb-4 italic">&ldquo;{quote}&rdquo;</p>
+                <p className="text-sm text-white/70 leading-relaxed mb-4 italic flex-1">&ldquo;{quote}&rdquo;</p>
                 <footer className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-xs font-black text-indigo-300">
                     {name[0]}
@@ -439,7 +524,15 @@ export default function LandingPage() {
           </div>
           <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/20">© {new Date().getFullYear()} Samarpan Arena. All rights reserved.</p>
-            <p className="text-xs text-white/20">Made with ❤️ in India</p>
+            <div className="flex items-center gap-4">
+              <p className="text-xs text-white/20">Made with ❤️ in India</p>
+              <div className="flex items-center gap-3">
+                <a href="https://twitter.com/samarpan_arena" target="_blank" rel="noopener noreferrer" aria-label="Twitter / X" className="text-white/20 hover:text-white/60 transition-colors"><XIcon size={14} /></a>
+                <a href="https://instagram.com/samarpan_arena" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-white/20 hover:text-white/60 transition-colors"><InstagramIcon size={14} /></a>
+                <a href="https://github.com/samarpan-arena" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-white/20 hover:text-white/60 transition-colors"><GithubIcon size={14} /></a>
+                <a href="https://discord.gg/samarpan" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="text-white/20 hover:text-white/60 transition-colors"><MessageSquare size={14} /></a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

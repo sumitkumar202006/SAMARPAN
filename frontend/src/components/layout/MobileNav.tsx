@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, PlusSquare, ShieldCheck, Zap, Trophy, Sparkles } from 'lucide-react';
@@ -93,7 +94,14 @@ export const MobileNav = () => {
             planRingClass(user?.plan || 'free')
           )}>
             {user?.avatar ? (
-              <img src={user.avatar} alt={user?.name || ''} className="w-full h-full object-cover" />
+              <Image
+                src={user.avatar}
+                alt={user?.name || 'User avatar'}
+                width={36}
+                height={36}
+                className="w-full h-full object-cover"
+                unoptimized={!user.avatar.startsWith('/')}
+              />
             ) : (
               <div className="w-full h-full bg-accent/20 flex items-center justify-center text-accent font-black text-sm">
                 {(user?.name || 'U').charAt(0).toUpperCase()}

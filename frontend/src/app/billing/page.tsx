@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Zap, Crown, Shield, ArrowUpRight, RefreshCw, 
@@ -83,22 +83,22 @@ export default function BillingPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [successMsg, setSuccessMsg] = useState(searchParams.get('success') === 'true');
 
-  useEffect(() => {
-    if (!user) { router.push('/auth'); return; }
-    fetchBillingStatus();
-  }, [user]);
-
-  async function fetchBillingStatus() {
+  const fetchBillingStatus = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/api/billing/status');
       setStatus(res.data);
     } catch {
-      console.error('Failed to load billing status');
+      // silently fail — UI shows placeholder state
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!user) { router.push('/auth'); return; }
+    fetchBillingStatus();
+  }, [user, fetchBillingStatus]);
 
   const handleCancel = async () => {
     setCancelling(true);

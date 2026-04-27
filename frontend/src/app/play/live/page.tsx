@@ -37,6 +37,19 @@ function LivePlayContent() {
   const joinedSocketRef = useRef<string | null>(null); // tracks socket.id to detect reconnects
 
   // -----------------------------------------------------------------------
+  // Helper: returns true if this session was created by matchmaking
+  // Checks both the socket path (matchmade: true) and the REST path (metadata.matchmaking: true)
+  // This is the SINGLE source of truth for "should this player see host dashboard?"
+  // -----------------------------------------------------------------------
+  const isMatchmadeSession = (data: any): boolean => {
+    return !!(
+      data?.matchmade ||
+      data?.metadata?.matchmaking ||
+      data?.metadata?.matchmade
+    );
+  };
+
+  // -----------------------------------------------------------------------
   // Fetch session via REST (fallback — used if socket join_ack times out)
   // -----------------------------------------------------------------------
   const fetchSession = useCallback(async () => {
@@ -47,8 +60,8 @@ function LivePlayContent() {
         setQuiz(res.data.quiz);
         const playAsHost = searchParams.get('playAsHost') === 'true';
         const userId = user?.id || user?.userId;
-        // Never show host dashboard for matchmade sessions
-        if (!res.data.matchmade && user && res.data.hostId === userId && !playAsHost) {
+        // GUARD: Never show host dashboard for matchmade sessions
+        if (!isMatchmadeSession(res.data) && user && res.data.hostId === userId && !playAsHost) {
           setIsHost(true);
         }
       }
@@ -57,6 +70,7 @@ function LivePlayContent() {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin, user, searchParams]);
 
   // -----------------------------------------------------------------------
@@ -69,16 +83,26 @@ function LivePlayContent() {
     if (joinedSocketRef.current !== socket.id) {
       joinedSocketRef.current = socket.id ?? null;
       const playAsHost = searchParams.get('playAsHost') === 'true';
-      socket.emit('join_room', {
-        pin,
-        name: user.name || 'Player',
-        userId: user.id || user.userId, // Fix: user.id is the correct field
-        email: user.email,
-        avatar: user.avatar || null,
-        // Pass team/slot from URL params if present (lobby redirect)
-        team: searchParams.get('team') || null,
-        slotIndex: searchParams.get('slot') ? Number(searchParams.get('slot')) : undefined,
-      });
+      const doJoin = () => {
+        socket.emit('join_room', {
+          pin,
+          name: user.name || 'Player',
+          userId: user.id || user.userId,
+          email: user.email,
+          avatar: user.avatar || null,
+          team: searchParams.get('team') || null,
+          slotIndex: searchParams.get('slot') ? Number(searchParams.get('slot')) : undefined,
+        });
+      };
+      // If navigated from battles page (no playAsHost, no team param), the server
+      // session was just created — add a small delay so liveSessions.set() completes
+      // before our join_room arrives. Regular sessions (lobby-based) need no delay.
+      const isFromMatchmaking = !playAsHost && !searchParams.get('team') && !searchParams.get('slot');
+      if (isFromMatchmaking) {
+        setTimeout(doJoin, 800);
+      } else {
+        doJoin();
+      }
     }
 
     // ---- join_ack: THE primary sync mechanism ----
@@ -89,9 +113,10 @@ function LivePlayContent() {
       if (data.examSettings) setExamSettings(data.examSettings);
       setLoading(false);
       setHasJoinedRoom(true);
-      // Never show host dashboard for matchmade sessions (no real host)
+      // TRIPLE GUARD: Never show host dashboard for matchmade sessions.
+      // Checks: (1) socket matchmade flag, (2) metadata flags, (3) playAsHost override
       const playAsHost = searchParams.get('playAsHost') === 'true';
-      if (!data.matchmade && user && data.hostId === (user.id || user.userId) && !playAsHost) {
+      if (!isMatchmadeSession(data) && user && data.hostId === (user.id || user.userId) && !playAsHost) {
         setIsHost(true);
       }
     };

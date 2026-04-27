@@ -317,6 +317,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
 
     const onGameStarted = (data: any) => {
       setHudMessage({ text: "ARENA DEPLOYED. GOOD LUCK.", type: 'info' });
+      // Auto-dismiss the "Good Luck" toast after 3s so it never blocks the quiz
+      setTimeout(() => setHudMessage(null), 3000);
       if (data.examSettings) setExamSettings(data.examSettings);
       setCountdown(null); // Clear countdown overlay
       setIsMatchActive(true);

@@ -136,19 +136,12 @@ export default function BattlesPage() {
     const onMatchFound = (data: any) => {
       setMatchResult(data);
       setMatchState('found');
-      // Delay join_room by 500ms — server needs time to fully register the live session
-      // before players can join. Without this, join_room can arrive before liveSessions.set() completes.
-      setTimeout(() => {
-        const playerName = user?.name || joinName || 'Player';
-        socket?.emit('join_room', {
-          pin: data.pin,
-          name: playerName,
-          userId: user?.id || user?.userId || null,
-          avatar: user?.avatar || null,
-        });
-      }, 500);
-      // 5s countdown then redirect directly to play/live (matchmade sessions auto-start)
-      let cd = 5;
+      // DO NOT emit join_room here — the /play/live page emits it when it loads.
+      // Emitting twice (once here + once on page load) causes race conditions where
+      // the player list gets duplicate entries and the host check may fire incorrectly.
+
+      // 3s countdown then redirect to play/live (matchmade sessions auto-start)
+      let cd = 3;
       setCountdown(cd);
       countdownRef.current = setInterval(() => {
         cd--;
@@ -210,7 +203,7 @@ export default function BattlesPage() {
       socket.off('join_error', onJoinError);
       socket.off('online_count', onOnlineCount);
     };
-  }, [socket, router, user, joinName, showToast]);
+  }, [socket, router, user, showToast]);
 
   // ── Subscribe to rooms feed when on arena tab ─────────────
   useEffect(() => {

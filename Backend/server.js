@@ -763,6 +763,9 @@ app.get("/api/host/session/:pin", async (req, res) => {
     if (!session) return res.status(404).json({ error: "Session not found" });
     const mapped = mapId(session);
     mapped.hostId = session.hostId;
+    // CRITICAL: expose matchmade flag so frontend REST fallback never shows host dashboard
+    // The flag is stored in metadata.matchmaking by the matchmaking engine
+    mapped.matchmade = !!(session.metadata?.matchmaking || session.metadata?.matchmade);
     if (session.metadata) {
       mapped.playAsHost = session.metadata.playAsHost !== false;
     }
@@ -1002,9 +1005,10 @@ async function createMatchFromQueue(queueKey, players, addBot = false) {
     }
 
     // Create DB session
-    // Use first matched player's userId as host (required by schema).
-    // If player is a guest (no userId), fall back to quiz author as a proxy host.
-    const hostUserId = players.find(p => p.userId)?.userId || quiz.authorId;
+    // For matchmade sessions, hostId MUST be the quiz author — NEVER a matched player's userId.
+    // If a player's userId were used, they would be falsely identified as "host" via the REST
+    // fallback path (/api/host/session/:pin) since hostId === userId would be true.
+    const hostUserId = quiz.authorId;
 
     await prisma.gameSession.create({
       data: {
@@ -1018,7 +1022,7 @@ async function createMatchFromQueue(queueKey, players, addBot = false) {
           pointsPerQ: 100,
           penaltyPoints: 0,
           maxPlayers: 10,
-          matchmaking: true,
+          matchmaking: true,   // ← key flag: REST endpoint reads this to set matchmade:true
           category,
           difficulty
         }

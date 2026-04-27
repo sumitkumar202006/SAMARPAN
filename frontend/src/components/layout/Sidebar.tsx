@@ -112,10 +112,10 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
           whileHover={{ rotate: 15, scale: 1.1 }}
           className={cn(
             "w-9 h-9 rounded-full bg-gradient-to-br from-accent to-accent-alt flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-white/20 relative shrink-0 overflow-hidden",
-            mounted && isCollapsed && "w-10 h-10 shadow-[0_0_25px_rgba(99,102,241,0.6)]"
+            mounted && isCollapsed && "w-10 h-10 shadow-[0_0_25px_rgba(204,0,0,0.6)]"
           )}
         >
-          <img src="/favicon.ico" alt="Logo" className="w-full h-full object-cover" />
+          <img src="/qyro-logo.png" alt="Qyro" className="w-full h-full object-cover" />
         </motion.div>
         <div className="flex flex-col justify-center">
           <AnimatePresence mode="wait">
@@ -127,10 +127,10 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                 className="flex flex-col"
               >
                 <span className="text-lg font-black uppercase tracking-[0.05em] italic text-white leading-tight">
-                  Samarpan
+                  QYRO
                 </span>
-                <span className="text-[7.5px] font-bold text-accent tracking-[0.35em] uppercase opacity-60 mt-1">
-                  Nexus Protocol V4
+                <span className="text-[7.5px] font-bold text-accent tracking-[0.35em] uppercase opacity-80 mt-1">
+                  Build.Compete.Dominate
                 </span>
               </motion.div>
             )}

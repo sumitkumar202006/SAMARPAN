@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* ================================================================
+   QYRO DESIGN TOKENS — Brand System v1.0
+   Build. Compete. Dominate.
+   Primary:   #CC0000  (Qyro Red)
+   Secondary: #00D4B4  (Live Teal)
+   Surface:   #0D0D0D  (Arena Black) / #1A1A2E (Nexus Navy)
+================================================================ */
+
 :root {
-  --background: #020617;
-  --foreground: #f9fafb;
+  --background: #0D0D0D;
+  --foreground: #FFFFFF;
   --blur-xl: 48px;
   --blur-3xl: 64px;
   --glass-blur: 20px;
@@ -49,38 +57,48 @@
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  
-  --color-bg-soft: #0b1120;
-  --color-accent: #6366f1;
-  --color-accent-alt: #22c55e;
-  --color-accent-soft: rgba(99, 102, 241, 0.15);
-  --color-text-soft: #9ca3af;
-  --color-border-soft: rgba(148, 163, 184, 0.15);
-  
+
+  /* ── Qyro Brand Palette ── */
+  --color-bg-soft: #1A1A2E;                        /* Nexus Navy — cards, sidebar */
+  --color-accent: #CC0000;                          /* Qyro Red — primary CTA, active */
+  --color-accent-alt: #00D4B4;                      /* Live Teal — success, correct, live */
+  --color-accent-soft: rgba(204, 0, 0, 0.15);       /* Red glow bg */
+  --color-text-soft: #9a9ab0;                       /* Muted labels */
+  --color-border-soft: rgba(58, 58, 92, 0.6);       /* Nexus border */
+
+  /* Extended palette */
+  --color-battle-red: #FF2222;                      /* Brighter red for hover/active */
+  --color-elo-purple: #7B61FF;                      /* ELO / rank system */
+  --color-gold: #FFB800;                            /* Elite / Gold tier */
+  --color-surface: #16213E;                         /* Surface Dark */
+  --color-card: #242448;                            /* Card Dark */
+  --color-border: #3A3A5C;                          /* Border Dark */
+
   --radius-lg: 16px;
   --radius-xl: 22px;
-  
-  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.7);
-  
+
+  --shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.8);
+
+  /* Qyro signature animations */
   --animate-laser-sweep: laser-sweep 0.7s ease-out forwards;
   --animate-border-pulse: border-pulse 0.8s ease-out infinite alternate;
   --animate-scan: scanline 4s linear infinite;
-  
+
   @keyframes laser-sweep {
     0% { left: -60%; }
     100% { left: 120%; }
   }
-  
+
   @keyframes border-pulse {
     0% { opacity: 0.4; transform: scale(1); }
     100% { opacity: 1; transform: scale(1.03); }
   }
-  
+
   @keyframes scanline {
     0% { transform: translateY(-100%); }
     100% { transform: translateY(100%); }
   }
-  
+
   @keyframes breathe {
     0%, 100% { opacity: 0.3; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.05); }
@@ -127,6 +145,13 @@
     0% { opacity: 0; transform: translateX(-10px); }
     100% { opacity: 1; transform: translateX(0); }
   }
+
+  /* Battle snap — Qyro micro-interaction */
+  @keyframes battle-snap {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.96); }
+    100% { transform: scale(1); }
+  }
 }
 
 @utility animate-shimmer {
@@ -141,6 +166,10 @@
   animation: scanline 4s linear infinite;
 }
 
+@utility animate-battle-snap {
+  animation: battle-snap 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -148,22 +177,22 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
-  /* Custom Cursor - Handled by UI components */
   @media (pointer: fine) {
     cursor: none !important;
   }
 }
 
-/* Atmospheric Overlays */
+/* Arena atmospheric overlay — subtle red vignette */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 0%, rgba(2, 6, 23, 0.4) 100%);
+  background: radial-gradient(circle at center, transparent 0%, rgba(13, 13, 13, 0.5) 100%);
   pointer-events: none;
   z-index: 1;
 }
 
+/* Qyro scan line — red tint instead of indigo */
 body::after {
   content: "";
   position: fixed;
@@ -171,51 +200,59 @@ body::after {
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.2), transparent);
-  opacity: 0.1;
+  background: linear-gradient(to right, transparent, rgba(204, 0, 0, 0.25), transparent);
+  opacity: 0.15;
   pointer-events: none;
   animation: scanline 12s linear infinite;
   z-index: 2;
 }
 
-/* Glassmorphism utility */
+/* Glassmorphism utility — Arena Dark surface */
 .glass {
-  background: rgba(8, 12, 24, 0.6);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  border: 1px solid rgba(148, 163, 184, 0.08);
-  box-shadow: 
-    0 10px 40px -10px rgba(0, 0, 0, 0.5),
+  background: rgba(13, 13, 13, 0.7);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid rgba(58, 58, 92, 0.35);
+  box-shadow:
+    0 10px 40px -10px rgba(0, 0, 0, 0.7),
     inset 0 1px 1px rgba(255, 255, 255, 0.02);
   will-change: transform;
-  /* Isolate GPU layers — prevents blur stacking overhead */
   transform: translateZ(0);
-  /* Ensure cursor is hidden on glass elements too */
   @media (pointer: fine) {
     cursor: none !important;
   }
 }
 
+/* Red glow glass variant — active/selected states */
 .glass-glow {
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(204, 0, 0, 0.3);
+  box-shadow: 0 0 20px rgba(204, 0, 0, 0.12);
 }
 
 .glass-glow:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+  border-color: rgba(204, 0, 0, 0.55);
+  box-shadow: 0 0 30px rgba(204, 0, 0, 0.22);
 }
 
-/* Custom scrollbar */
+/* Teal glow — correct / live / success states */
+.glass-teal {
+  border: 1px solid rgba(0, 212, 180, 0.3);
+  box-shadow: 0 0 20px rgba(0, 212, 180, 0.1);
+}
+
+/* Custom scrollbar — Arena style */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: #0D0D0D;
 }
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #3A3A5C;
   border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CC0000;
 }
 
 @utility scrollbar-hide {

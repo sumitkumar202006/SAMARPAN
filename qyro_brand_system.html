@@ -1,0 +1,321 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .section { margin-bottom: 2.5rem; }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-tertiary); margin-bottom: 1rem; border-bottom: 0.5px solid var(--color-border-tertiary); padding-bottom: 6px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .swatch { width: 56px; height: 40px; border-radius: 6px; }
+  .swatch-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .swatch-label { font-size: 10px; color: var(--color-text-tertiary); }
+  .type-demo { border-radius: 10px; overflow: hidden; }
+  .type-row { padding: 10px 14px; display: flex; align-items: baseline; gap: 12px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .type-name { font-size: 11px; min-width: 90px; }
+  .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .comp-card { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem; }
+  .comp-title { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+  .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn-demo { padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+  .rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .rank-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .rank-name { font-size: 13px; font-weight: 500; }
+  .rank-sub { font-size: 11px; color: var(--color-text-tertiary); margin-left: auto; }
+  .icon-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .icon-box { background: var(--color-background-secondary); border-radius: 8px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0.5px solid var(--color-border-tertiary); }
+  .icon-label { font-size: 10px; color: var(--color-text-tertiary); text-align: center; }
+  .motion-bar { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #CC0000 0%, #FF2222 60%, #FF4444 100%); }
+  .gradient-strip { height: 32px; border-radius: 8px; }
+  .voice-card { background: #0D0D0D; border-radius: 10px; padding: 14px; }
+  .voice-tag { display: inline-block; background: #CC0000; color: #fff; font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 4px; margin-right: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .voice-not { display: inline-block; background: rgba(255,255,255,0.1); color: #aaa; font-size: 9px; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+</style>
+
+<div style="padding: 1rem 0;">
+
+  <!-- COLOR PALETTE -->
+  <div class="section">
+    <div class="section-label">Color palette</div>
+    <div style="background: #0D0D0D; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+      <div style="font-size: 10px; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em;">Primary palette</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+        <div class="swatch-group">
+          <div class="swatch" style="background: #CC0000;"></div>
+          <div class="swatch-label" style="color:#999;">Qyro Red</div>
+          <div class="swatch-label" style="color:#666;">#CC0000</div>
+        </div>
+        <div class="swatch-group">
+          <div class="swatch" style="background: #FF2222;"></div>
+          <div class="swatch-label" style="color:#999;">Battle Red</div>
+          <div class="swatch-label" style="color:#666;">#FF2222</div>
+        </div>
+        <div class="swatch-group">
+          <div class="swatch" style="background: #FFFFFF;"></div>
+          <div class="swatch-label" style="color:#999;">Pure White</div>
+          <div class="swatch-label" style="color:#666;">#FFFFFF</div>
+        </div>
+        <div class="swatch-group">
+          <div class="swatch" style="background: #0D0D0D;"></div>
+          <div class="swatch-label" style="color:#999;">Arena Black</div>
+          <div class="swatch-label" style="color:#666;">#0D0D0D</div>
+        </div>
+        <div class="swatch-group">
+          <div class="swatch" style="background: #1A1A2E;"></div>
+          <div class="swatch-label" style="color:#999;">Nexus Navy</div>
+          <div class="swatch-label" style="color:#666;">#1A1A2E</div>
+        </div>
+      </div>
+    </div>
+    <div style="background: #0D0D0D; border-radius: 12px; padding: 16px;">
+      <div style="font-size: 10px; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em;">Extended / semantic palette</div>
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;">
+        <div class="swatch-group"><div class="swatch" style="background: #7B61FF;"></div><div class="swatch-label" style="color:#999;">ELO Purple</div><div class="swatch-label" style="color:#666;">#7B61FF</div></div>
+        <div class="swatch-group"><div class="swatch" style="background: #00D4B4;"></div><div class="swatch-label" style="color:#999;">Live Teal</div><div class="swatch-label" style="color:#666;">#00D4B4</div></div>
+        <div class="swatch-group"><div class="swatch" style="background: #FFB800;"></div><div class="swatch-label" style="color:#999;">Gold / Elite</div><div class="swatch-label" style="color:#666;">#FFB800</div></div>
+        <div class="swatch-group"><div class="swatch" style="background: #16213E;"></div><div class="swatch-label" style="color:#999;">Surface Dark</div><div class="swatch-label" style="color:#666;">#16213E</div></div>
+        <div class="swatch-group"><div class="swatch" style="background: #242448;"></div><div class="swatch-label" style="color:#999;">Card Dark</div><div class="swatch-label" style="color:#666;">#242448</div></div>
+        <div class="swatch-group"><div class="swatch" style="background: #3A3A5C;"></div><div class="swatch-label" style="color:#999;">Border Dark</div><div class="swatch-label" style="color:#666;">#3A3A5C</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <div class="section">
+    <div class="section-label">Typography</div>
+    <div style="background: #0D0D0D; border-radius: 12px; padding: 16px 0; overflow: hidden;">
+      <div style="padding: 0 16px 10px; font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.1em;">Scale</div>
+      <div class="type-row">
+        <span class="type-name" style="color:#555; font-size:10px;">H1 / Arena title</span>
+        <span style="font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.02em;">QYRO ARENA</span>
+      </div>
+      <div class="type-row">
+        <span class="type-name" style="color:#555; font-size:10px;">H2 / Section head</span>
+        <span style="font-size: 20px; font-weight: 600; color: #fff;">Forge Commission</span>
+      </div>
+      <div class="type-row">
+        <span class="type-name" style="color:#555; font-size:10px;">H3 / Card head</span>
+        <span style="font-size: 15px; font-weight: 500; color: #e0e0e0;">Neural Forge · AI Assisted</span>
+      </div>
+      <div class="type-row">
+        <span class="type-name" style="color:#555; font-size:10px;">Body</span>
+        <span style="font-size: 14px; color: #9a9ab0; line-height: 1.6;">Engineer custom arena challenges via manual logic or neural synthesis.</span>
+      </div>
+      <div class="type-row">
+        <span class="type-name" style="color:#555; font-size:10px;">Label / Nav</span>
+        <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.12em; color: #6666aa; text-transform: uppercase;">Dashboard · Battles · Marketplace</span>
+      </div>
+      <div class="type-row" style="border-bottom: none;">
+        <span class="type-name" style="color:#555; font-size:10px;">Accent / CTA</span>
+        <span style="font-size: 13px; font-weight: 700; color: #CC0000; letter-spacing: 0.04em; text-transform: uppercase;">Find Match →</span>
+      </div>
+    </div>
+    <div style="margin-top: 10px; background: #0D0D0D; border-radius: 10px; padding: 12px 16px; display: flex; gap: 20px; flex-wrap: wrap;">
+      <div>
+        <div style="font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em;">Primary</div>
+        <div style="font-size: 13px; color: #ccc;">Inter / System UI</div>
+        <div style="font-size: 11px; color: #555;">Body, UI, labels</div>
+      </div>
+      <div>
+        <div style="font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em;">Display</div>
+        <div style="font-size: 13px; color: #ccc; font-weight: 700; letter-spacing: -0.02em;">Barlow Condensed / Impact</div>
+        <div style="font-size: 11px; color: #555;">Headings, scores, rank badges</div>
+      </div>
+      <div>
+        <div style="font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em;">Mono</div>
+        <div style="font-size: 13px; color: #ccc; font-family: monospace;">JetBrains Mono</div>
+        <div style="font-size: 11px; color: #555;">Timers, scores, PIN codes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPONENTS -->
+  <div class="section">
+    <div class="section-label">Components</div>
+    <div class="comp-grid">
+
+      <!-- Buttons -->
+      <div class="comp-card">
+        <div class="comp-title">Buttons</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn-demo" style="background: #CC0000; color: #fff; width: 100%;">Find match</button>
+          <button class="btn-demo" style="background: transparent; color: #CC0000; border: 1.5px solid #CC0000; width: 100%;">Create quiz</button>
+          <button class="btn-demo" style="background: #1A1A2E; color: #9a9ab0; border: 1px solid #3A3A5C; width: 100%;">Secondary action</button>
+          <button class="btn-demo" style="background: #FFB800; color: #0D0D0D; width: 100%; font-size: 12px;">⚡ Elite upgrade</button>
+        </div>
+      </div>
+
+      <!-- Badges & Rank Pills -->
+      <div class="comp-card">
+        <div class="comp-title">Rank badges</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="rank-row"><div class="rank-dot" style="background: #CD7F32;"></div><div class="rank-name" style="color: #CD7F32;">Bronze</div><div class="rank-sub">0 – 999</div></div>
+          <div class="rank-row"><div class="rank-dot" style="background: #C0C0C0;"></div><div class="rank-name" style="color: #C0C0C0;">Silver</div><div class="rank-sub">1000 – 1199</div></div>
+          <div class="rank-row"><div class="rank-dot" style="background: #FFD700;"></div><div class="rank-name" style="color: #FFD700;">Gold</div><div class="rank-sub">1200 – 1399</div></div>
+          <div class="rank-row"><div class="rank-dot" style="background: #00D4B4;"></div><div class="rank-name" style="color: #00D4B4;">Platinum</div><div class="rank-sub">1400 – 1599</div></div>
+          <div class="rank-row"><div class="rank-dot" style="background: #7B61FF;"></div><div class="rank-name" style="color: #7B61FF;">Diamond</div><div class="rank-sub">1600 – 1799</div></div>
+          <div class="rank-row" style="border: none;"><div class="rank-dot" style="background: #CC0000;"></div><div class="rank-name" style="color: #CC0000;">Master / Grandmaster</div><div class="rank-sub">1800+</div></div>
+        </div>
+      </div>
+
+      <!-- Status / Context Badges -->
+      <div class="comp-card">
+        <div class="comp-title">Status badges</div>
+        <div class="pill-row" style="margin-bottom: 10px;">
+          <span class="badge" style="background: rgba(204,0,0,0.15); color: #FF4444;">⚡ Live</span>
+          <span class="badge" style="background: rgba(0,212,180,0.15); color: #00D4B4;">Ranked</span>
+          <span class="badge" style="background: rgba(255,184,0,0.15); color: #FFB800;">Elite</span>
+          <span class="badge" style="background: rgba(123,97,255,0.15); color: #7B61FF;">AI</span>
+          <span class="badge" style="background: rgba(255,255,255,0.08); color: #9a9ab0;">Free</span>
+        </div>
+        <div class="pill-row">
+          <span class="badge" style="background: rgba(0,212,180,0.12); color: #00D4B4; border: 1px solid rgba(0,212,180,0.3);">✓ Correct</span>
+          <span class="badge" style="background: rgba(204,0,0,0.12); color: #FF4444; border: 1px solid rgba(204,0,0,0.3);">✕ Wrong</span>
+          <span class="badge" style="background: rgba(255,184,0,0.12); color: #FFB800; border: 1px solid rgba(255,184,0,0.3);">⏱ Time up</span>
+        </div>
+        <div style="margin-top: 12px; border-top: 0.5px solid #2a2a3a; padding-top: 10px;">
+          <div style="font-size: 10px; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em;">Subscription tiers</div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="badge" style="background: #1a1a2e; color: #9a9ab0; border: 1px solid #3A3A5C;">Free</span>
+            <span class="badge" style="background: rgba(0,212,180,0.15); color: #00D4B4; border: 1px solid rgba(0,212,180,0.4);">Pro</span>
+            <span class="badge" style="background: rgba(255,184,0,0.18); color: #FFB800; border: 1px solid rgba(255,184,0,0.5);">Elite</span>
+            <span class="badge" style="background: rgba(123,97,255,0.15); color: #7B61FF; border: 1px solid rgba(123,97,255,0.4);">Institution</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card anatomy -->
+      <div class="comp-card">
+        <div class="comp-title">Navigation items</div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="padding: 8px 10px; border-radius: 8px; background: rgba(204,0,0,0.12); border-left: 3px solid #CC0000; font-size: 13px; font-weight: 500; color: #fff; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">⊞</span> Dashboard <span class="badge" style="background:#CC0000; color:#fff; margin-left: auto; font-size: 9px;">Ranked</span>
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #9a9ab0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">＋</span> Create
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #9a9ab0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">⊙</span> Room Hub
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #9a9ab0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">⚡</span> Battles
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #9a9ab0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">♛</span> Tournaments
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #9a9ab0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">⊛</span> Marketplace
+          </div>
+          <div style="padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #CC0000; display: flex; align-items: center; gap: 10px; border-top: 0.5px solid #2a2a3a; margin-top: 4px;">
+            <span style="font-size: 14px;">⤶</span> Terminate session
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MOTION & GRADIENTS -->
+  <div class="section">
+    <div class="section-label">Motion tokens & gradients</div>
+    <div style="background: #0D0D0D; border-radius: 12px; padding: 16px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <div style="font-size: 10px; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em;">Easing</div>
+          <div style="font-size: 12px; color: #9a9ab0;">Battle snap: <span style="color: #ccc;">cubic-bezier(0.2,0,0,1) 150ms</span></div>
+          <div style="font-size: 12px; color: #9a9ab0; margin-top: 4px;">Rank reveal: <span style="color: #ccc;">cubic-bezier(0.34,1.56,0.64,1) 400ms</span></div>
+          <div style="font-size: 12px; color: #9a9ab0; margin-top: 4px;">Fade / transition: <span style="color: #ccc;">ease-out 200ms</span></div>
+        </div>
+        <div>
+          <div style="font-size: 10px; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em;">Timer pulse</div>
+          <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 8px;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(204,0,0,0.15); border: 2px solid #CC0000; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #FF4444; font-family: monospace;">05</div>
+            <div style="font-size: 11px; color: #555;">Critical · pulses at &lt;10s</div>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0,212,180,0.12); border: 2px solid #00D4B4; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #00D4B4; font-family: monospace;">28</div>
+            <div style="font-size: 11px; color: #555;">Safe · steady</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size: 10px; color: #555; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em;">Signature gradients</div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div>
+          <div class="gradient-strip" style="background: linear-gradient(135deg, #CC0000 0%, #FF2222 50%, #FF4444 100%);"></div>
+          <div style="font-size: 10px; color: #555; margin-top: 3px;">Battle gradient — CTAs, active states</div>
+        </div>
+        <div>
+          <div class="gradient-strip" style="background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #242448 100%);"></div>
+          <div style="font-size: 10px; color: #555; margin-top: 3px;">Arena surface — cards, panels, sidebar</div>
+        </div>
+        <div>
+          <div class="gradient-strip" style="background: linear-gradient(135deg, #7B61FF 0%, #5533CC 100%);"></div>
+          <div style="font-size: 10px; color: #555; margin-top: 3px;">ELO / rank gradient — leaderboard, rankings</div>
+        </div>
+        <div>
+          <div class="gradient-strip" style="background: linear-gradient(135deg, #FFB800 0%, #CC8800 100%);"></div>
+          <div style="font-size: 10px; color: #555; margin-top: 3px;">Gold tier — Elite & trophy moments</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOICE & TONE -->
+  <div class="section">
+    <div class="section-label">Voice & tone</div>
+    <div class="voice-card">
+      <div style="font-size: 10px; color: #555; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em;">Language rules</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <span class="voice-tag">Use</span>
+          <span style="font-size: 12px; color: #ddd;">"Forge a quiz" · "Battle begins" · "Dominate the leaderboard" · "Neural Forge activated"</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <span class="voice-not">Avoid</span>
+          <span style="font-size: 12px; color: #666;">"Create a quiz" · "Start game" · "View scores" · "Generate questions"</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <span class="voice-tag">Use</span>
+          <span style="font-size: 12px; color: #ddd;">"Arena" · "Nexus" · "Room Hub" · "Synthesis" · "Commission" · "Module"</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <span class="voice-not">Avoid</span>
+          <span style="font-size: 12px; color: #666;">Generic SaaS: "Dashboard" alone · "Settings" · "Account" · "Enter text"</span>
+        </div>
+      </div>
+      <div style="margin-top: 12px; border-top: 0.5px solid #2a2a3a; padding-top: 10px;">
+        <div style="font-size: 10px; color: #555; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em;">Personality traits</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span class="badge" style="background: rgba(204,0,0,0.12); color: #FF4444; border: 1px solid rgba(204,0,0,0.25);">Competitive</span>
+          <span class="badge" style="background: rgba(123,97,255,0.12); color: #7B61FF; border: 1px solid rgba(123,97,255,0.25);">Intelligent</span>
+          <span class="badge" style="background: rgba(0,212,180,0.12); color: #00D4B4; border: 1px solid rgba(0,212,180,0.25);">Futuristic</span>
+          <span class="badge" style="background: rgba(255,184,0,0.12); color: #FFB800; border: 1px solid rgba(255,184,0,0.25);">High-stakes</span>
+          <span class="badge" style="background: rgba(255,255,255,0.08); color: #9a9ab0;">Community-first</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAYOUT PRINCIPLES -->
+  <div class="section">
+    <div class="section-label">Layout principles</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+      <div style="background: #0D0D0D; border-radius: 10px; padding: 12px; border-left: 3px solid #CC0000;">
+        <div style="font-size: 11px; font-weight: 500; color: #fff; margin-bottom: 4px;">Dark-first</div>
+        <div style="font-size: 11px; color: #666;">Arena Black (#0D0D0D) as page bg. Nexus Navy for panels.</div>
+      </div>
+      <div style="background: #0D0D0D; border-radius: 10px; padding: 12px; border-left: 3px solid #7B61FF;">
+        <div style="font-size: 11px; font-weight: 500; color: #fff; margin-bottom: 4px;">Sidebar 260px</div>
+        <div style="font-size: 11px; color: #666;">Fixed. User avatar top. Nav center. Danger zone bottom.</div>
+      </div>
+      <div style="background: #0D0D0D; border-radius: 10px; padding: 12px; border-left: 3px solid #00D4B4;">
+        <div style="font-size: 11px; font-weight: 500; color: #fff; margin-bottom: 4px;">3-column forge</div>
+        <div style="font-size: 11px; color: #666;">Method → Synthesis → Overview. Equal-weight columns.</div>
+      </div>
+      <div style="background: #0D0D0D; border-radius: 10px; padding: 12px; border-left: 3px solid #FFB800;">
+        <div style="font-size: 11px; font-weight: 500; color: #fff; margin-bottom: 4px;">8px grid</div>
+        <div style="font-size: 11px; color: #666;">All spacing multiples of 8px. 16px internal padding on cards.</div>
+      </div>
+    </div>
+  </div>
+
+</div>

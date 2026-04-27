@@ -181,9 +181,9 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="flex items-center gap-2 group shrink-0" title="Return to Base">
                 <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all overflow-hidden">
-                  <img src="/favicon.ico" alt="Samarpan" className="w-full h-full object-cover" />
+                  <img src="/qyro-logo.png" alt="Qyro" className="w-full h-full object-cover" />
                 </div>
-                <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic">SAMARPAN</span>
+                <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic text-white">QYRO</span>
               </Link>
             </div>
             
@@ -231,9 +231,9 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
           
           <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 group-hover:bg-accent/30 transition-all overflow-hidden">
-              <img src="/favicon.ico" alt="Samarpan" className="w-full h-full object-cover" />
+              <img src="/qyro-logo.png" alt="Qyro" className="w-full h-full object-cover" />
             </div>
-            <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic">SAMARPAN</span>
+            <span className="hidden sm:block text-base lg:text-xl font-black tracking-tighter uppercase italic text-white">QYRO</span>
           </Link>
           
           <div className="hidden lg:block h-6 w-px bg-white/5" />
@@ -431,7 +431,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
           {user && (user.plan === 'free' || !user.plan) && (
             <Link
               href="/pricing"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-md shadow-indigo-500/30 shrink-0"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-red-500 text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-md shadow-red-600/30 shrink-0"
             >
               <Sparkles size={11} />
               <span className="hidden md:inline">Go Pro</span>
@@ -468,7 +468,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
               <div className="flex items-center gap-2">
                 <Link 
                   href="/auth"
-                  className="px-4 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(204,0,0,0.3)]"
                 >
                   Join Arena
                 </Link>

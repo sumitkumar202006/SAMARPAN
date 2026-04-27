@@ -2,10 +2,21 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcrypt');
 const jwt      = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const prisma   = require('../services/db');
 const { mapId } = require('../services/compatibility');
 const { sendOTPEmail } = require('../services/emailService');
 const { checkBruteForce, recordFailedLogin, clearFailedLogins } = require('../middleware/security');
+
+// Rate-limiter for enumeration-prone endpoints (check-username, check-email)
+// 20 lookups per IP per 10-minute window is generous for real users but blocks scrapers.
+const enumerationLimiter = rateLimit({
+  windowMs:        10 * 60 * 1000, // 10 minutes
+  max:             20,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message:         { error: 'Too many lookup requests. Please slow down.' },
+});
 
 // Helper: Create JWT
 function createJwtForUser(user) {
@@ -22,21 +33,29 @@ function createJwtForUser(user) {
 }
 
 // 1. Check Username Availability
-router.get('/check-username', async (req, res) => {
-  const { username } = req.query;
-  if (!username) return res.status(400).json({ error: 'Username required' });
-  
-  const user = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
-  res.json({ available: !user });
+router.get('/check-username', enumerationLimiter, async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: 'Username required' });
+    const user = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
+    res.json({ available: !user });
+  } catch (err) {
+    console.error('check-username error:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
 });
 
 // 2. Check Email Availability
-router.get('/check-email', async (req, res) => {
-  const { email } = req.query;
-  if (!email) return res.status(400).json({ error: 'Email required' });
-  
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  res.json({ available: !user });
+router.get('/check-email', enumerationLimiter, async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    res.json({ available: !user });
+  } catch (err) {
+    console.error('check-email error:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
 });
 
 // 3. Signup

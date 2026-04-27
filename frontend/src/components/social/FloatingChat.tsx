@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, X, ChevronDown,
-  Send, Users, Activity, CheckCheck
+  Send, Users, Activity, CheckCheck,
+  MoreVertical, Eraser
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
@@ -26,6 +27,8 @@ export const FloatingChat = () => {
   // Per-friend unread counts (while on roster view)
   const [unreadPerFriend, setUnreadPerFriend] = useState<Record<string, number>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [showChatMenu, setShowChatMenu]       = useState(false);
+  const [confirmClear, setConfirmClear]       = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -141,6 +144,16 @@ export const FloatingChat = () => {
     setNewMessage('');
   };
 
+  const clearChat = async () => {
+    if (!selectedFriend) return;
+    try {
+      await api.delete(`/api/friends/messages/${selectedFriend.id}`);
+      setMessages([]);
+      setConfirmClear(false);
+      setShowChatMenu(false);
+    } catch {}
+  };
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   if (!mounted || !user) return null;
@@ -159,7 +172,7 @@ export const FloatingChat = () => {
             <div className="p-4 border-b border-white/5 bg-accent/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {activeView === 'chat' && (
-                  <button onClick={() => { setActiveView('roster'); setSelectedFriend(null); }} className="p-1 hover:text-white text-text-soft">
+                  <button onClick={() => { setActiveView('roster'); setSelectedFriend(null); setShowChatMenu(false); setConfirmClear(false); }} className="p-1 hover:text-white text-text-soft">
                     <X size={14} />
                   </button>
                 )}
@@ -170,11 +183,76 @@ export const FloatingChat = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,1)]" : "bg-red-500")} />
+                {/* Three-dot menu — only shown in chat view */}
+                {activeView === 'chat' && (
+                  <div className="relative">
+                    <button
+                      onClick={() => { setShowChatMenu(v => !v); setConfirmClear(false); }}
+                      className={cn(
+                        "p-1 rounded-lg transition-all",
+                        showChatMenu ? "bg-white/10 text-white" : "text-text-soft hover:text-white"
+                      )}
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                    <AnimatePresence>
+                      {showChatMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-1 w-44 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-1.5 z-50"
+                        >
+                          <button
+                            onClick={() => { setShowChatMenu(false); setConfirmClear(true); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-orange-500/10 text-text-soft hover:text-orange-400 transition-all text-[9px] font-black uppercase tracking-widest"
+                          >
+                            <Eraser size={12} /> Clear Chat
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
                 <button onClick={() => setIsOpen(false)} className="text-text-soft hover:text-white transition-all">
                   <ChevronDown size={18} />
                 </button>
               </div>
             </div>
+
+            {/* Confirm Clear Banner */}
+            <AnimatePresence>
+              {confirmClear && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-3 flex items-center justify-between gap-2">
+                    <p className="text-[9px] font-black uppercase text-orange-400 tracking-wide leading-tight">
+                      Delete all messages permanently?
+                    </p>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setConfirmClear(false)}
+                        className="px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg bg-white/5 text-text-soft hover:bg-white/10 transition-all"
+                      >
+                        No
+                      </button>
+                      <button
+                        onClick={clearChat}
+                        className="px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-all"
+                      >
+                        Yes, clear
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Content */}
             <div className="flex-1 overflow-hidden flex flex-col">

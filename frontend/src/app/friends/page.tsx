@@ -7,7 +7,8 @@ import {
   Trash2, Pin, PinOff, ShieldAlert, Send, 
   Smile, Share2, Search, MoreVertical, 
   Circle, Ghost, Activity, UserX, X,
-  ChevronDown, LogOut, Ban, Check, AlertTriangle
+  ChevronDown, LogOut, Ban, Check, AlertTriangle,
+  Eraser
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
@@ -31,6 +32,7 @@ export default function FriendsPage() {
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: 'remove' | 'block', friend: any } | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
@@ -192,6 +194,17 @@ export default function FriendsPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const clearChat = async () => {
+    if (!selectedFriend) return;
+    try {
+      await api.delete(`/api/friends/messages/${selectedFriend.id}`);
+      setMessages([]);            // instant local clear
+      setShowClearConfirm(false);
+    } catch (err) {
+      console.error('Clear chat failed', err);
+    }
+  };
+
   const closeChat = () => {
     setSelectedFriend(null);
     setMobileView('list');
@@ -200,7 +213,7 @@ export default function FriendsPage() {
   return (
     <div className="flex h-[calc(100vh-64px)] bg-background/50 overflow-hidden font-bold relative">
       
-      {/* Confirmation Modal */}
+      {/* Confirmation Modal — remove / block */}
       <AnimatePresence>
         {confirmAction && (
           <motion.div 
@@ -239,6 +252,54 @@ export default function FriendsPage() {
                   onClick={() => manageFriend(confirmAction.friend.id, confirmAction.type)}
                 >
                   Execute
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Clear Chat Confirm Modal */}
+      <AnimatePresence>
+        {showClearConfirm && selectedFriend && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/60"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-6 text-orange-400 mx-auto">
+                <Eraser size={32} />
+              </div>
+              <h3 className="text-xl font-black text-center mb-2 uppercase italic tracking-tighter">
+                Purge Neural Archive?
+              </h3>
+              <p className="text-text-soft text-center text-xs mb-2 leading-relaxed px-4">
+                This will <span className="text-orange-400 font-bold">permanently delete</span> all messages
+                between you and <span className="text-white font-bold">@{selectedFriend.username}</span>.
+              </p>
+              <p className="text-[10px] text-red-400/70 text-center mb-8 font-black uppercase tracking-widest">
+                ⚠ This action cannot be undone.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowClearConfirm(false)}
+                  className="rounded-xl border-white/5 hover:bg-white/5 uppercase text-[10px] tracking-widest font-black"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="rounded-xl uppercase text-[10px] tracking-widest font-black shadow-lg bg-orange-500 hover:bg-orange-600"
+                  onClick={clearChat}
+                >
+                  <Eraser size={12} className="mr-1" /> Clear All
                 </Button>
               </div>
             </motion.div>
@@ -397,8 +458,18 @@ export default function FriendsPage() {
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-50 overflow-hidden"
+                        className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-2 z-50 overflow-hidden"
                       >
+                        {/* Clear Chat */}
+                        <button
+                          onClick={() => { setShowOptionsMenu(false); setShowClearConfirm(true); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-orange-500/10 text-text-soft hover:text-orange-400 transition-all text-[10px] font-black uppercase tracking-widest"
+                        >
+                          <Eraser size={14} /> Clear Chat
+                        </button>
+
+                        <div className="my-1 border-t border-white/5" />
+
                         <button 
                           onClick={() => { setShowOptionsMenu(false); setConfirmAction({ type: 'block', friend: selectedFriend }); }}
                           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-text-soft hover:text-red-500 transition-all text-[10px] font-black uppercase tracking-widest"

@@ -7,14 +7,14 @@ const { generateQuizQuestions } = require("../services/gptService");
 
 
 // --- POST /api/sessions/start --- Host/create game session ---
-router.post("/start", async (req, res) => {
+router.post("/start", authenticate, async (req, res) => {
   try {
     const {
       quizId,
       topic,
       difficulty,
       numQuestions,
-      hostEmail,
+      hostEmail,   // accepted for backward compat, but MUST match the JWT owner
       mode,
       timerSeconds,
       timerMode,
@@ -23,10 +23,11 @@ router.post("/start", async (req, res) => {
       battleType
     } = req.body;
 
-    if (!hostEmail) return res.status(400).json({ error: "hostEmail required" });
-
-    const user = await prisma.user.findUnique({ where: { email: hostEmail.toLowerCase().trim() } });
-    if (!user) return res.status(400).json({ error: "Host user not found." });
+    // Use the authenticated user as the host — ignore body if it doesn't match
+    const user = req.user;
+    if (hostEmail && hostEmail.toLowerCase().trim() !== user.email.toLowerCase()) {
+      return res.status(403).json({ error: 'hostEmail does not match authenticated user.' });
+    }
 
     // Plan enforcement
     const plan   = await getEffectivePlan(user.id);
@@ -112,8 +113,8 @@ router.post("/start", async (req, res) => {
     console.log(`[Host] Arena ready for ${hostEmail}. Mode: ${mode}, Rated: ${rated}, PIN: ${pin}`);
     return res.json({ message: "Arena ready", gameId: game.id, pin: game.pin });
   } catch (err) {
-    console.error("CRITICAL Host start error:", err.stack || err);
-    return res.status(500).json({ error: "Could not start game", details: err.message });
+    console.error('CRITICAL Host start error:', err.stack || err);
+    return res.status(500).json({ error: 'Could not start game' }); // no stack leak
   }
 });
 

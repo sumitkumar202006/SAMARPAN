@@ -190,7 +190,7 @@ function SoloPlayContent() {
                 </div>
                 <div className="glass p-6 rounded-3xl space-y-2">
                   <p className="text-[10px] uppercase font-black tracking-widest text-text-soft">Accuracy</p>
-                  <p className={cn("text-4xl font-black", accuracy >= 80 ? "text-emerald-400" : accuracy >= 50 ? "text-amber-400" : "text-red-400")}>
+                  <p className={cn("text-4xl font-black", accuracy >= 80 ? "text-[#00D4B4]" : accuracy >= 50 ? "text-amber-400" : "text-red-400")}>
                     {accuracy}%
                   </p>
                 </div>

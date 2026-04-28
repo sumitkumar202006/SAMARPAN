@@ -34,13 +34,13 @@ const CATEGORIES = [
   { id: 'General Knowledge', label: 'General', icon: Globe, color: 'from-violet-500 to-purple-600' },
   { id: 'Computer Science', label: 'CS & Tech', icon: Zap, color: 'from-blue-500 to-cyan-600' },
   { id: 'Mathematics', label: 'Mathematics', icon: Star, color: 'from-amber-500 to-orange-600' },
-  { id: 'Science', label: 'Science', icon: Radio, color: 'from-emerald-500 to-green-600' },
+  { id: 'Science', label: 'Science', icon: Radio, color: 'from-[#00D4B4] to-green-600' },
   { id: 'History', label: 'History', icon: Clock, color: 'from-rose-500 to-red-600' },
   { id: 'Geography', label: 'Geography', icon: Globe, color: 'from-teal-500 to-emerald-600' },
 ];
 
 const DIFFICULTIES = [
-  { id: 'easy', label: 'Easy', desc: 'For warm-ups', color: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10' },
+  { id: 'easy', label: 'Easy', desc: 'For warm-ups', color: 'text-[#00D4B4] border-[#00D4B4]/30 bg-[#00D4B4]/10' },
   { id: 'medium', label: 'Medium', desc: 'Balanced', color: 'text-amber-400 border-amber-400/30 bg-amber-400/10' },
   { id: 'hard', label: 'Hard', desc: 'Expert tier', color: 'text-red-400 border-red-400/30 bg-red-400/10' },
 ];
@@ -53,7 +53,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'error' | 's
       initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
       className={cn(
         'fixed top-24 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-xl shadow-2xl',
-        type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+        type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]'
       )}
     >
       {type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
@@ -294,12 +294,12 @@ export default function BattlesPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Combat Theaters</h1>
           {/* Live online player count */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-emerald-400 font-black text-sm">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#00D4B4]/10 border border-[#00D4B4]/20">
+            <span className="w-2 h-2 rounded-full bg-[#00D4B4] animate-pulse" />
+            <span className="text-[#00D4B4] font-black text-sm">
               {onlineCount.toLocaleString()}+
             </span>
-            <span className="text-emerald-400/70 text-[10px] font-black uppercase tracking-widest">Online</span>
+            <span className="text-[#00D4B4]/70 text-[10px] font-black uppercase tracking-widest">Online</span>
           </div>
         </div>
         <p className="text-text-soft text-xs lg:text-sm">
@@ -383,7 +383,7 @@ export default function BattlesPage() {
             {/* Center: Matchmaking UI */}
             <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center gap-3 px-2">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+                <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
                 <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Arena Matchmaking</h2>
               </div>
 
@@ -518,13 +518,13 @@ export default function BattlesPage() {
                       <motion.div
                         animate={{ scale: [1, 1.1, 1], boxShadow: ['0 0 0px rgba(34,197,94,0)', '0 0 40px rgba(34,197,94,0.4)', '0 0 20px rgba(34,197,94,0.2)'] }}
                         transition={{ duration: 0.6 }}
-                        className="w-20 h-20 mx-auto rounded-full bg-emerald-500/20 border-2 border-emerald-500/60 flex items-center justify-center"
+                        className="w-20 h-20 mx-auto rounded-full bg-[#00D4B4]/20 border-2 border-[#00D4B4]/60 flex items-center justify-center"
                       >
-                        <CheckCircle2 size={36} className="text-emerald-400" />
+                        <CheckCircle2 size={36} className="text-[#00D4B4]" />
                       </motion.div>
 
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400 mb-2">Match Found!</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00D4B4] mb-2">Match Found!</p>
                         <h2 className="text-xl font-black">{matchResult.quizTitle}</h2>
                         <p className="text-text-soft text-xs mt-1">{matchResult.category} · {matchResult.difficulty}</p>
                       </div>
@@ -573,8 +573,8 @@ export default function BattlesPage() {
                 <h2 className="text-lg font-black uppercase italic">Live Arenas</h2>
                 <p className="text-text-soft text-xs">{rooms.length} public rooms currently open</p>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#00D4B4]">
+                <span className="w-2 h-2 rounded-full bg-[#00D4B4] animate-pulse" />
                 Real-time
               </div>
             </div>
@@ -631,7 +631,7 @@ export default function BattlesPage() {
                               </div>
                               <span className={cn(
                                 'px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border shrink-0',
-                                isFull ? 'border-red-500/30 text-red-400 bg-red-500/5' : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5'
+                                isFull ? 'border-red-500/30 text-red-400 bg-red-500/5' : 'border-[#00D4B4]/30 text-[#00D4B4] bg-[#00D4B4]/5'
                               )}>
                                 {isFull ? 'FULL' : 'OPEN'}
                               </span>

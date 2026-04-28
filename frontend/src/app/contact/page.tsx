@@ -118,7 +118,7 @@ export default function ContactPage() {
           </div>
 
           {status === 'success' && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-black">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#00D4B4]/10 border border-[#00D4B4]/30 text-[#00D4B4] text-sm font-black">
               <CheckCircle size={18} /> Message sent! We&apos;ll reply within 24 hours.
             </div>
           )}
@@ -132,7 +132,7 @@ export default function ContactPage() {
             type="submit"
             id="contact-submit-btn"
             disabled={status === 'sending' || status === 'success'}
-            className="w-full py-5 text-lg rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-black flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-60 shadow-lg shadow-indigo-500/20"
+            className="w-full py-5 text-lg rounded-2xl bg-gradient-to-r from-[#CC0000] to-[#CC0000] text-white font-black flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-60 shadow-lg shadow-red-600/20"
           >
             {status === 'sending' ? (
               <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>

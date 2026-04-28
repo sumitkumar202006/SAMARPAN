@@ -786,7 +786,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
                     <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0} className="flex-1 py-4 px-8 border-white/10 rounded-2xl">
                       <ChevronLeft className="mr-2" /> Previous
                     </Button>
-                    <Button onClick={handleNext} className={cn("flex-1 py-4 px-10 rounded-2xl", currentIndex === quiz.questions.length - 1 ? "bg-emerald-500" : "bg-accent")}>
+                    <Button onClick={handleNext} className={cn("flex-1 py-4 px-10 rounded-2xl", currentIndex === quiz.questions.length - 1 ? "bg-[#00D4B4]" : "bg-accent")}>
                       {currentIndex === quiz.questions.length - 1 ? 'Final Submit' : 'Next Question'} <ChevronRight className="ml-2" />
                     </Button>
                   </>

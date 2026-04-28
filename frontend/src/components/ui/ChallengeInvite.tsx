@@ -30,7 +30,7 @@ export const ChallengeInvite: React.FC<ChallengeInviteProps> = ({
     ? `${window.location.origin}/play/solo?quizId=${quizId}&challenge=${encodeURIComponent(challengerName)}`
     : '';
 
-  const challengeText = `💥 ${challengerName} scored ${accuracy}% on "${quizTitle}" in Samarpan Arena. Think you can beat them? Accept the challenge!`;
+  const challengeText = `💥 ${challengerName} scored ${accuracy}% on "${quizTitle}" in Qyro Arena. Think you can beat them? Accept the challenge!`;
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(`${challengeText}\n${challengeUrl}`);
@@ -78,21 +78,21 @@ export const ChallengeInvite: React.FC<ChallengeInviteProps> = ({
           onClick={handleCopy}
           className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
         >
-          {copied ? <CheckCheck size={16} className="text-emerald-400" /> : <Copy size={16} className="text-text-soft" />}
+          {copied ? <CheckCheck size={16} className="text-[#00D4B4]" /> : <Copy size={16} className="text-text-soft" />}
           <span className="text-[9px] font-black uppercase text-text-soft">{copied ? 'Copied!' : 'Copy'}</span>
         </button>
         <button
           onClick={handleTwitter}
-          className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-sky-400/30 hover:bg-sky-400/5 transition-all"
+          className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-sky-400/30 hover:bg-[#7B61FF]/5 transition-all"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" className="text-sky-400" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" className="text-[#7B61FF]" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
           <span className="text-[9px] font-black uppercase text-text-soft">Twitter</span>
         </button>
         <button
           onClick={handleWhatsApp}
-          className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-emerald-400/30 hover:bg-emerald-400/5 transition-all"
+          className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-[#00D4B4]/30 hover:bg-[#00D4B4]/5 transition-all"
         >
-          <MessageCircle size={16} className="text-emerald-400" />
+          <MessageCircle size={16} className="text-[#00D4B4]" />
           <span className="text-[9px] font-black uppercase text-text-soft">WhatsApp</span>
         </button>
       </div>

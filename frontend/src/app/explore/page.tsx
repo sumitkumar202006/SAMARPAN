@@ -237,7 +237,7 @@ function ExploreContent() {
                            <Star className="text-yellow-400" size={16} />
                            <span className={cn(
                              "text-[8px] font-black px-2 py-1 rounded bg-white/5 border uppercase tracking-widest",
-                             quiz.difficulty === 'hard' ? 'border-red-500/30 text-red-400' : 'border-emerald-500/30 text-emerald-400'
+                             quiz.difficulty === 'hard' ? 'border-red-500/30 text-red-400' : 'border-[#00D4B4]/30 text-[#00D4B4]'
                            )}>
                              {quiz.difficulty || 'MEDIUM'}
                            </span>
@@ -320,7 +320,7 @@ function ExploreContent() {
             { name: 'Computation', id: 'Computer Science', icon: Zap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { name: 'Logistics', id: 'Aptitude', icon: Calculator, color: 'text-accent-alt', bg: 'bg-accent-alt/10' },
             { name: 'Gateway', id: 'GATE', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-            { name: 'Calculus', id: 'Math', icon: Compass, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { name: 'Calculus', id: 'Math', icon: Compass, color: 'text-[#7B61FF]', bg: 'bg-[#7B61FF]/10' },
             { name: 'Global Intel', id: 'General Knowledge', icon: Globe, color: 'text-accent', bg: 'bg-accent/10' },
           ].map(({ name, id, icon: Icon, color, bg }, i) => (
             <motion.div 

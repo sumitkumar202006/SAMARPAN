@@ -63,9 +63,9 @@ export default function AdminOverview() {
   );
 
   const metrics = [
-    { title: 'Total Users', value: data?.metrics.totalUsers, icon: Users, trend: '+12%', color: 'from-blue-500 to-indigo-600' },
+    { title: 'Total Users', value: data?.metrics.totalUsers, icon: Users, trend: '+12%', color: 'from-blue-500 to-[#CC0000]' },
     { title: 'Quizzes Run', value: data?.metrics.totalQuizzes, icon: BookOpen, trend: '+5%', color: 'from-purple-500 to-pink-600' },
-    { title: 'Active Today', value: data?.metrics.activeToday, icon: Activity, trend: '+24%', color: 'from-emerald-500 to-teal-600' },
+    { title: 'Active Today', value: data?.metrics.activeToday, icon: Activity, trend: '+24%', color: 'from-[#00D4B4] to-teal-600' },
     { title: 'Total Battles', value: data?.metrics.totalSessions, icon: Zap, trend: '+18%', color: 'from-orange-500 to-red-600' },
   ];
 
@@ -76,7 +76,7 @@ export default function AdminOverview() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black tracking-tight mb-2">Omni-Vault Status</h1>
-          <p className="text-text-soft font-medium">Real-time oversight of the Samarpan Arena Ecosystem.</p>
+          <p className="text-text-soft font-medium">Real-time oversight of the Qyro Arena Ecosystem.</p>
         </div>
         <div className="flex items-center gap-3 bg-white/5 border border-white/5 p-4 rounded-3xl">
           <Clock size={16} className="text-accent" />
@@ -100,7 +100,7 @@ export default function AdminOverview() {
               <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-accent shadow-inner">
                  <m.icon size={20} />
               </div>
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[#00D4B4] text-[10px] font-black tracking-widest">
                 <ArrowUpRight size={12} />
                 {m.trend}
               </div>
@@ -180,7 +180,7 @@ export default function AdminOverview() {
           className="lg:col-span-1 glass p-8 rounded-[40px] border-white/5 space-y-6 flex flex-col"
         >
           <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
-            <Zap className="text-emerald-400" size={20} />
+            <Zap className="text-[#00D4B4]" size={20} />
             Live Feed
           </h3>
 

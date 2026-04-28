@@ -29,7 +29,7 @@ const RULE_ITEMS = [
   { icon: Clock, color: 'text-accent', label: 'Timer', getValue: (props: QuizIntroProps) =>
     props.timerMode === 'total' ? 'Self-paced (total session time)' : `${props.timerSeconds || 30}s per question`
   },
-  { icon: Target, color: 'text-emerald-400', label: 'Scoring', getValue: (props: QuizIntroProps) =>
+  { icon: Target, color: 'text-[#00D4B4]', label: 'Scoring', getValue: (props: QuizIntroProps) =>
     props.examSettings?.penaltyPoints
       ? `+100 correct / -${props.examSettings.penaltyPoints} wrong`
       : '+100 per correct answer + speed bonus'
@@ -41,7 +41,7 @@ const RULE_ITEMS = [
         : `Tab switch: -${props.examSettings.penaltyPoints || 50}pts each`
       : 'Standard — no focus enforcement'
   },
-  { icon: BookOpen, color: 'text-purple-400', label: 'Backtrack', getValue: (props: QuizIntroProps) =>
+  { icon: BookOpen, color: 'text-[#7B61FF]', label: 'Backtrack', getValue: (props: QuizIntroProps) =>
     props.examSettings?.allowBacktrack ? 'Allowed — you can revisit previous questions' : 'Disabled — answers are final'
   },
 ];

@@ -22,8 +22,8 @@ const STATE_CONFIG: Record<ConnectionState, {
 }> = {
   connected: {
     label: 'Connected',
-    color: 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5',
-    dot: 'bg-emerald-400',
+    color: 'text-[#00D4B4] border-[#00D4B4]/20 bg-[#00D4B4]/5',
+    dot: 'bg-[#00D4B4]',
     Icon: Wifi,
   },
   syncing: {

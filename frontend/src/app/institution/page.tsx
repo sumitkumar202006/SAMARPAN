@@ -103,7 +103,7 @@ function CopyCode({ code }: { code: string }) {
       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all font-mono font-black text-sm tracking-widest"
     >
       {code}
-      {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} className="text-text-soft" />}
+      {copied ? <Check size={14} className="text-[#00D4B4]" /> : <Copy size={14} className="text-text-soft" />}
     </button>
   );
 }
@@ -292,7 +292,7 @@ export default function InstitutionPage() {
           {toast && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               className={cn('fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border backdrop-blur-xl text-[11px] font-black uppercase tracking-widest',
-                toast.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                toast.ok ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]' : 'bg-red-500/10 border-red-500/30 text-red-400'
               )}>{toast.msg}</motion.div>
           )}
         </AnimatePresence>
@@ -315,7 +315,7 @@ export default function InstitutionPage() {
           {isOwner && (
             <div className="flex gap-2">
               <button onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500/20 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[#00D4B4] font-black text-[10px] uppercase tracking-widest hover:bg-[#00D4B4]/20 transition-all">
                 <Download size={13} /> Export CSV
               </button>
               <Link href="/institution/assign"
@@ -331,8 +331,8 @@ export default function InstitutionPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={Users}    label="Members"      value={summary.totalMembers || 0}       color="bg-accent/20"      />
             <StatCard icon={Trophy}   label="Avg ELO"      value={summary.avgRating    || 1200}    color="bg-yellow-500/20"  />
-            <StatCard icon={Target}   label="Avg Accuracy" value={`${summary.avgAccuracy || 0}%`}  color="bg-emerald-500/20" />
-            <StatCard icon={Zap}      label="Total Games"  value={summary.totalGames   || 0}       color="bg-purple-500/20"  />
+            <StatCard icon={Target}   label="Avg Accuracy" value={`${summary.avgAccuracy || 0}%`}  color="bg-[#00D4B4]/20" />
+            <StatCard icon={Zap}      label="Total Games"  value={summary.totalGames   || 0}       color="bg-[#7B61FF]/20"  />
           </div>
         )}
 

@@ -45,7 +45,7 @@ function QuizCard({ quiz, onRemix, onRate }: { quiz: any; onRemix: (id: string) 
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-black uppercase border', quiz.difficulty === 'hard' ? 'bg-red-500/10 text-red-400 border-red-500/20' : quiz.difficulty === 'medium' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20')}>{quiz.difficulty}</span>
+            <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-black uppercase border', quiz.difficulty === 'hard' ? 'bg-red-500/10 text-red-400 border-red-500/20' : quiz.difficulty === 'medium' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 'bg-[#00D4B4]/10 text-[#00D4B4] border-[#00D4B4]/20')}>{quiz.difficulty}</span>
             {quiz.aiGenerated && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-accent/10 text-accent border border-accent/20 uppercase"><Sparkles size={8} /> AI</span>}
           </div>
           <h3 className="font-black text-sm uppercase italic tracking-tight leading-tight group-hover:text-accent transition-colors line-clamp-2">{quiz.title}</h3>
@@ -154,7 +154,7 @@ export default function MarketplacePage() {
           {toast && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               className={cn('fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border backdrop-blur-xl text-[11px] font-black uppercase tracking-widest',
-                toast.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                toast.ok ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]' : 'bg-red-500/10 border-red-500/30 text-red-400'
               )}>{toast.msg}</motion.div>
           )}
         </AnimatePresence>

@@ -15,7 +15,7 @@ const PLAN_CONFIG: Record<Plan, {
   text: string;
 }> = {
   free:        { label: 'Free',        icon: Shield, gradient: 'from-slate-500 to-slate-600',   glow: 'shadow-slate-500/20',   border: 'border-slate-500/30',   text: 'text-slate-400' },
-  pro:         { label: 'Pro',         icon: Zap,    gradient: 'from-indigo-500 to-violet-600', glow: 'shadow-indigo-500/40', border: 'border-indigo-500/40', text: 'text-indigo-300' },
+  pro:         { label: 'Pro',         icon: Zap,    gradient: 'from-[#CC0000] to-violet-600', glow: 'shadow-red-600/40', border: 'border-[#CC0000]/40', text: 'text-red-300' },
   elite:       { label: 'Elite',       icon: Crown,  gradient: 'from-amber-400 to-orange-500',  glow: 'shadow-amber-500/40',  border: 'border-amber-500/40',  text: 'text-amber-300'  },
   institution: { label: 'Institution', icon: Star,   gradient: 'from-teal-400 to-cyan-500',     glow: 'shadow-teal-500/40',   border: 'border-teal-500/40',   text: 'text-teal-300'   },
 };
@@ -59,7 +59,7 @@ export function PlanBadge({ plan, size = 'sm', showLabel = true, className }: Pl
 /** Coloured ring for profile avatars based on plan */
 export function planRingClass(plan: string): string {
   switch (plan) {
-    case 'pro':         return 'border-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.6)]';
+    case 'pro':         return 'border-[#CC0000] shadow-[0_0_12px_rgba(99,102,241,0.6)]';
     case 'elite':       return 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)]';
     case 'institution': return 'border-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.6)]';
     default:            return 'border-white/20';

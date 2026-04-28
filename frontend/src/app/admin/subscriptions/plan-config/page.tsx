@@ -50,7 +50,7 @@ interface Config {
 // ── Plan meta ─────────────────────────────────────────────────────────────────
 const PLAN_META = {
   free:        { label: 'Spark',       icon: Shield,    color: 'from-slate-500 to-slate-600',   glow: 'rgba(100,116,139,0.2)' },
-  pro:         { label: 'Blaze Pro',   icon: Zap,       color: 'from-indigo-500 to-violet-600', glow: 'rgba(99,102,241,0.25)' },
+  pro:         { label: 'Blaze Pro',   icon: Zap,       color: 'from-[#CC0000] to-violet-600', glow: 'rgba(99,102,241,0.25)' },
   elite:       { label: 'Storm Elite', icon: Crown,     color: 'from-amber-500 to-orange-600',  glow: 'rgba(245,158,11,0.25)' },
   institution: { label: 'Institution', icon: Building2, color: 'from-teal-500 to-cyan-600',     glow: 'rgba(20,184,166,0.25)' },
 } as const;
@@ -234,7 +234,7 @@ export default function PlanConfigPage() {
             exit={{ opacity: 0, scale: 0.95 }}
             className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${
               toast.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]'
                 : 'bg-red-500/10 border-red-500/30 text-red-400'
             }`}
           >
@@ -268,7 +268,7 @@ export default function PlanConfigPage() {
           icon={IndianRupee}
           title="Plan Prices"
           subtitle="Set monthly & yearly prices for each paid plan. Changes take effect immediately on the pricing page."
-          color="from-emerald-500 to-teal-600"
+          color="from-[#00D4B4] to-teal-600"
         />
 
         <div className="space-y-4 mb-8">
@@ -303,7 +303,7 @@ export default function PlanConfigPage() {
                       min={0}
                     />
                     {config.prices[plan].monthly > 0 && (
-                      <p className="text-[10px] text-emerald-400 mt-1 font-bold">
+                      <p className="text-[10px] text-[#00D4B4] mt-1 font-bold">
                         {Math.round(100 - (config.prices[plan].yearly / (config.prices[plan].monthly * 12)) * 100)}% off vs monthly
                       </p>
                     )}
@@ -323,7 +323,7 @@ export default function PlanConfigPage() {
           id="save-prices-btn"
           onClick={savePrices}
           disabled={saving === 'prices'}
-          className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all shadow-lg disabled:opacity-60"
+          className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-[#00D4B4] to-teal-600 text-white font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all shadow-lg disabled:opacity-60"
         >
           {saving === 'prices'
             ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
@@ -338,7 +338,7 @@ export default function PlanConfigPage() {
           icon={Sliders}
           title="Usage Limits & Features"
           subtitle="Set per-plan quotas and toggle feature access. Quotas reset monthly per user."
-          color="from-indigo-500 to-violet-600"
+          color="from-[#CC0000] to-violet-600"
         />
 
         <div className="space-y-3">
@@ -424,7 +424,7 @@ export default function PlanConfigPage() {
           id="save-limits-btn"
           onClick={saveLimits}
           disabled={saving === 'limits'}
-          className="mt-8 flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all shadow-lg disabled:opacity-60"
+          className="mt-8 flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-[#CC0000] to-violet-600 text-white font-black text-sm uppercase tracking-widest hover:opacity-90 transition-all shadow-lg disabled:opacity-60"
         >
           {saving === 'limits'
             ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
@@ -531,7 +531,7 @@ export default function PlanConfigPage() {
           icon={Repeat}
           title="Razorpay Subscription Plans"
           subtitle="Razorpay needs a Plan ID for recurring auto-pay. IDs are auto-created on first purchase, or paste yours from the Razorpay Dashboard."
-          color="from-blue-500 to-indigo-600"
+          color="from-blue-500 to-[#CC0000]"
         />
 
         <div className="rounded-2xl bg-blue-500/5 border border-blue-500/20 p-4 flex items-start gap-3 mb-6 text-blue-300 text-xs">
@@ -564,7 +564,7 @@ export default function PlanConfigPage() {
                       </div>
                       <span className="font-black text-xs uppercase tracking-widest">{meta.label} — {interval}</span>
                       {val
-                        ? <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black">LINKED</span>
+                        ? <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[#00D4B4] font-black">LINKED</span>
                         : <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-text-soft font-black">AUTO</span>}
                     </div>
                     <div className="flex gap-2">

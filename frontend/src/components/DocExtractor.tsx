@@ -131,18 +131,18 @@ export default function DocExtractor({ onImport }: Props) {
             className={cn(
               "w-full py-10 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group",
               docFile
-                ? "border-emerald-500/50 bg-emerald-500/5"
-                : "border-white/10 hover:border-indigo-400/40 hover:bg-white/5"
+                ? "border-[#00D4B4]/50 bg-[#00D4B4]/5"
+                : "border-white/10 hover:border-[#CC0000]/40 hover:bg-white/5"
             )}>
             <div className={cn(
               "w-14 h-14 rounded-2xl flex items-center justify-center transition-all",
-              docFile ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-text-soft group-hover:bg-indigo-500/10 group-hover:text-indigo-400"
+              docFile ? "bg-[#00D4B4]/20 text-[#00D4B4]" : "bg-white/5 text-text-soft group-hover:bg-[#CC0000]/10 group-hover:text-[#CC0000]"
             )}>
               <FileUp size={26} />
             </div>
             {docFile ? (
               <div className="text-center">
-                <p className="text-sm font-black text-emerald-400">{docFile.name}</p>
+                <p className="text-sm font-black text-[#00D4B4]">{docFile.name}</p>
                 <p className="text-[9px] text-text-soft mt-0.5">{(docFile.size / 1024).toFixed(0)} KB · Click to change</p>
               </div>
             ) : (
@@ -165,7 +165,7 @@ export default function DocExtractor({ onImport }: Props) {
           <button
             onClick={handleExtract}
             disabled={!docFile}
-            className="w-full py-5 bg-indigo-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:scale-100"
+            className="w-full py-5 bg-[#CC0000] font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:scale-100"
           >
             <FileText size={16} />
             Extract Questions from File
@@ -178,9 +178,9 @@ export default function DocExtractor({ onImport }: Props) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="py-16 flex flex-col items-center gap-5 text-center">
           <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full bg-indigo-500/10 animate-ping" />
-            <div className="w-16 h-16 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
-              <Loader2 size={28} className="text-indigo-400 animate-spin" />
+            <div className="absolute inset-0 rounded-full bg-[#CC0000]/10 animate-ping" />
+            <div className="w-16 h-16 rounded-full bg-[#CC0000]/20 border border-[#CC0000]/30 flex items-center justify-center">
+              <Loader2 size={28} className="text-[#CC0000] animate-spin" />
             </div>
           </div>
           <div>
@@ -189,7 +189,7 @@ export default function DocExtractor({ onImport }: Props) {
           </div>
           <div className="flex gap-1.5">
             {[0, 1, 2].map(i => (
-              <span key={i} className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#CC0000] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
             ))}
           </div>
         </motion.div>
@@ -221,23 +221,23 @@ export default function DocExtractor({ onImport }: Props) {
                   className={cn(
                     "rounded-2xl border transition-all overflow-hidden",
                     editIdx === idx
-                      ? "border-indigo-500/40 bg-indigo-500/5"
+                      ? "border-[#CC0000]/40 bg-[#CC0000]/5"
                       : "border-white/5 bg-white/3 hover:bg-white/5"
                   )}
                 >
                   {/* Card header */}
                   <div className="flex items-center gap-3 p-3 cursor-pointer"
                     onClick={() => setExpandIdx(expandIdx === idx ? null : idx)}>
-                    <span className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 text-[9px] font-black flex items-center justify-center flex-shrink-0">
+                    <span className="w-6 h-6 rounded-lg bg-[#CC0000]/20 text-[#CC0000] text-[9px] font-black flex items-center justify-center flex-shrink-0">
                       {idx + 1}
                     </span>
                     <p className="flex-1 text-[11px] font-bold text-white leading-snug line-clamp-2">{q.question}</p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase">
+                      <span className="px-2 py-0.5 rounded-lg bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[#00D4B4] text-[8px] font-black uppercase">
                         {['A', 'B', 'C', 'D'][q.correctIndex] || '?'}
                       </span>
                       <button onClick={(e) => { e.stopPropagation(); startEdit(idx); }}
-                        className="w-6 h-6 rounded-lg bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-400 flex items-center justify-center transition-all text-text-soft">
+                        className="w-6 h-6 rounded-lg bg-white/5 hover:bg-[#CC0000]/20 hover:text-[#CC0000] flex items-center justify-center transition-all text-text-soft">
                         <Pencil size={10} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); deleteQ(idx); }}
@@ -263,7 +263,7 @@ export default function DocExtractor({ onImport }: Props) {
                               <textarea
                                 value={draft.question}
                                 onChange={e => setDraft({ ...draft, question: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-indigo-400/60 transition-all resize-none min-h-[72px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-[#CC0000]/60 transition-all resize-none min-h-[72px]"
                                 placeholder="Question text…"
                               />
                               <div className="grid grid-cols-2 gap-2">
@@ -274,7 +274,7 @@ export default function DocExtractor({ onImport }: Props) {
                                       className={cn(
                                         "w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black transition-all flex-shrink-0",
                                         draft.correctIndex === oi
-                                          ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                                          ? "bg-[#00D4B4] text-white shadow-lg shadow-[#00D4B4]/20"
                                           : "bg-white/5 text-text-soft hover:bg-white/10"
                                       )}
                                     >
@@ -287,7 +287,7 @@ export default function DocExtractor({ onImport }: Props) {
                                         opts[oi] = e.target.value;
                                         setDraft({ ...draft, options: opts });
                                       }}
-                                      className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-indigo-400/60 transition-all"
+                                      className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-[#CC0000]/60 transition-all"
                                       placeholder={`Option ${['A', 'B', 'C', 'D'][oi]}`}
                                     />
                                   </div>
@@ -296,12 +296,12 @@ export default function DocExtractor({ onImport }: Props) {
                               <textarea
                                 value={draft.explanation || ''}
                                 onChange={e => setDraft({ ...draft, explanation: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-text-soft outline-none focus:border-indigo-400/40 transition-all resize-none min-h-[48px]"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[10px] text-text-soft outline-none focus:border-[#CC0000]/40 transition-all resize-none min-h-[48px]"
                                 placeholder="Explanation (optional)…"
                               />
                               <div className="flex gap-2">
                                 <button onClick={saveDraft}
-                                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-emerald-600 transition-all">
+                                  className="flex-1 py-2.5 rounded-xl bg-[#00D4B4] text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-emerald-600 transition-all">
                                   <Save size={11} /> Save
                                 </button>
                                 <button onClick={() => { setDraft(null); setEditIdx(null); }}
@@ -317,12 +317,12 @@ export default function DocExtractor({ onImport }: Props) {
                                 <div key={oi} className={cn(
                                   "flex items-center gap-2.5 px-3 py-2 rounded-xl text-[10px] transition-all",
                                   oi === q.correctIndex
-                                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-black"
+                                    ? "bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-emerald-300 font-black"
                                     : "bg-white/3 text-text-soft"
                                 )}>
                                   <span className={cn(
                                     "w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-black flex-shrink-0",
-                                    oi === q.correctIndex ? "bg-emerald-500 text-white" : "bg-white/10 text-text-soft"
+                                    oi === q.correctIndex ? "bg-[#00D4B4] text-white" : "bg-white/10 text-text-soft"
                                   )}>
                                     {oi === q.correctIndex ? <Check size={9} /> : ['A', 'B', 'C', 'D'][oi]}
                                   </span>
@@ -346,7 +346,7 @@ export default function DocExtractor({ onImport }: Props) {
 
             {extracted.length === 0 && (
               <div className="py-8 text-center text-text-soft text-[10px]">
-                All questions deleted. <button onClick={reset} className="text-indigo-400 underline">Start over</button>
+                All questions deleted. <button onClick={reset} className="text-[#CC0000] underline">Start over</button>
               </div>
             )}
           </div>
@@ -354,7 +354,7 @@ export default function DocExtractor({ onImport }: Props) {
           {/* Import CTA */}
           {extracted.length > 0 && (
             <button onClick={handleImport}
-              className="w-full py-5 bg-gradient-to-r from-indigo-500 to-violet-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3">
+              className="w-full py-5 bg-gradient-to-r from-[#CC0000] to-violet-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3">
               <ArrowRight size={16} />
               Import {extracted.length} Question{extracted.length > 1 ? 's' : ''} into Editor
             </button>
@@ -366,14 +366,14 @@ export default function DocExtractor({ onImport }: Props) {
       {step === 'done' && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           className="py-10 flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-14 h-14 rounded-2xl bg-[#00D4B4]/10 border border-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4]">
             <Check size={28} />
           </div>
           <div>
             <p className="font-black text-white text-sm">Questions imported!</p>
             <p className="text-[10px] text-text-soft mt-1">They've been added to your manual editor above. Review and save.</p>
           </div>
-          <button onClick={reset} className="flex items-center gap-1.5 text-[9px] text-indigo-400 hover:text-indigo-300 transition-colors font-black uppercase tracking-widest">
+          <button onClick={reset} className="flex items-center gap-1.5 text-[9px] text-[#CC0000] hover:text-red-300 transition-colors font-black uppercase tracking-widest">
             <RotateCcw size={10} /> Import another file
           </button>
         </motion.div>

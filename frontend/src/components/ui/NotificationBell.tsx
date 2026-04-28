@@ -28,7 +28,7 @@ const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: 
   streak:         { icon: Flame,        color: 'text-orange-400', bg: 'bg-orange-400/10' },
   challenge:      { icon: Sword,        color: 'text-red-400',    bg: 'bg-red-400/10'    },
   friend_request: { icon: Users,        color: 'text-accent',     bg: 'bg-accent/10'     },
-  subscription:   { icon: CreditCard,   color: 'text-emerald-400',bg: 'bg-emerald-400/10'},
+  subscription:   { icon: CreditCard,   color: 'text-[#00D4B4]',bg: 'bg-[#00D4B4]/10'},
   system:         { icon: Sparkles,     color: 'text-accent-alt', bg: 'bg-accent-alt/10' },
 };
 

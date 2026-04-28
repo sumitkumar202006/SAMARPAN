@@ -206,7 +206,7 @@ export default function CreatePage() {
               animate={{ opacity: 1, scale: 1 }}
               className="glass p-12 rounded-[40px] border-white/5 text-center space-y-8 flex flex-col items-center justify-center min-h-[500px]"
             >
-              <div className="w-24 h-24 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+              <div className="w-24 h-24 rounded-full bg-[#00D4B4]/10 text-[#00D4B4] flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
                 <Trophy size={48} />
               </div>
               <div className="space-y-3">
@@ -312,7 +312,7 @@ export default function CreatePage() {
               {/* Track 2: Content Synthesis */}
               <div className="lg:col-span-1 space-y-6">
                  <div className="flex items-center gap-3 px-2">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+                    <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
                     <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Synthesis Area</h2>
                  </div>
 
@@ -357,14 +357,14 @@ export default function CreatePage() {
                                              }}
                                              className={cn(
                                                "flex-1 bg-white/5 border rounded-2xl px-4 py-3 text-[10px] font-black outline-none transition-all",
-                                               currentQ.correctIndex === i ? "border-emerald-500/40 bg-emerald-500/5" : "border-white/5 focus:border-white/20"
+                                               currentQ.correctIndex === i ? "border-[#CC0000]/40 bg-[#CC0000]/5" : "border-white/5 focus:border-white/20"
                                              )}
                                           />
                                           <button 
                                              onClick={() => setCurrentQ({...currentQ, correctIndex: i})}
                                              className={cn(
                                                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
-                                               currentQ.correctIndex === i ? "bg-emerald-500 text-white shadow-lg" : "bg-white/5 text-text-soft border border-white/5 hover:bg-white/10"
+                                               currentQ.correctIndex === i ? "bg-[#CC0000] text-white shadow-lg shadow-red-600/30" : "bg-white/5 text-text-soft border border-white/5 hover:bg-white/10"
                                              )}
                                           >
                                              <Check size={16} />
@@ -387,7 +387,7 @@ export default function CreatePage() {
                                    className={cn(
                                      "w-full py-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                                      showDocExtractor
-                                       ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-400"
+                                       ? "border-red-500/40 bg-red-500/10 text-red-400"
                                        : "border-white/10 bg-white/3 text-text-soft hover:text-white hover:border-white/20"
                                    )}
                                  >
@@ -461,14 +461,14 @@ export default function CreatePage() {
                               <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => setPdfFile(e.target.files?.[0]||null)} />
                               <button onClick={() => pdfInputRef.current?.click()}
                                 className={cn("w-full py-8 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group",
-                                  pdfFile ? "border-emerald-500/40 bg-emerald-500/5" : "border-white/10 hover:border-indigo-400/40 hover:bg-white/5")}>
-                                <FileUp size={28} className={pdfFile ? "text-emerald-400" : "text-text-soft group-hover:text-indigo-400 transition-colors"} />
-                                {pdfFile ? <div className="text-center"><p className="text-xs font-black text-emerald-400">{pdfFile.name}</p><p className="text-[9px] text-text-soft">{(pdfFile.size/1024).toFixed(0)} KB · Click to change</p></div>
+                                  pdfFile ? "border-[#00D4B4]/40 bg-[#00D4B4]/5" : "border-white/10 hover:border-red-400/40 hover:bg-white/5")}>
+                                <FileUp size={28} className={pdfFile ? "text-[#00D4B4]" : "text-text-soft group-hover:text-red-400 transition-colors"} />
+                                {pdfFile ? <div className="text-center"><p className="text-xs font-black text-[#00D4B4]">{pdfFile.name}</p><p className="text-[9px] text-text-soft">{(pdfFile.size/1024).toFixed(0)} KB · Click to change</p></div>
                                   : <div className="text-center"><p className="text-xs font-black text-white">Click to upload PDF</p><p className="text-[9px] text-text-soft">Max 5 MB · PDF only · 5 free uploads/mo</p></div>}
                               </button>
                               {pdfFile && <button onClick={() => setPdfFile(null)} className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-1"><X size={10}/>Remove file</button>}
                               <button onClick={handlePdfGenerate} disabled={!pdfFile || (!!aiStatus && aiStatus !== 'PDF synthesis complete.')}
-                                className="w-full py-5 bg-indigo-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
+                                className="w-full py-5 bg-[#CC0000] font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
                                 <Upload size={16} />{aiStatus && aiStatus !== 'PDF synthesis complete.' ? aiStatus : 'Generate from PDF'}
                               </button>
                             </div>
@@ -486,25 +486,25 @@ export default function CreatePage() {
                                 onChange={(e) => { if (e.target.files?.[0]) onImageSelected(e.target.files[0]); }} />
                               <button onClick={() => imageInputRef.current?.click()}
                                 className={cn("w-full rounded-3xl border-2 border-dashed transition-all flex flex-col items-center overflow-hidden group",
-                                  imageFile ? "border-emerald-500/40" : "border-white/10 hover:border-violet-400/40 py-8")}>
+                                  imageFile ? "border-[#00D4B4]/40" : "border-white/10 hover:border-violet-400/40 py-8")}>
                                 {imagePreview ? (
                                   <div className="relative w-full">
                                     <img src={imagePreview} alt="Preview" className="w-full max-h-40 object-contain bg-black/20" />
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center"><p className="text-white text-xs font-black">Click to change</p></div>
                                   </div>
-                                ) : (<><ImageIcon size={28} className="text-text-soft group-hover:text-violet-400 transition-colors" /><div className="text-center mt-3"><p className="text-xs font-black text-white">Click to upload image</p><p className="text-[9px] text-text-soft">JPG, PNG, WEBP ï¿½ Max 5 MB</p></div></>)}
+                                ) : (<><ImageIcon size={28} className="text-text-soft group-hover:text-[#7B61FF] transition-colors" /><div className="text-center mt-3"><p className="text-xs font-black text-white">Click to upload image</p><p className="text-[9px] text-text-soft">JPG, PNG, WEBP ï¿½ Max 5 MB</p></div></>)}
                               </button>
-                              {imageFile && <div className="flex justify-between items-center"><p className="text-[9px] text-emerald-400 font-black">{imageFile.name}</p><button onClick={() => { setImageFile(null); setImagePreview(null); }} className="text-[9px] text-red-400 flex items-center gap-1"><X size={10}/>Remove</button></div>}
+                              {imageFile && <div className="flex justify-between items-center"><p className="text-[9px] text-[#00D4B4] font-black">{imageFile.name}</p><button onClick={() => { setImageFile(null); setImagePreview(null); }} className="text-[9px] text-red-400 flex items-center gap-1"><X size={10}/>Remove</button></div>}
                               <button onClick={handleImageGenerate} disabled={!imageFile || (!!aiStatus && aiStatus !== 'Image synthesis complete.')}
-                                className="w-full py-5 bg-violet-500 font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
+                                className="w-full py-5 bg-[#7B61FF] font-black text-white text-xs uppercase tracking-[0.3em] rounded-3xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-60 disabled:scale-100">
                                 <ImageIcon size={16} />{aiStatus && aiStatus !== 'Image synthesis complete.' ? aiStatus : 'Generate from Image'}
                               </button>
                             </div>
                           ) : (
-                            <div className="py-10 rounded-3xl border border-violet-500/20 bg-violet-500/5 flex flex-col items-center gap-4 text-center">
-                              <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400"><Lock size={24}/></div>
+                            <div className="py-10 rounded-3xl border border-[#7B61FF]/20 bg-[#7B61FF]/5 flex flex-col items-center gap-4 text-center">
+                              <div className="w-14 h-14 rounded-2xl bg-[#7B61FF]/10 border border-[#7B61FF]/20 flex items-center justify-center text-[#7B61FF]"><Lock size={24}/></div>
                               <div><p className="font-black text-white text-sm">Vision Forge is Pro+</p><p className="text-[10px] text-text-soft mt-1">Upload diagrams, notes & images to generate quizzes.<br/>Available on Blaze Pro, Storm Elite & Institution.</p></div>
-                              <button onClick={() => router.push('/pricing')} className="px-6 py-3 rounded-2xl bg-violet-500 text-white font-black text-[10px] uppercase tracking-widest hover:bg-violet-600 transition-all">Upgrade Plan</button>
+                              <button onClick={() => router.push('/pricing')} className="px-6 py-3 rounded-2xl bg-[#7B61FF] text-white font-black text-[10px] uppercase tracking-widest hover:bg-[#7B61FF] transition-all">Upgrade Plan</button>
                             </div>
                           ))}
                         </motion.div>

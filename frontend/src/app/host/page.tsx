@@ -183,7 +183,7 @@ function HostContent() {
                  className={cn(
                    "px-10 py-4 rounded-[20px] text-xs font-black uppercase tracking-[0.2em] transition-all relative z-10",
                    !isCompetition 
-                    ? "bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-105" 
+                    ? "bg-gradient-to-tr from-[#00D4B4] to-[#00D4B4] text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-105" 
                     : "text-text-soft hover:text-white"
                  )}
                >
@@ -281,7 +281,7 @@ function HostContent() {
           {/* Track 2: Asset Selection */}
           <div className="space-y-6">
              <div className="flex items-center gap-3 px-2">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+                <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
                 <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Asset Selection</h2>
              </div>
 
@@ -447,7 +447,7 @@ function HostContent() {
                    disabled={(!selectedQuiz && !topic && quizQueue.length === 0) || !!status}
                    className={cn(
                      "w-full py-5 rounded-[24px] text-white font-black text-xs uppercase tracking-[0.3em] transition-all hover:scale-[1.02] active:scale-95 shadow-2xl relative overflow-hidden group",
-                     !isCompetition ? "bg-emerald-500 shadow-emerald-500/20" : "bg-accent shadow-accent/20"
+                     !isCompetition ? "bg-[#00D4B4] shadow-[#00D4B4]/20" : "bg-accent shadow-accent/20"
                    )}
                 >
                    <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-all pointer-events-none" />
@@ -476,12 +476,12 @@ function HostContent() {
           >
             <div className="flex items-center justify-between px-2">
                <div className="flex items-center gap-3">
-                  <Activity className="text-emerald-400" size={20} />
+                  <Activity className="text-[#00D4B4]" size={20} />
                   <h2 className="text-xl font-black tracking-widest uppercase italic text-white flex items-center gap-4">
-                    Active tactics <span className="text-emerald-400 opacity-50">•</span> <span className="text-[10px] font-bold text-text-soft">Mission Control</span>
+                    Active tactics <span className="text-[#00D4B4] opacity-50">•</span> <span className="text-[10px] font-bold text-text-soft">Mission Control</span>
                   </h2>
                </div>
-               <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">
+               <div className="px-3 py-1 rounded-full bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[8px] font-black text-[#00D4B4] uppercase tracking-widest animate-pulse">
                   Surveillance Active
                </div>
             </div>
@@ -504,7 +504,7 @@ function HostContent() {
                     <div className="flex items-center gap-6">
                        <div className="flex flex-col">
                           <span className="text-[8px] font-black text-text-soft uppercase tracking-tighter">Status</span>
-                          <span className="text-[10px] font-black text-emerald-400 uppercase italic animate-pulse">{session.status}</span>
+                          <span className="text-[10px] font-black text-[#00D4B4] uppercase italic animate-pulse">{session.status}</span>
                        </div>
                        <div className="flex flex-col">
                           <span className="text-[8px] font-black text-text-soft uppercase tracking-tighter">Deployed</span>

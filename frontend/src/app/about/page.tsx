@@ -103,7 +103,7 @@ export default function AboutPage() {
                 {/* Profile Image with pop-out effect */}
                 <img
                   src={member.img}
-                  alt={`${member.name}, ${member.role} at Samarpan Arena`}
+                  alt={`${member.name}, ${member.role} at Qyro Arena`}
                   referrerPolicy="no-referrer"
                   width={128}
                   height={128}

@@ -95,7 +95,7 @@ function EventCard({ event, myId, onRsvp }: { event: any; myId?: string; onRsvp:
           <motion.div
             initial={{ width: 0 }} animate={{ width: `${pct}%` }}
             transition={{ duration: 0.8 }}
-            className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-400' : pct >= 60 ? 'bg-amber-400' : 'bg-emerald-400')}
+            className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-400' : pct >= 60 ? 'bg-amber-400' : 'bg-[#00D4B4]')}
           />
         </div>
       </div>
@@ -120,7 +120,7 @@ function EventCard({ event, myId, onRsvp }: { event: any; myId?: string; onRsvp:
           className={cn(
             'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all',
             rsvpd
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+              ? 'bg-[#00D4B4]/10 text-[#00D4B4] border border-[#00D4B4]/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
               : 'bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-white'
           )}
         >
@@ -179,7 +179,7 @@ export default function EventsPage() {
           {toast && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               className={cn('fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border backdrop-blur-xl text-[11px] font-black uppercase tracking-widest',
-                toast.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                toast.ok ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]' : 'bg-red-500/10 border-red-500/30 text-red-400'
               )}>{toast.msg}</motion.div>
           )}
         </AnimatePresence>

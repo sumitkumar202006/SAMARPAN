@@ -21,7 +21,7 @@ interface ShareResultCardProps {
 function getBadge(accuracy: number): { emoji: string; label: string; color: string } {
   if (accuracy >= 90) return { emoji: '🏆', label: 'Legendary', color: 'text-yellow-400' };
   if (accuracy >= 75) return { emoji: '⚡', label: 'Expert', color: 'text-accent' };
-  if (accuracy >= 55) return { emoji: '📈', label: 'Solid', color: 'text-emerald-400' };
+  if (accuracy >= 55) return { emoji: '📈', label: 'Solid', color: 'text-[#00D4B4]' };
   return { emoji: '💪', label: 'Warrior', color: 'text-amber-400' };
 }
 
@@ -46,7 +46,7 @@ export const ShareResultCard: React.FC<ShareResultCardProps> = ({
     ? `${window.location.origin}/play/solo?quizId=${quizId || ''}`
     : '';
 
-  const shareText = `🎯 I scored ${score}/${totalQuestions} (${accuracy}% accuracy) on "${quizTitle}" in Samarpan Arena! ${badge.emoji} Can you beat me?`;
+  const shareText = `🎯 I scored ${score}/${totalQuestions} (${accuracy}% accuracy) on "${quizTitle}" in Qyro Arena! ${badge.emoji} Can you beat me?`;
 
   const handleNativeShare = useCallback(async () => {
     if (navigator.share) {
@@ -101,7 +101,7 @@ export const ShareResultCard: React.FC<ShareResultCardProps> = ({
             <div className="p-5 rounded-2xl bg-gradient-to-br from-accent/10 via-transparent to-accent-alt/10 border border-white/5 text-center space-y-3">
               <div className="flex items-center justify-center gap-2">
                 <Trophy size={18} className="text-accent-alt" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-accent">Samarpan Arena</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent">Qyro Arena</span>
               </div>
               <p className="font-black text-lg truncate max-w-[260px] mx-auto">{quizTitle}</p>
               <div className="flex items-center justify-center gap-6">
@@ -127,23 +127,23 @@ export const ShareResultCard: React.FC<ShareResultCardProps> = ({
                 onClick={handleCopy}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all"
               >
-                {copied ? <CheckCheck size={18} className="text-emerald-400" /> : <Copy size={18} className="text-text-soft" />}
+                {copied ? <CheckCheck size={18} className="text-[#00D4B4]" /> : <Copy size={18} className="text-text-soft" />}
                 <span className="text-[9px] font-black uppercase tracking-widest text-text-soft">
                   {copied ? 'Copied!' : 'Copy'}
                 </span>
               </button>
               <button
                 onClick={handleTwitter}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-sky-400/30 hover:bg-sky-400/5 transition-all"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-sky-400/30 hover:bg-[#7B61FF]/5 transition-all"
               >
-                <svg viewBox="0 0 24 24" width="18" height="18" className="text-sky-400" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" className="text-[#7B61FF]" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                 <span className="text-[9px] font-black uppercase tracking-widest text-text-soft">Twitter</span>
               </button>
               <button
                 onClick={handleWhatsApp}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-emerald-400/30 hover:bg-emerald-400/5 transition-all"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-[#00D4B4]/30 hover:bg-[#00D4B4]/5 transition-all"
               >
-                <MessageCircle size={18} className="text-emerald-400" />
+                <MessageCircle size={18} className="text-[#00D4B4]" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-text-soft">WhatsApp</span>
               </button>
             </div>

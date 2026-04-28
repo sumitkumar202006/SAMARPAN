@@ -147,7 +147,7 @@ export default function AdminSettingsPage() {
             <div className="flex flex-wrap gap-4">
                {['Google Auth', 'Email/Password', 'Facebook Login', 'GitHub Forge'].map((prov) => (
                  <div key={prov} className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/5 text-xs font-black uppercase tracking-widest text-text-soft">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div className="w-2 h-2 rounded-full bg-[#00D4B4]" />
                     {prov}
                  </div>
                ))}
@@ -193,7 +193,7 @@ export default function AdminSettingsPage() {
                       onClick={() => setSettings({...settings, forceHttps: !settings.forceHttps})}
                       className={cn(
                         "w-12 h-6 rounded-full transition-all relative",
-                        settings.forceHttps ? "bg-emerald-500" : "bg-white/10"
+                        settings.forceHttps ? "bg-[#00D4B4]" : "bg-white/10"
                       )}
                     >
                        <div className={cn("absolute top-1 w-4 h-4 bg-white rounded-full transition-all", settings.forceHttps ? "left-7" : "left-1")} />
@@ -209,10 +209,10 @@ export default function AdminSettingsPage() {
                  <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-bold">
                        <span>Database Load</span>
-                       <span className="text-emerald-400">12%</span>
+                       <span className="text-[#00D4B4]">12%</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full w-[12%] bg-emerald-400" />
+                       <div className="h-full w-[12%] bg-[#00D4B4]" />
                     </div>
                  </div>
               </div>

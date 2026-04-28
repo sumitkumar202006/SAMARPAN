@@ -35,7 +35,7 @@ export const MobileNav = () => {
           >
             <Link
               href="/pricing"
-              className="flex items-center justify-between px-5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white"
+              className="flex items-center justify-between px-5 py-2 bg-gradient-to-r from-[#CC0000] to-violet-600 text-white"
             >
               <div className="flex items-center gap-2">
                 <Sparkles size={13} />

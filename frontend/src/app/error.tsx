@@ -14,7 +14,7 @@ export default function GlobalError({
   useEffect(() => {
     // Drop-in for Sentry/Datadog when you add it:
     // Sentry.captureException(error);
-    console.error('[Samarpan] Unhandled error:', {
+    console.error('[Qyro] Unhandled error:', {
       message: error.message,
       digest:  error.digest,
       stack:   error.stack,
@@ -83,7 +83,7 @@ export default function GlobalError({
         </div>
 
         <p className="mt-8 text-[9px] text-white/20 font-semibold uppercase tracking-[0.4em]">
-          Samarpan Arena &mdash; Unhandled Error
+          Qyro &mdash; Unhandled Error
         </p>
       </div>
     </main>

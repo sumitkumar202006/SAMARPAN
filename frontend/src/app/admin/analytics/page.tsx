@@ -123,7 +123,7 @@ export default function AnalyticsPage() {
         >
           <div className="flex justify-between items-center">
              <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
-               <Target className="text-emerald-400" size={20} />
+               <Target className="text-[#00D4B4]" size={20} />
                Accuracy Matrix
              </h3>
              <span className="text-[10px] font-black text-text-soft opacity-50 uppercase tracking-widest">Avg. Score 72%</span>
@@ -177,13 +177,13 @@ export default function AnalyticsPage() {
          </div>
 
          <div className="glass p-8 rounded-[32px] border-white/5 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+            <div className="w-12 h-12 rounded-2xl bg-[#7B61FF]/10 flex items-center justify-center text-[#7B61FF]">
                <Award size={24} />
             </div>
             <h4 className="text-xs font-black uppercase tracking-widest text-text-soft">Avg. Session Duration</h4>
             <p className="text-xl font-black tracking-tight text-white italic">14 Minutes 22 Seconds</p>
             <div className="flex items-center gap-2">
-               <span className="text-purple-400 font-black text-xs">+12% Since Last Week</span>
+               <span className="text-[#7B61FF] font-black text-xs">+12% Since Last Week</span>
             </div>
          </div>
       </div>

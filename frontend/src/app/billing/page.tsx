@@ -35,7 +35,7 @@ interface BillingStatus {
 
 const PLAN_META: Record<string, { name: string; icon: React.ElementType; color: string; glow: string; label: string }> = {
   free:        { name: 'Spark',       icon: Shield,   color: 'from-slate-500 to-slate-600',   glow: 'rgba(100,116,139,0.2)', label: 'Free'        },
-  pro:         { name: 'Blaze',       icon: Zap,      color: 'from-indigo-500 to-violet-600', glow: 'rgba(99,102,241,0.3)', label: 'Pro'         },
+  pro:         { name: 'Blaze',       icon: Zap,      color: 'from-[#CC0000] to-violet-600', glow: 'rgba(99,102,241,0.3)', label: 'Pro'         },
   elite:       { name: 'Storm',       icon: Crown,    color: 'from-amber-500 to-orange-600',  glow: 'rgba(245,158,11,0.3)', label: 'Elite'       },
   institution: { name: 'Institution', icon: Star,     color: 'from-teal-500 to-cyan-600',     glow: 'rgba(20,184,166,0.3)', label: 'Institution' },
 };
@@ -144,13 +144,13 @@ export default function BillingPage() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="glass rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-5 flex items-center gap-4"
+              className="glass rounded-3xl border border-[#00D4B4]/30 bg-[#00D4B4]/5 p-5 flex items-center gap-4"
             >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] flex-shrink-0">
                 <Check size={20} />
               </div>
               <div>
-                <p className="font-black text-emerald-400">Payment Successful!</p>
+                <p className="font-black text-[#00D4B4]">Payment Successful!</p>
                 <p className="text-sm text-text-soft">Your plan has been upgraded. All features are now unlocked.</p>
               </div>
               <button onClick={() => setSuccessMsg(false)} className="ml-auto text-text-soft hover:text-white"><XCircle size={18} /></button>
@@ -161,7 +161,7 @@ export default function BillingPage() {
         {/* Header */}
         <div>
           <h1 className="text-4xl font-black tracking-tight mb-1">Subscription</h1>
-          <p className="text-text-soft">Manage your Samarpan Arena plan and usage.</p>
+          <p className="text-text-soft">Manage your Qyro Arena plan and usage.</p>
         </div>
 
         {/* Plan card */}
@@ -184,13 +184,13 @@ export default function BillingPage() {
                 <h2 className="text-3xl font-black tracking-tight">{meta.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
                   {isTrialing && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-[9px] font-black uppercase tracking-widest">
+                    <span className="px-2 py-0.5 rounded-full bg-[#CC0000]/20 border border-[#CC0000]/30 text-[#CC0000] text-[9px] font-black uppercase tracking-widest">
                       Free Trial
                     </span>
                   )}
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                    status?.status === 'active'   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    status?.status === 'trialing' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' :
+                    status?.status === 'active'   ? 'bg-[#00D4B4]/20 text-[#00D4B4] border border-[#00D4B4]/30' :
+                    status?.status === 'trialing' ? 'bg-[#CC0000]/20 text-[#CC0000] border border-[#CC0000]/30' :
                     'bg-white/5 text-text-soft border border-white/5'
                   }`}>
                     {status?.status || 'inactive'}
@@ -211,7 +211,7 @@ export default function BillingPage() {
                 </div>
               )}
               {isTrialing && trialEnd && (
-                <div className="flex items-center gap-2 text-xs text-indigo-400">
+                <div className="flex items-center gap-2 text-xs text-[#CC0000]">
                   <Clock size={12} />
                   <span>Trial ends: <span className="font-bold">{trialEnd.toLocaleDateString()}</span></span>
                 </div>
@@ -267,7 +267,7 @@ export default function BillingPage() {
             label="AI Quiz Generations"
             used={status?.usage.aiGenerations.used ?? 0}
             limit={status?.usage.aiGenerations.limit ?? 5}
-            color="from-indigo-500 to-violet-600"
+            color="from-[#CC0000] to-violet-600"
           />
           <UsageBar
             label="PDF Uploads"

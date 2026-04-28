@@ -35,7 +35,7 @@ export const AnswerReview: React.FC<AnswerReviewProps> = ({ answers, onClose }) 
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-3 mb-8">
         {[
-          { label: 'Correct', value: correct, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', Icon: CheckCircle2 },
+          { label: 'Correct', value: correct, color: 'text-[#00D4B4]', bg: 'bg-[#00D4B4]/10 border-[#00D4B4]/20', Icon: CheckCircle2 },
           { label: 'Incorrect', value: incorrect, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', Icon: XCircle },
           { label: 'Skipped', value: skipped, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', Icon: AlertTriangle },
         ].map(({ label, value, color, bg, Icon }) => (
@@ -64,7 +64,7 @@ export const AnswerReview: React.FC<AnswerReviewProps> = ({ answers, onClose }) 
               layout
               className={cn(
                 "border rounded-2xl overflow-hidden transition-colors",
-                isCorrect ? "border-emerald-500/20 bg-emerald-500/5"
+                isCorrect ? "border-[#00D4B4]/20 bg-[#00D4B4]/5"
                   : isSkipped ? "border-amber-500/20 bg-amber-500/5"
                   : "border-red-500/20 bg-red-500/5"
               )}
@@ -76,7 +76,7 @@ export const AnswerReview: React.FC<AnswerReviewProps> = ({ answers, onClose }) 
               >
                 <div className={cn(
                   "w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-black text-[11px]",
-                  isCorrect ? "bg-emerald-500 text-black"
+                  isCorrect ? "bg-[#00D4B4] text-black"
                     : isSkipped ? "bg-amber-500 text-black"
                     : "bg-red-500 text-white"
                 )}>
@@ -107,14 +107,14 @@ export const AnswerReview: React.FC<AnswerReviewProps> = ({ answers, onClose }) 
                             key={idx}
                             className={cn(
                               "flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition-all",
-                              isCorrectOption ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                              isCorrectOption ? "border-[#00D4B4]/40 bg-[#00D4B4]/10 text-emerald-300"
                                 : isUserChoice && !isCorrectOption ? "border-red-500/40 bg-red-500/10 text-red-300"
                                 : "border-white/5 bg-white/[0.02] text-text-soft"
                             )}
                           >
                             <span className={cn(
                               "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0",
-                              isCorrectOption ? "bg-emerald-500 text-black"
+                              isCorrectOption ? "bg-[#00D4B4] text-black"
                                 : isUserChoice ? "bg-red-500 text-white"
                                 : "bg-white/5 text-text-soft"
                             )}>
@@ -125,7 +125,7 @@ export const AnswerReview: React.FC<AnswerReviewProps> = ({ answers, onClose }) 
                               <XCircle size={14} className="text-red-400 ml-auto shrink-0" />
                             )}
                             {isCorrectOption && (
-                              <CheckCircle2 size={14} className="text-emerald-400 ml-auto shrink-0" />
+                              <CheckCircle2 size={14} className="text-[#00D4B4] ml-auto shrink-0" />
                             )}
                           </div>
                         );

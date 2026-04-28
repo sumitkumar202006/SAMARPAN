@@ -14,7 +14,7 @@ export const Footer = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent to-accent-alt flex items-center justify-center p-1.5 shadow-[0_0_15px_rgba(99,102,241,0.3)]">
                <img src="/favicon.ico" alt="Samarpan Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-bold tracking-tight uppercase text-sm">Samarpan Arena</span>
+            <span className="font-bold tracking-tight uppercase text-sm">Qyro Arena</span>
           </div>
           <p className="text-[10px] text-text-soft uppercase tracking-[0.2em] font-medium opacity-60">
             © 2026 Developed for the Next Generation of Competitors.

@@ -80,7 +80,7 @@ export default function UserStatsPage() {
   const stats = [
     { title: 'Global ELO', value: profile?.globalRating || 1200, icon: Trophy, color: 'text-accent', desc: 'Baseline Rating' },
     { title: 'Total XP', value: profile?.xp || 0, icon: Zap, color: 'text-accent-alt', desc: 'Experience Accumulation' },
-    { title: 'Quizzes Run', value: profile?.quizzesCount || 0, icon: Target, color: 'text-emerald-400', desc: 'Manual & AI Forge' },
+    { title: 'Quizzes Run', value: profile?.quizzesCount || 0, icon: Target, color: 'text-[#00D4B4]', desc: 'Manual & AI Forge' },
     { title: 'Avg Accuracy', value: `${overallAccuracy}%`, icon: Crosshair, color: 'text-amber-400', desc: 'Cross-category average' },
   ];
 

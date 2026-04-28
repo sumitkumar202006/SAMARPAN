@@ -37,7 +37,7 @@ interface Tournament {
 // ─── Status config ─────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   upcoming:     { label: 'Upcoming',     color: 'text-blue-400',    bg: 'bg-blue-400/10',    dot: 'bg-blue-400'    },
-  registration: { label: 'Open',         color: 'text-emerald-400', bg: 'bg-emerald-400/10', dot: 'bg-emerald-400 animate-pulse' },
+  registration: { label: 'Open',         color: 'text-[#00D4B4]', bg: 'bg-[#00D4B4]/10', dot: 'bg-[#00D4B4] animate-pulse' },
   running:      { label: 'Live',         color: 'text-red-400',     bg: 'bg-red-400/10',     dot: 'bg-red-400 animate-pulse' },
   completed:    { label: 'Ended',        color: 'text-text-soft',   bg: 'bg-white/5',        dot: 'bg-text-soft'   },
 };
@@ -85,7 +85,7 @@ function TournamentCard({ t, onRegister, isRegistering, myPlan }: {
         t.status === 'running'
           ? 'border-red-400/30 shadow-[0_0_30px_rgba(239,68,68,0.12)]'
           : t.status === 'registration'
-          ? 'border-emerald-400/20 shadow-[0_0_20px_rgba(34,197,94,0.08)]'
+          ? 'border-[#00D4B4]/20 shadow-[0_0_20px_rgba(34,197,94,0.08)]'
           : 'border-white/5'
       )}
     >
@@ -162,7 +162,7 @@ function TournamentCard({ t, onRegister, isRegistering, myPlan }: {
               transition={{ duration: 0.8, ease: 'easeOut' }}
               className={cn(
                 'h-full rounded-full',
-                pct >= 90 ? 'bg-red-400' : pct >= 60 ? 'bg-amber-400' : 'bg-emerald-400'
+                pct >= 90 ? 'bg-red-400' : pct >= 60 ? 'bg-amber-400' : 'bg-[#00D4B4]'
               )}
             />
           </div>
@@ -312,7 +312,7 @@ export default function TournamentsPage() {
               className={cn(
                 'fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border backdrop-blur-xl text-[11px] font-black uppercase tracking-widest',
                 toast.ok
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]'
                   : 'bg-red-500/10 border-red-500/30 text-red-400'
               )}
             >
@@ -362,7 +362,7 @@ export default function TournamentsPage() {
         {/* Stats banner */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatBanner icon={Flame}   label="Live Now"    value={String(liveCount)}  color="bg-red-500/20"     />
-          <StatBanner icon={Users}   label="Open Reg"    value={String(openCount)}  color="bg-emerald-500/20" />
+          <StatBanner icon={Users}   label="Open Reg"    value={String(openCount)}  color="bg-[#00D4B4]/20" />
           <StatBanner icon={Target}  label="Total"       value={String(tournaments.length)} color="bg-accent/20" />
           <StatBanner icon={Crown}   label="Your Plan"   value={myPlan.toUpperCase()} color="bg-yellow-500/20" />
         </div>

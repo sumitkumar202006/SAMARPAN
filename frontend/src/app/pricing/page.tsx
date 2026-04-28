@@ -56,7 +56,7 @@ const PLAN_STATIC = [
     name: 'Blaze',
     label: 'Pro',
     defaultPrice: { monthly: 99, yearly: 999 },
-    color: 'from-indigo-500 to-violet-600',
+    color: 'from-[#CC0000] to-violet-600',
     glow: 'rgba(99,102,241,0.25)',
     icon: Zap,
     tag: 'MOST POPULAR',
@@ -209,7 +209,7 @@ export default function PricingPage() {
       const rzp = new window.Razorpay({
         key:             data.key,
         subscription_id: data.subscriptionId,
-        name:            'Samarpan Arena',
+        name:            'Qyro Arena',
         description:     `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan — ${billingPeriod} (Auto-pay)`,
         image:           '/icon.png',
         prefill:         data.prefill,
@@ -255,7 +255,7 @@ export default function PricingPage() {
         order_id:    data.orderId,
         amount:      100, // ₹1 in paise
         currency:    'INR',
-        name:        'Samarpan Arena',
+        name:        'Qyro Arena',
         description: `${data.trialDays}-Day Free Trial — ₹1 authorization only (₹${data.realAmount}/mo charged after trial ends)`,
         image:       '/icon.png',
         prefill:     data.prefill,
@@ -302,7 +302,7 @@ export default function PricingPage() {
           </div>
           <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-4">
             Level Up Your<br />
-            <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Samarpan Experience</span>
+            <span className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] bg-clip-text text-transparent">Qyro Experience</span>
           </h1>
           <p className="text-text-soft text-lg max-w-xl mx-auto leading-relaxed">
             Unlock AI-powered quizzes, competitive battles, and elite analytics. Cancel anytime.
@@ -319,7 +319,7 @@ export default function PricingPage() {
               className={`px-5 py-2.5 rounded-2xl text-sm font-black transition-all relative ${billingPeriod === 'yearly' ? 'bg-accent text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-text-soft hover:bg-white/10'}`}
             >
               Yearly
-              <span className="absolute -top-2.5 -right-2.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-15%</span>
+              <span className="absolute -top-2.5 -right-2.5 bg-[#00D4B4] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-15%</span>
             </button>
           </div>
         </motion.div>
@@ -368,7 +368,7 @@ export default function PricingPage() {
                     </div>
                   )}
                   {billingPeriod === 'yearly' && price > 0 && (
-                    <p className="text-emerald-400 text-xs font-bold mt-1">
+                    <p className="text-[#00D4B4] text-xs font-bold mt-1">
                       Save ₹{(plan.price.monthly * 12) - plan.price.yearly} vs monthly
                     </p>
                   )}
@@ -420,7 +420,7 @@ export default function PricingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass rounded-[40px] border border-indigo-500/20 p-10 text-center relative overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.1)]"
+          className="glass rounded-[40px] border border-[#CC0000]/20 p-10 text-center relative overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.1)]"
         >
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
 
@@ -431,7 +431,7 @@ export default function PricingPage() {
 
           <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-3">
             Try Blaze Pro Free<br />
-            <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">for 30 Days</span>
+            <span className="bg-gradient-to-r from-[#CC0000] to-[#FF4444] bg-clip-text text-transparent">for 30 Days</span>
           </h2>
           <p className="text-text-soft mb-8 max-w-md mx-auto">
             One free trial per device. Just ₹1 to authorize auto-pay — no further charge during trial.
@@ -440,7 +440,7 @@ export default function PricingPage() {
 
           <AnimatePresence mode="wait">
             {trialState === 'done' && (
-              <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 px-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-black inline-flex items-center gap-2">
+              <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 px-8 rounded-2xl bg-[#00D4B4]/10 border border-[#00D4B4]/30 text-[#00D4B4] font-black inline-flex items-center gap-2">
                 <Check size={18} /> Trial Activated — Auto-pay set for after trial! Redirecting…
               </motion.div>
             )}
@@ -460,7 +460,7 @@ export default function PricingPage() {
                 id="start-free-trial"
                 onClick={handleStartTrial}
                 disabled={trialState !== 'idle'}
-                className="px-10 py-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-black uppercase tracking-widest text-sm flex items-center gap-3 mx-auto hover:opacity-90 transition-all shadow-[0_10px_40px_rgba(99,102,241,0.4)] disabled:opacity-60"
+                className="px-10 py-5 rounded-2xl bg-gradient-to-r from-[#CC0000] to-violet-600 text-white font-black uppercase tracking-widest text-sm flex items-center gap-3 mx-auto hover:opacity-90 transition-all shadow-[0_10px_40px_rgba(99,102,241,0.4)] disabled:opacity-60"
               >
                 {trialState === 'idle'      && <><Star size={16} fill="currentColor" /> Start 30-Day Trial — Only ₹1 to Authorize</>}
                 {trialState === 'loading'   && <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Opening payment…</>}

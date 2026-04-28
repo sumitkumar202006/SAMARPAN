@@ -334,7 +334,7 @@ function LivePlayContent() {
                   </div>
                   <div className="flex items-center gap-3 px-3 py-1 bg-white/5 rounded-full border border-white/5 mt-1 scale-90 origin-right">
                     <div className="flex items-center gap-1.5" title="Correct Answers">
-                      <CheckCircle2 size={10} className="text-emerald-400" />
+                      <CheckCircle2 size={10} className="text-[#00D4B4]" />
                       <span className="text-[10px] font-bold text-white">{player.correctCount}</span>
                     </div>
                     <div className="flex items-center gap-1.5" title="Incorrect Answers">

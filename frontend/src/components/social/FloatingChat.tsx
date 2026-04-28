@@ -182,7 +182,7 @@ export const FloatingChat = () => {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
-                <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,1)]" : "bg-red-500")} />
+                <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-[#00D4B4] shadow-[0_0_5px_rgba(16,185,129,1)]" : "bg-red-500")} />
                 {/* Three-dot menu — only shown in chat view */}
                 {activeView === 'chat' && (
                   <div className="relative">
@@ -268,7 +268,7 @@ export const FloatingChat = () => {
                             {f.avatar ? <img src={f.avatar} className="w-full h-full object-cover" alt={f.name} /> : f.name.charAt(0)}
                           </div>
                           <div className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background",
-                            onlineUsers.has(f.id) ? "bg-emerald-500" : "bg-red-500/50")} />
+                            onlineUsers.has(f.id) ? "bg-[#00D4B4]" : "bg-red-500/50")} />
                         </div>
                         <div className="flex-1 overflow-hidden">
                           <p className="text-xs font-bold truncate leading-none mb-1 uppercase tracking-tighter italic">{f.name}</p>

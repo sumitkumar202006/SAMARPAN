@@ -196,13 +196,13 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
       {/* Go Premium CTA — only for free users, expanded sidebar */}
       {mounted && user && !isCollapsed && (user.plan === 'free' || !user.plan) && (
         <Link href="/pricing" onClick={() => playNavigate?.()}
-          className="mx-6 mb-4 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-violet-600/10 border border-indigo-500/20 hover:border-indigo-500/50 hover:from-indigo-500/20 hover:to-violet-600/20 transition-all group shrink-0"
+          className="mx-6 mb-4 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-gradient-to-r from-[#CC0000]/10 to-violet-600/10 border border-[#CC0000]/20 hover:border-[#CC0000]/50 hover:from-[#CC0000]/20 hover:to-violet-600/20 transition-all group shrink-0"
         >
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/30 shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#CC0000] to-violet-600 flex items-center justify-center shadow-sm shadow-red-600/30 shrink-0">
             <Zap size={13} className="text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-white uppercase tracking-widest group-hover:text-indigo-300 transition-colors">Go Premium</span>
+            <span className="text-[10px] font-black text-white uppercase tracking-widest group-hover:text-red-300 transition-colors">Go Premium</span>
             <span className="text-[9px] text-text-soft">Blaze Pro — ₹99/mo</span>
           </div>
         </Link>
@@ -317,7 +317,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
                     >
                       <div className={cn(
                         "text-[8px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider shadow-sm",
-                        item.href.includes('friendly') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-accent/10 border-accent/30 text-accent"
+                        item.href.includes('friendly') ? "bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]" : "bg-accent/10 border-accent/30 text-accent"
                       )}>
                         {item.href.includes('friendly') ? "Casual" : "Ranked"}
                       </div>
@@ -335,10 +335,10 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
         {user?.role === 'admin' && (
           <Link href="/admin" onClick={() => playNavigate?.()}>
             <div className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm group",
+              "flex items-center gap-3 px-4 py-3 rounded-xl bg-[#CC0000]/10 text-[#CC0000] border border-[#CC0000]/20 hover:bg-[#CC0000]/20 transition-all font-black text-[11.5px] uppercase tracking-widest shadow-sm group",
               mounted && isCollapsed && "px-0 justify-center w-12 h-12 mx-auto"
             )}>
-              <ShieldCheck size={mounted && isCollapsed ? 20 : 16} className={cn(mounted && isCollapsed && "text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]")} />
+              <ShieldCheck size={mounted && isCollapsed ? 20 : 16} className={cn(mounted && isCollapsed && "text-[#CC0000] drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]")} />
               {mounted && !isCollapsed && <span>Security Nexus</span>}
             </div>
           </Link>

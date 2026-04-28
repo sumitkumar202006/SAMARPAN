@@ -146,9 +146,9 @@ export default function UserManagementPage() {
                     <td className="px-8 py-6">
                        <div className={cn(
                          "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                         user.status === 'active' ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                         user.status === 'active' ? "bg-[#00D4B4]/10 text-[#00D4B4]" : "bg-red-500/10 text-red-400"
                        )}>
-                         <div className={cn("w-1.5 h-1.5 rounded-full", user.status === 'active' ? "bg-emerald-400" : "bg-red-400")} />
+                         <div className={cn("w-1.5 h-1.5 rounded-full", user.status === 'active' ? "bg-[#00D4B4]" : "bg-red-400")} />
                          {user.status}
                        </div>
                     </td>
@@ -159,7 +159,7 @@ export default function UserManagementPage() {
                             size="sm" 
                             className={cn(
                               "rounded-xl border-white/5",
-                              user.status === 'active' ? "hover:border-red-500/30 hover:text-red-400" : "hover:border-emerald-500/30 hover:text-emerald-400"
+                              user.status === 'active' ? "hover:border-red-500/30 hover:text-red-400" : "hover:border-[#00D4B4]/30 hover:text-[#00D4B4]"
                             )}
                             onClick={() => handleToggleStatus(user._id, user.status)}
                           >

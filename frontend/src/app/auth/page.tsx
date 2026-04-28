@@ -138,7 +138,7 @@ function AuthContent() {
     subtitle: isForgotPass ? 'Verify your identity to regain access.' : (isLogin ? 'Enter the arena and claim your glory.' : 'Forge your legacy and join the elite ranks.'),
     button: isForgotPass ? (resetStep === 'email' ? 'Send OTP' : resetStep === 'otp' ? 'Verify OTP' : 'Reset Password') : (isLogin ? 'Secure Entry' : 'Deploy Account'),
     glowColor: isLogin ? 'bg-accent/30' : 'bg-accent-alt/30',
-    logoGlow: isLogin ? 'from-accent to-accent-alt' : 'from-accent-alt to-emerald-400',
+    logoGlow: isLogin ? 'from-accent to-accent-alt' : 'from-accent-alt to-[#00D4B4]',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -296,7 +296,7 @@ function AuthContent() {
                     placeholder="Unique Username" 
                     className={cn(
                       "w-full bg-bg-soft/30 border rounded-2xl py-3.5 pl-12 pr-24 text-sm focus:outline-none transition-all",
-                      validation.username.status === 'available' ? "border-emerald-500/50" : 
+                      validation.username.status === 'available' ? "border-[#00D4B4]/50" : 
                       validation.username.status === 'taken' ? "border-red-500/50" : "border-white/10"
                     )}
                     value={formData.username}
@@ -314,7 +314,7 @@ function AuthContent() {
                     </button>
                   </div>
                   {validation.username.msg && (
-                    <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.username.status === 'available' ? "text-emerald-400" : "text-red-400")}>
+                    <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.username.status === 'available' ? "text-[#00D4B4]" : "text-red-400")}>
                       {validation.username.msg}
                     </p>
                   )}
@@ -376,7 +376,7 @@ function AuthContent() {
                   disabled={isForgotPass && resetStep !== 'email'}
                 />
                 {!isLogin && validation.email.msg && (
-                  <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.email.status === 'available' ? "text-emerald-400" : "text-red-400")}>
+                  <p className={cn("text-[10px] mt-1 ml-4 font-bold", validation.email.status === 'available' ? "text-[#00D4B4]" : "text-red-400")}>
                     {validation.email.msg}
                   </p>
                 )}
@@ -416,7 +416,7 @@ function AuthContent() {
                             className={cn(
                               "flex-1 rounded-full transition-all duration-500",
                               validation.passwordStrength >= i 
-                                ? (validation.passwordStrength <= 2 ? "bg-red-500" : validation.passwordStrength === 3 ? "bg-yellow-500" : "bg-emerald-500")
+                                ? (validation.passwordStrength <= 2 ? "bg-red-500" : validation.passwordStrength === 3 ? "bg-yellow-500" : "bg-[#00D4B4]")
                                 : "bg-white/10"
                             )} 
                           />
@@ -561,8 +561,8 @@ function AuthContent() {
                 </div>
 
                 <div className="flex gap-4 group">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:border-emerald-500/40 transition-all duration-500">
-                    <Zap className="text-emerald-400" size={20} />
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-[#00D4B4]/20 group-hover:border-[#00D4B4]/40 transition-all duration-500">
+                    <Zap className="text-[#00D4B4]" size={20} />
                   </div>
                   <div className="space-y-1">
                     <h4 className="font-bold text-sm">AI Forge Integration</h4>

@@ -18,8 +18,8 @@ const FRAME_CONFIG: Record<string, { gradient: string; glow: string; label: stri
   none:      { gradient: 'from-white/10 to-white/5',                    glow: '',                                    label: '',            icon: '' },
   bronze:    { gradient: 'from-amber-700 via-amber-500 to-amber-700',   glow: 'shadow-[0_0_12px_rgba(180,83,9,0.6)]', label: 'Bronze',      icon: '🥉' },
   gold:      { gradient: 'from-yellow-400 via-amber-300 to-yellow-500', glow: 'shadow-[0_0_16px_rgba(234,179,8,0.7)]',label: 'Gold',        icon: '🥇' },
-  diamond:   { gradient: 'from-cyan-400 via-blue-300 to-indigo-400',    glow: 'shadow-[0_0_20px_rgba(34,211,238,0.7)]',label: 'Diamond',    icon: '💎' },
-  champion:  { gradient: 'from-purple-500 via-pink-400 to-indigo-500',  glow: 'shadow-[0_0_24px_rgba(168,85,247,0.8)]',label: 'Champion',   icon: '👑' },
+  diamond:   { gradient: 'from-cyan-400 via-blue-300 to-[#7B61FF]',    glow: 'shadow-[0_0_20px_rgba(34,211,238,0.7)]',label: 'Diamond',    icon: '💎' },
+  champion:  { gradient: 'from-purple-500 via-pink-400 to-[#CC0000]',  glow: 'shadow-[0_0_24px_rgba(168,85,247,0.8)]',label: 'Champion',   icon: '👑' },
 };
 
 // Plan → default frame mapping (plan upgrades unlock minimum frame tier)

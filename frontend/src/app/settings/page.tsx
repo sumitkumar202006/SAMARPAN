@@ -222,7 +222,7 @@ export default function SettingsPage() {
            <div className="flex-1 w-full space-y-2">
               <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-text-soft">
                  <span>Synchronization Level</span>
-                 <span className={cn(completion === 100 ? "text-emerald-400" : "text-accent")}>{completion}%</span>
+                 <span className={cn(completion === 100 ? "text-[#00D4B4]" : "text-accent")}>{completion}%</span>
               </div>
               <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
                  <motion.div 
@@ -230,7 +230,7 @@ export default function SettingsPage() {
                    animate={{ width: `${completion}%` }}
                    className={cn(
                      "h-full rounded-full transition-all duration-1000",
-                     completion === 100 ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+                     completion === 100 ? "bg-[#00D4B4] shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-accent shadow-[0_0_10px_rgba(99,102,241,0.3)]"
                    )}
                  />
               </div>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
               <div className="overflow-hidden">
                 <p className="font-black text-base tracking-tight truncate uppercase italic">{user?.name || 'GUEST PILOT'}</p>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#00D4B4] animate-pulse" />
                   <p className="text-[9px] text-text-soft uppercase font-black tracking-widest">@{user?.username || 'nexus_pilot'}</p>
                 </div>
               </div>
@@ -470,7 +470,7 @@ export default function SettingsPage() {
         {/* Track 2: Institutional Context */}
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+            <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
             <h2 className="text-xs font-black uppercase tracking-widest text-text-soft">Institutional Logic</h2>
           </div>
 
@@ -481,7 +481,7 @@ export default function SettingsPage() {
             className="glass rounded-[32px] p-8 border-white/5 space-y-8"
           >
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-              <School className="text-emerald-400" size={18} />
+              <School className="text-[#00D4B4]" size={18} />
               <h2 className="text-[10px] font-black uppercase tracking-widest">Environment Mapping</h2>
             </div>
             
@@ -535,9 +535,9 @@ export default function SettingsPage() {
                       className={cn(
                         "flex-1 py-3 text-[10px] font-black uppercase tracking-tighter rounded-xl transition-all relative overflow-hidden",
                         formData.performanceMode === mode 
-                          ? mode === 'low' ? "bg-emerald-500 text-white shadow-lg" 
+                          ? mode === 'low' ? "bg-[#00D4B4] text-white shadow-lg" 
                             : mode === 'medium' ? "bg-accent text-white shadow-lg"
-                            : "bg-indigo-600 text-white shadow-lg"
+                            : "bg-[#CC0000] text-white shadow-lg"
                           : "text-text-soft hover:text-white"
                       )}
                     >

@@ -87,17 +87,17 @@ export function UpgradeModalProvider({ children }: { children: React.ReactNode }
               style={{ background: 'linear-gradient(145deg,#0d0d1a,#0f0f23)' }}
             >
               {/* Top glow bar */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
-              <div className="absolute top-0 inset-x-0 h-28 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-[#CC0000] to-transparent" />
+              <div className="absolute top-0 inset-x-0 h-28 bg-gradient-to-b from-[#CC0000]/10 to-transparent pointer-events-none" />
 
               {/* Header */}
               <div className="relative p-6 pb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#CC0000] to-violet-600 flex items-center justify-center shadow-lg shadow-red-600/30">
                     <Lock size={22} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-0.5">Feature Locked</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#CC0000] mb-0.5">Feature Locked</p>
                     <h2 className="text-xl font-black tracking-tight text-white">Upgrade to Unlock</h2>
                   </div>
                 </div>
@@ -126,16 +126,16 @@ export function UpgradeModalProvider({ children }: { children: React.ReactNode }
 
                 {/* Blaze Pro */}
                 <Link href="/pricing" onClick={hide}
-                  className="group block p-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all"
+                  className="group block p-4 rounded-2xl border border-[#CC0000]/30 bg-[#CC0000]/5 hover:bg-[#CC0000]/10 hover:border-[#CC0000]/50 transition-all"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#CC0000] to-violet-600 flex items-center justify-center">
                         <Zap size={14} className="text-white" />
                       </div>
                       <div>
                         <p className="text-sm font-black text-white">Blaze Pro</p>
-                        <p className="text-[9px] text-indigo-400 font-black tracking-widest uppercase">Most popular</p>
+                        <p className="text-[9px] text-[#CC0000] font-black tracking-widest uppercase">Most popular</p>
                       </div>
                     </div>
                     <p className="text-lg font-black text-white">₹99<span className="text-[10px] text-white/40 font-normal">/mo</span></p>
@@ -143,12 +143,12 @@ export function UpgradeModalProvider({ children }: { children: React.ReactNode }
                   <ul className="space-y-1 mb-2">
                     {PLAN_PERKS.pro.slice(0, 4).map(p => (
                       <li key={p} className="text-[10px] text-white/50 flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-indigo-400 inline-block shrink-0" />{p}
+                        <span className="w-1 h-1 rounded-full bg-[#CC0000] inline-block shrink-0" />{p}
                       </li>
                     ))}
                   </ul>
                   <div className="flex items-center justify-end">
-                    <ArrowRight size={14} className="text-indigo-400 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight size={14} className="text-[#CC0000] group-hover:translate-x-1 transition-transform" />
                   </div>
                 </Link>
 
@@ -172,7 +172,7 @@ export function UpgradeModalProvider({ children }: { children: React.ReactNode }
               {/* Main CTA */}
               <div className="px-6 pb-6 space-y-2">
                 <Link href="/pricing" onClick={hide}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-sm font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-indigo-500/30"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#CC0000] to-violet-600 text-white text-sm font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-red-600/30"
                 >
                   <Zap size={15} /> See All Plans
                 </Link>

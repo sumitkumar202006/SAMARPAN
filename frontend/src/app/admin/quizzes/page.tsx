@@ -131,11 +131,11 @@ export default function QuizVaultPage() {
                   className={cn(
                     "w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center justify-center gap-2",
                     quiz.isPublished 
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20" 
+                      ? "bg-[#00D4B4]/10 border-[#00D4B4]/20 text-[#00D4B4] hover:bg-[#00D4B4]/20" 
                       : "bg-white/5 border-white/5 text-text-soft hover:bg-white/10"
                   )}
                  >
-                    <div className={cn("w-2 h-2 rounded-full", quiz.isPublished ? "bg-emerald-400 animate-pulse" : "bg-text-soft")} />
+                    <div className={cn("w-2 h-2 rounded-full", quiz.isPublished ? "bg-[#00D4B4] animate-pulse" : "bg-text-soft")} />
                     {quiz.isPublished ? 'Live in Arena' : 'Vaulted / Private'}
                  </button>
               </div>
@@ -156,7 +156,7 @@ export default function QuizVaultPage() {
                       {quiz.playCount || 0} Runs
                    </div>
                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] font-bold text-text-soft">
-                      <MessageCircle size={12} className="text-emerald-400" />
+                      <MessageCircle size={12} className="text-[#00D4B4]" />
                       {quiz.questions.length} Items
                    </div>
                 </div>

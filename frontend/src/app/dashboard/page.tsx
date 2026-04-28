@@ -107,7 +107,7 @@ export default function DashboardPage() {
 
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 backdrop-blur-xl text-[11px] font-black uppercase tracking-widest transition-all">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[500] px-5 py-3 rounded-2xl border bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4] backdrop-blur-xl text-[11px] font-black uppercase tracking-widest transition-all">
           {toastMsg}
         </div>
       )}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
               <div className="relative z-10 space-y-8">
                 <div className="flex items-center justify-between">
                  <p className="text-[10px] font-black uppercase tracking-widest text-text-soft italic">Profile</p>
-                   <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase">
+                   <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-[#00D4B4]/10 border border-[#00D4B4]/20 text-[#00D4B4] text-[8px] font-black uppercase">
                       Operational
                    </div>
                 </div>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
         {/* Track 2: Combat Record & History */}
         <div className="space-y-8 lg:mt-0">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+            <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
             <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Match History</h2>
           </div>
 

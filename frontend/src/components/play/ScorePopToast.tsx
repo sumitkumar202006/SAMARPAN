@@ -30,7 +30,7 @@ export const ScorePopToast: React.FC<ScorePopToastProps> = ({ popKey, points, cl
           'pointer-events-none select-none',
           'absolute left-1/2 -translate-x-1/2 -top-4 z-50',
           'font-black text-2xl tracking-tight',
-          'text-emerald-400 drop-shadow-[0_0_12px_rgba(34,197,94,0.8)]',
+          'text-[#00D4B4] drop-shadow-[0_0_12px_rgba(34,197,94,0.8)]',
           className
         )}
         aria-hidden
@@ -57,7 +57,7 @@ export const AnswerFlash: React.FC<{ flashKey: number; isCorrect: boolean }> = (
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className={cn(
         'fixed inset-0 pointer-events-none z-[300]',
-        isCorrect ? 'bg-emerald-500' : 'bg-red-500'
+        isCorrect ? 'bg-[#00D4B4]' : 'bg-red-500'
       )}
       aria-hidden
     />

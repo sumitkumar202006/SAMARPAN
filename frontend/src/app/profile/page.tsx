@@ -50,7 +50,7 @@ const AVATAR_STUFF = [
 const getRankInfo = (rating: number) => {
   if (rating >= 5000) return { label: 'Apex Predator', color: 'text-[#ff4b50]', icon: ShieldAlert, bg: 'bg-[#ff4b50]/10' };
   if (rating >= 3500) return { label: 'Master', color: 'text-[#ea580c]', icon: Trophy, bg: 'bg-orange-500/10' };
-  if (rating >= 2500) return { label: 'Diamond', color: 'text-[#0ea5e9]', icon: Award, bg: 'bg-sky-500/10' };
+  if (rating >= 2500) return { label: 'Diamond', color: 'text-[#0ea5e9]', icon: Award, bg: 'bg-[#7B61FF]/10' };
   if (rating >= 2000) return { label: 'Gold', color: 'text-[#f59e0b]', icon: ZapIcon, bg: 'bg-amber-500/10' };
   if (rating >= 1500) return { label: 'Silver', color: 'text-[#94a3b8]', icon: Activity, bg: 'bg-slate-400/10' };
   return { label: 'Iron', color: 'text-[#78350f]', icon: Target, bg: 'bg-orange-900/10' };
@@ -234,7 +234,7 @@ export default function ProfilePage() {
         {/* Track 2: Combat Statistics */}
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+            <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
             <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Combat Analytics</h2>
           </div>
 
@@ -327,7 +327,7 @@ export default function ProfilePage() {
                 {[
                   { icon: BrainCircuit, unlocked: (stats?.xp || 0) > 1000, color: 'text-blue-400', tip: 'Strategist: 1k+ XP' },
                   { icon: Flame, unlocked: history.length >= 5, color: 'text-orange-500', tip: 'Streak: 5+ Matches' },
-                  { icon: ShieldAlert, unlocked: (stats?.globalRating || 1200) >= 2000, color: 'text-purple-400', tip: 'Tank: 2k+ Rating' },
+                  { icon: ShieldAlert, unlocked: (stats?.globalRating || 1200) >= 2000, color: 'text-[#7B61FF]', tip: 'Tank: 2k+ Rating' },
                   { icon: Sword, unlocked: (stats?.quizzesCount || 0) >= 1, color: 'text-red-500', tip: 'Warlord: Hosted 1+ Match' }
                 ].map((badge, i) => (
                    <motion.div 
@@ -365,7 +365,7 @@ export default function ProfilePage() {
                          <span className="text-white">{winPct}% ({wins}W/{losses}L)</span>
                        </div>
                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${winPct}%` }} />
+                         <div className="h-full bg-[#00D4B4] rounded-full transition-all" style={{ width: `${winPct}%` }} />
                        </div>
                        <div className="flex justify-between items-center text-[9px] font-black uppercase">
                          <span className="text-text-soft">Best Streak</span>

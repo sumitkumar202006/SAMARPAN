@@ -376,7 +376,7 @@ export default function FriendsPage() {
                     {/* Status Dot */}
                     <div className={cn(
                       "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-background shadow-sm",
-                      onlineUsers.has(f.id) ? "bg-emerald-500 animate-pulse" : "bg-red-500/50"
+                      onlineUsers.has(f.id) ? "bg-[#00D4B4] animate-pulse" : "bg-red-500/50"
                     )} />
                   </div>
                   <div className="flex-1 overflow-hidden">
@@ -430,7 +430,7 @@ export default function FriendsPage() {
                 <div>
                   <h2 className="text-xs lg:text-sm font-black leading-none mb-1 uppercase italic tracking-tighter text-white">{selectedFriend.name}</h2>
                   <div className="flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", onlineUsers.has(selectedFriend.id) ? "bg-emerald-500" : "bg-red-500/50")} />
+                    <div className={cn("w-2 h-2 rounded-full", onlineUsers.has(selectedFriend.id) ? "bg-[#00D4B4]" : "bg-red-500/50")} />
                     <span className="text-[9px] lg:text-[10px] text-text-soft uppercase font-black">{onlineUsers.has(selectedFriend.id) ? 'Neural Link Active' : 'Link Offline'}</span>
                   </div>
                 </div>

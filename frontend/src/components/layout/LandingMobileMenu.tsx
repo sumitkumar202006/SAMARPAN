@@ -49,10 +49,10 @@ export function LandingMobileMenu() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
               <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#CC0000] to-[#00D4B4] flex items-center justify-center">
                   <Zap size={13} fill="white" className="text-white" />
                 </div>
-                <span className="font-black text-base tracking-tight uppercase italic">Samarpan</span>
+                <span className="font-black text-base tracking-tight uppercase italic">Qyro</span>
               </Link>
               <button
                 onClick={() => setOpen(false)}
@@ -72,7 +72,7 @@ export function LandingMobileMenu() {
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-semibold text-sm group"
                 >
-                  <Icon size={16} className="text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                  <Icon size={16} className="text-[#CC0000] group-hover:text-red-300 transition-colors" />
                   {label}
                 </Link>
               ))}
@@ -90,7 +90,7 @@ export function LandingMobileMenu() {
               <Link
                 href="/auth?mode=signup"
                 onClick={() => setOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:opacity-95 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-[#CC0000] to-[#CC0000] text-white font-black text-sm shadow-lg shadow-red-600/25 hover:opacity-95 transition-all"
               >
                 Get Started Free <ArrowRight size={14} />
               </Link>

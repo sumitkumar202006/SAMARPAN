@@ -100,7 +100,7 @@ export const DynamicBackground = () => {
 
       <motion.div
         style={{ x: smallXTransform, y: halfSecondaryY }}
-        className="hidden sm:block absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-indigo-500/10 blur-[90px]"
+        className="hidden sm:block absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#CC0000]/10 blur-[90px]"
         animate={{
           scale: [1, 1.3, 1],
           opacity: [0.05, 0.15, 0.05],

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Refund Policy | Samarpan Arena',
-  description: 'Refund and cancellation policy for Samarpan Arena subscriptions.',
+  title: 'Refund Policy | Qyro Arena',
+  description: 'Refund and cancellation policy for Qyro Arena subscriptions.',
   alternates: { canonical: 'https://samarpan-quiz.vercel.app/refund' },
 };
 
@@ -14,7 +14,7 @@ export default function RefundPage() {
     <div className="min-h-screen bg-[#020617] text-white">
       <div className="max-w-3xl mx-auto px-6 py-20">
         <div className="mb-12">
-          <Link href="/" className="text-xs text-indigo-400 hover:text-indigo-300 uppercase tracking-widest font-black mb-6 block">← Back to Home</Link>
+          <Link href="/" className="text-xs text-[#CC0000] hover:text-red-300 uppercase tracking-widest font-black mb-6 block">← Back to Home</Link>
           <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-4">Refund Policy</h1>
           <p className="text-white/40 text-sm">Effective Date: <strong className="text-white/60">{EFFECTIVE_DATE}</strong></p>
         </div>
@@ -22,8 +22,8 @@ export default function RefundPage() {
         <div className="space-y-10 text-white/70 leading-relaxed">
 
           {/* Summary card */}
-          <div className="p-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-sm">
-            <p className="font-black text-indigo-300 mb-2">Quick Summary</p>
+          <div className="p-6 rounded-2xl bg-[#CC0000]/10 border border-[#CC0000]/20 text-sm">
+            <p className="font-black text-red-300 mb-2">Quick Summary</p>
             <ul className="space-y-1 text-white/70">
               <li>✓ Cancel anytime — no lock-in</li>
               <li>✓ Access continues until period end after cancellation</li>
@@ -34,7 +34,7 @@ export default function RefundPage() {
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">1. Subscription Cancellation</h2>
-            <p>You may cancel your Samarpan Arena subscription at any time from your <Link href="/billing" className="text-indigo-400 hover:text-indigo-300 underline">Billing page</Link>. Upon cancellation:</p>
+            <p>You may cancel your Qyro Arena subscription at any time from your <Link href="/billing" className="text-[#CC0000] hover:text-red-300 underline">Billing page</Link>. Upon cancellation:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>Your paid plan features remain active until the end of the current billing period.</li>
               <li>No further charges will be made after cancellation.</li>
@@ -61,7 +61,7 @@ export default function RefundPage() {
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">4. How to Request a Refund</h2>
-            <p>Email us at <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-indigo-400 hover:text-indigo-300 underline">samarpan.quiz.auth@gmail.com</a> with:</p>
+            <p>Email us at <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-[#CC0000] hover:text-red-300 underline">samarpan.quiz.auth@gmail.com</a> with:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>Your registered email address</li>
               <li>Razorpay payment ID (found in your email receipt)</li>
@@ -72,12 +72,12 @@ export default function RefundPage() {
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">5. Institution Plan</h2>
-            <p>The Institution plan (₹4,999/month) is governed by a separate agreement. Refund terms for institution plans are negotiated during onboarding. Contact us at <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-indigo-400 hover:text-indigo-300 underline">samarpan.quiz.auth@gmail.com</a> for institution billing queries.</p>
+            <p>The Institution plan (₹4,999/month) is governed by a separate agreement. Refund terms for institution plans are negotiated during onboarding. Contact us at <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-[#CC0000] hover:text-red-300 underline">samarpan.quiz.auth@gmail.com</a> for institution billing queries.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">6. Contact</h2>
-            <p>Refund and billing support: <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-indigo-400 hover:text-indigo-300 underline">samarpan.quiz.auth@gmail.com</a></p>
+            <p>Refund and billing support: <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-[#CC0000] hover:text-red-300 underline">samarpan.quiz.auth@gmail.com</a></p>
           </section>
 
           <div className="border-t border-white/10 pt-8 flex flex-wrap gap-4 text-xs text-white/30">

@@ -511,7 +511,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
                 <div className={cn(
                   "p-4 rounded-2xl border flex items-center justify-between transition-all cursor-pointer",
                   revealAnswers
-                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    ? "bg-[#00D4B4]/10 border-[#00D4B4]/30"
                     : "bg-white/5 border-white/5 hover:border-white/10"
                 )} onClick={() => {
                   const next = !revealAnswers;
@@ -521,14 +521,14 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
                 }}>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black uppercase text-text-soft">Reveal Answers</span>
-                    <span className={cn("font-bold text-sm", revealAnswers ? "text-emerald-400" : "text-text-soft")}>
+                    <span className={cn("font-bold text-sm", revealAnswers ? "text-[#00D4B4]" : "text-text-soft")}>
                       {revealAnswers ? 'After Each Question' : 'End of Quiz Only'}
                     </span>
                   </div>
                   {/* Toggle pill */}
                   <div className={cn(
                     "w-12 h-6 rounded-full transition-all relative flex items-center",
-                    revealAnswers ? "bg-emerald-500" : "bg-white/10"
+                    revealAnswers ? "bg-[#00D4B4]" : "bg-white/10"
                   )}>
                     <motion.div
                       animate={{ x: revealAnswers ? 24 : 2 }}
@@ -596,7 +596,7 @@ export const HostNexus: React.FC<HostNexusProps> = ({ quiz, socket, pin, user })
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass p-6 rounded-[32px] border-emerald-500/30 bg-emerald-500/5 text-center"
+              className="glass p-6 rounded-[32px] border-[#00D4B4]/30 bg-[#00D4B4]/5 text-center"
             >
               <Medal className="mx-auto text-yellow-400 mb-3" size={32} />
               <p className="font-black text-base uppercase tracking-widest text-white">Arena Complete</p>

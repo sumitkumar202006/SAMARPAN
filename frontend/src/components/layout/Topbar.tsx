@@ -277,7 +277,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                           </div>
                         </div>
                         {u.status === 'accepted' ? (
-                          <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-black uppercase tracking-widest px-2">
+                          <div className="flex items-center gap-1 text-[#00D4B4] text-[10px] font-black uppercase tracking-widest px-2">
                              <CheckCircle2 size={12} /> Allies
                           </div>
                         ) : u.status === 'pending' ? (
@@ -288,7 +288,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                           ) : (
                             <button 
                               onClick={() => handleAcceptRequest(u.id)}
-                              className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-emerald-500/20"
+                              className="flex items-center gap-1 bg-[#00D4B4]/10 text-[#00D4B4] hover:bg-[#00D4B4] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[#00D4B4]/20"
                             >
                                <CheckCircle2 size={12} /> Add Back
                             </button>
@@ -372,7 +372,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                               </div>
                               {/* Actions copy-pasted from desktop search for consistency */}
                               {u.status === 'accepted' ? (
-                                <CheckCircle2 size={16} className="text-emerald-500 mr-2" />
+                                <CheckCircle2 size={16} className="text-[#00D4B4] mr-2" />
                               ) : u.status === 'pending' ? (
                                 <UserCheck size={16} className="text-accent mr-2" />
                               ) : (
@@ -459,7 +459,7 @@ export const Topbar = ({ onOpenMobileMenu, isMatchOrLobby = false }: { onOpenMob
                 <div className="hidden md:flex flex-col items-start leading-none gap-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black tracking-tight">{user?.name || 'Guest User'}</span>
-                    {profileCompletion === 100 && <Shield size={10} className="text-emerald-400 fill-emerald-400/20" />}
+                    {profileCompletion === 100 && <Shield size={10} className="text-[#00D4B4] fill-emerald-400/20" />}
                   </div>
                   <PlanBadge plan={user?.plan || 'free'} size="xs" />
                 </div>

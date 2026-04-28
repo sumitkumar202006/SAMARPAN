@@ -59,7 +59,7 @@ export const QuizCard: React.FC<QuizCardProps> = ({
         </h4>
         <div className="flex items-center gap-1 shrink-0">
           {isPublished && (
-            <span className="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-[#00D4B4]/10 text-[#00D4B4] border border-[#00D4B4]/20">
               Listed
             </span>
           )}

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Samarpan Arena',
-  description: 'Privacy Policy for Samarpan Arena — what data we collect and how we use it.',
+  title: 'Privacy Policy | Qyro Arena',
+  description: 'Privacy Policy for Qyro Arena — what data we collect and how we use it.',
   alternates: { canonical: 'https://samarpan-quiz.vercel.app/privacy' },
 };
 
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-[#020617] text-white">
       <div className="max-w-3xl mx-auto px-6 py-20">
         <div className="mb-12">
-          <Link href="/" className="text-xs text-indigo-400 hover:text-indigo-300 uppercase tracking-widest font-black mb-6 block">← Back to Home</Link>
+          <Link href="/" className="text-xs text-[#CC0000] hover:text-red-300 uppercase tracking-widest font-black mb-6 block">← Back to Home</Link>
           <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-4">Privacy Policy</h1>
           <p className="text-white/40 text-sm">Effective Date: <strong className="text-white/60">{EFFECTIVE_DATE}</strong></p>
         </div>
@@ -66,13 +66,13 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">6. Children&apos;s Privacy</h2>
-            <p>Samarpan Arena is not directed at children under 13. If you are under 13, please do not create an account or submit personal information. If we discover a user is under 13, we will delete their account.</p>
+            <p>Qyro Arena is not directed at children under 13. If you are under 13, please do not create an account or submit personal information. If we discover a user is under 13, we will delete their account.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">7. Your Rights</h2>
             <p>You have the right to access, correct, or delete your personal data. To exercise these rights, contact us at{' '}
-              <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-indigo-400 hover:text-indigo-300 underline">
+              <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-[#CC0000] hover:text-red-300 underline">
                 samarpan.quiz.auth@gmail.com
               </a>.
             </p>
@@ -85,8 +85,8 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-black text-white mb-3">9. Contact</h2>
-            <p>For privacy questions, contact: <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-indigo-400 hover:text-indigo-300 underline">samarpan.quiz.auth@gmail.com</a></p>
-            <p className="mt-1 text-sm">Samarpan Arena, Kanpur, Uttar Pradesh, India</p>
+            <p>For privacy questions, contact: <a href="mailto:samarpan.quiz.auth@gmail.com" className="text-[#CC0000] hover:text-red-300 underline">samarpan.quiz.auth@gmail.com</a></p>
+            <p className="mt-1 text-sm">Qyro Arena, Kanpur, Uttar Pradesh, India</p>
           </section>
 
           <div className="border-t border-white/10 pt-8 flex flex-wrap gap-4 text-xs text-white/30">

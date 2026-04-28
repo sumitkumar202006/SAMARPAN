@@ -56,7 +56,7 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose })
             {/* Header */}
             <div className="p-6 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
               <div className="flex flex-col">
-                <span className="text-sm font-black uppercase tracking-widest italic text-white leading-none">Samarpan</span>
+                <span className="text-sm font-black uppercase tracking-widest italic text-white leading-none">Qyro</span>
                 <span className="text-[7px] font-bold text-accent tracking-[0.3em] uppercase opacity-60 mt-1">Nexus Protocol</span>
               </div>
               <button 
@@ -120,7 +120,7 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose })
                 <Link 
                   href="/admin" 
                   onClick={onClose}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#CC0000]/10 text-[#CC0000] border border-[#CC0000]/20 text-[10px] font-black uppercase tracking-widest"
                 >
                   <ShieldCheck size={16} />
                   <span>Security</span>

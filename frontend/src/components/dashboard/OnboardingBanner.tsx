@@ -11,8 +11,8 @@ const STORAGE_KEY = 'samarpan_onboarding_dismissed';
 const STEPS = [
   {
     icon: Zap,
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-500/10',
+    color: 'text-red-400',
+    bg: 'bg-red-500/10',
     title: 'Create Your First Quiz',
     desc: 'Generate 10 AI questions on any topic in under 2 seconds.',
     href: '/create',
@@ -20,8 +20,8 @@ const STEPS = [
   },
   {
     icon: Users,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    color: 'text-[#00D4B4]',
+    bg: 'bg-[#00D4B4]/10',
     title: 'Host a Live Battle',
     desc: 'Share a 6-digit PIN — players can join without an account.',
     href: '/host',
@@ -38,8 +38,8 @@ const STEPS = [
   },
   {
     icon: BookOpen,
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/10',
+    color: 'text-[#7B61FF]',
+    bg: 'bg-[#7B61FF]/10',
     title: 'Browse the Marketplace',
     desc: 'Explore community-made quizzes across every subject.',
     href: '/marketplace',
@@ -81,16 +81,16 @@ export function OnboardingBanner() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.3 }}
-          className="glass rounded-[32px] border border-indigo-500/20 p-6 relative overflow-hidden"
+          className="glass rounded-[32px] border border-red-500/20 p-6 relative overflow-hidden"
         >
           {/* Ambient glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[150px] bg-indigo-500/5 blur-[60px] rounded-full pointer-events-none" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[150px] bg-red-500/5 blur-[60px] rounded-full pointer-events-none" />
 
           <div className="relative z-10">
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-0.5">
                   Getting Started
                 </p>
                 <h2 className="text-lg font-black tracking-tight">
@@ -98,7 +98,7 @@ export function OnboardingBanner() {
                 </h2>
                 {!allDone && (
                   <p className="text-xs text-text-soft mt-0.5">
-                    Complete these steps to get the most out of Samarpan Arena.
+                    Complete these steps to get the most out of Qyro Arena.
                   </p>
                 )}
               </div>
@@ -117,7 +117,7 @@ export function OnboardingBanner() {
                 <span className="text-[10px] text-text-soft font-black uppercase tracking-widest">
                   Progress
                 </span>
-                <span className="text-[10px] font-black text-indigo-400">
+                <span className="text-[10px] font-black text-[#FFB800]">
                   {completed.length}/{STEPS.length} complete
                 </span>
               </div>
@@ -126,7 +126,7 @@ export function OnboardingBanner() {
                   initial={{ width: 0 }}
                   animate={{ width: `${(completed.length / STEPS.length) * 100}%` }}
                   transition={{ duration: 0.6, ease: 'easeOut' }}
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500"
+                  className="h-full rounded-full bg-gradient-to-r from-[#CC0000] to-[#FF2222]"
                 />
               </div>
             </div>
@@ -141,13 +141,13 @@ export function OnboardingBanner() {
                     key={i}
                     className={`relative p-4 rounded-2xl border transition-all ${
                       isDone
-                        ? 'bg-emerald-500/5 border-emerald-500/20 opacity-60'
+                        ? 'bg-red-500/5 border-red-500/20 opacity-60'
                         : 'bg-white/[0.02] border-white/5 hover:border-white/10'
                     }`}
                   >
                     {isDone && (
-                      <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Check size={10} className="text-emerald-400" />
+                      <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#CC0000] flex items-center justify-center">
+                        <Check size={10} className="text-white" />
                       </div>
                     )}
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${step.bg}`}>
@@ -158,7 +158,7 @@ export function OnboardingBanner() {
                     {!isDone && (
                       <Link
                         href={step.href}
-                        className="inline-flex items-center text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors"
+                        className="inline-flex items-center text-[10px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors"
                       >
                         {step.cta} →
                       </Link>
@@ -172,9 +172,9 @@ export function OnboardingBanner() {
               <div className="mt-4 text-center">
                 <button
                   onClick={handleDismiss}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-[#CC0000]/10 border border-[#CC0000]/30 text-red-400 text-xs font-black uppercase tracking-widest hover:bg-[#CC0000] hover:text-white transition-all"
                 >
-                  Dismiss — I'm ready to compete 🚀
+                  Dismiss — I'm ready to dominate 🚀
                 </button>
               </div>
             )}

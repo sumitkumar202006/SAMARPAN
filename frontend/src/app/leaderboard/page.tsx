@@ -127,7 +127,7 @@ export default function LeaderboardPage() {
 
         <div className="flex flex-col gap-1 px-2">
           <h1 className="text-3xl lg:text-4xl font-black tracking-tight uppercase italic">Global Rankings</h1>
-          <p className="text-text-soft text-xs lg:text-sm">Real-time neural standings of elite pilots in the Samarpan Arena.</p>
+          <p className="text-text-soft text-xs lg:text-sm">Real-time neural standings of elite pilots in the Qyro Arena.</p>
         </div>
 
         {/* My Standing Banner */}
@@ -203,7 +203,7 @@ export default function LeaderboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-2">
               <div className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px]">2</div>
+                <div className="w-5 h-5 rounded-full bg-[#00D4B4]/20 flex items-center justify-center text-[#00D4B4] text-[10px]">2</div>
                 <h2 className="text-xs font-black uppercase tracking-widest text-text-soft italic">Hall of Fame</h2>
               </div>
               <div className="flex gap-2 ml-auto">

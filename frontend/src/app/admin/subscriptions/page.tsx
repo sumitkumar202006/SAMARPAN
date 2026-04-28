@@ -15,14 +15,14 @@ import { usePathname } from 'next/navigation';
 // ── Meta ──────────────────────────────────────────────────────────────────────
 const PLAN_META: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   free:        { label: 'Spark (Free)', color: 'text-slate-400',  bg: 'bg-slate-500/10 border-slate-500/20',  icon: Shield   },
-  pro:         { label: 'Blaze Pro',    color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20', icon: Zap      },
+  pro:         { label: 'Blaze Pro',    color: 'text-[#CC0000]', bg: 'bg-[#CC0000]/10 border-[#CC0000]/20', icon: Zap      },
   elite:       { label: 'Storm Elite',  color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20',  icon: Crown    },
   institution: { label: 'Institution',  color: 'text-teal-400',   bg: 'bg-teal-500/10 border-teal-500/20',    icon: Building2 },
 };
 
 const STATUS_META: Record<string, string> = {
-  active:    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  trialing:  'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+  active:    'bg-[#00D4B4]/10 text-[#00D4B4] border-[#00D4B4]/20',
+  trialing:  'bg-[#CC0000]/10 text-[#CC0000] border-[#CC0000]/20',
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
   past_due:  'bg-amber-500/10 text-amber-400 border-amber-500/20',
 };
@@ -59,7 +59,7 @@ function Toast({ msg, type, onClose }: { msg: string; type: 'success' | 'error';
       className={cn(
         'fixed top-6 right-6 z-[200] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-md',
         type === 'success'
-          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+          ? 'bg-[#00D4B4]/10 border-[#00D4B4]/30 text-[#00D4B4]'
           : 'bg-red-500/10 border-red-500/30 text-red-400'
       )}
     >
@@ -217,8 +217,8 @@ export default function AdminSubscriptionsPage() {
       {metrics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Est. MRR',      value: `₹${metrics.estimatedMRR.toLocaleString()}`, icon: IndianRupee, color: 'from-emerald-500 to-teal-600' },
-            { label: 'Active Subs',   value: metrics.activeSubs,                          icon: Check,       color: 'from-indigo-500 to-violet-600' },
+            { label: 'Est. MRR',      value: `₹${metrics.estimatedMRR.toLocaleString()}`, icon: IndianRupee, color: 'from-[#00D4B4] to-teal-600' },
+            { label: 'Active Subs',   value: metrics.activeSubs,                          icon: Check,       color: 'from-[#CC0000] to-violet-600' },
             { label: 'Active Trials', value: metrics.trialSubs,                           icon: Clock,       color: 'from-amber-500 to-orange-600'  },
             { label: 'Total Signups', value: metrics.totalSubs,                           icon: Users,       color: 'from-pink-500 to-rose-600'     },
           ].map((m, i) => (
@@ -244,7 +244,7 @@ export default function AdminSubscriptionsPage() {
           </p>
           <div className="flex gap-6 flex-wrap">
             {[
-              { label: 'Blaze Pro',   count: metrics.breakdown.pro,         color: 'bg-indigo-500' },
+              { label: 'Blaze Pro',   count: metrics.breakdown.pro,         color: 'bg-[#CC0000]' },
               { label: 'Storm Elite', count: metrics.breakdown.elite,       color: 'bg-amber-500'  },
               { label: 'Institution', count: metrics.breakdown.institution, color: 'bg-teal-500'   },
             ].map(b => (

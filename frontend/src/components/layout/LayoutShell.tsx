@@ -8,7 +8,6 @@ import { MobileNav } from "@/components/layout/MobileNav";
 import { Footer } from "@/components/layout/Footer";
 import { DynamicBackground } from "@/components/ui/DynamicBackground";
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { useAuth } from '@/context/AuthContext';
@@ -17,7 +16,6 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const pathname = usePathname();
-  const [showFooter, setShowFooter] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -123,45 +121,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
               </Suspense>
             </div>
 
-            {!isMatchOrLobby && (
-              <div className="flex flex-col items-center py-8">
-                 <button 
-                  onClick={() => setShowFooter(!showFooter)}
-                  className="group flex flex-col items-center gap-2 transition-all hover:scale-105"
-                 >
-                   <div className="w-10 h-1 h-px bg-white/10 rounded-full overflow-hidden group-hover:bg-accent/30 transition-colors" />
-                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-text-soft group-hover:text-accent group-hover:tracking-[0.4em] transition-all">
-                      {showFooter ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                      <span>{showFooter ? "REVEAL LESS" : "EXPLORE MORE"}</span>
-                   </div>
-                 </button>
-              </div>
-            )}
-
             {!isMatchOrLobby && !isAdminPath && (
-              <AnimatePresence>
-                {showFooter && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="mt-auto"
-                  >
-                    <Footer />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            )}
-
-            {/* Footer Toggle */}
-            {!isMatchOrLobby && !isAdminPath && (
-              <button 
-                onClick={() => setShowFooter(!showFooter)}
-                className="fixed bottom-6 right-6 z-50 p-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all backdrop-blur-xl group"
-                title={showFooter ? "Hide Footer" : "Show Footer"}
-              >
-                {showFooter ? <ChevronDown size={18} /> : <MoreHorizontal size={18} className="group-hover:scale-110" />}
-              </button>
+              <Footer />
             )}
           </main>
           

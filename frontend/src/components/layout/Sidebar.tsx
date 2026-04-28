@@ -14,7 +14,6 @@ import {
   Compass, 
   MessageSquare, 
   Info,
-  LogOut,
   ShieldCheck,
   Disc,
   CreditCard,
@@ -50,7 +49,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isFriendly = searchParams.get('friendly') === 'true';
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { playNavigate, playHover, playToggle } = useAudio();
   const [mounted, setMounted] = React.useState(false);
 
@@ -344,26 +343,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: { isCollapsed?: boole
           </Link>
         )}
         
-        {user && (
-          <button
-            onClick={() => {
-              try { playNavigate?.(); } catch(e) {}
-              try { logout(); } catch(e) { console.error("Logout failed", e); }
-            }}
-            className={cn(
-              "group flex items-center gap-4 px-4 py-3 rounded-xl bg-red-500/5 text-red-400/60 border border-red-500/10 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30 transition-all font-black text-[11.5px] uppercase tracking-[0.2em] shadow-sm",
-              isCollapsed && "px-0 justify-center w-12 h-12 mx-auto"
-            )}
-          >
-            <div className={cn(
-              "p-2 rounded-lg bg-red-500/5 group-hover:bg-red-500/10 transition-colors",
-              mounted && isCollapsed && "p-0 bg-transparent"
-            )}>
-              <LogOut size={mounted && isCollapsed ? 20 : 18} />
-            </div>
-            {mounted && !isCollapsed && <span>Terminate Session</span>}
-          </button>
-        )}
+
       </div>
 
       {/* Footer Meta */}
